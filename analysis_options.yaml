@@ -1,0 +1,21 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    - avoid_print
+    - prefer_const_constructors
+    - prefer_const_declarations
+    - prefer_final_fields
+    - use_key_in_widget_constructors
+    - unnecessary_const
+    - avoid_unnecessary_containers
+    - sized_box_for_whitespace
+    - use_full_hex_values_for_flutter_colors
+    - sort_child_properties_last
+
+analyzer:
+  exclude:
+    - '**/*.g.dart'
+    - '**/*.freezed.dart'
+  errors:
+    invalid_annotation_target: ignore

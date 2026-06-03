@@ -1,0 +1,287 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:unisafex/core/router/app_router.dart';
+import 'package:unisafex/core/theme/app_theme.dart';
+import 'package:unisafex/core/widgets/app_button.dart';
+import 'package:unisafex/features/auth/presentation/providers/auth_provider.dart';
+
+class LoginScreen extends ConsumerStatefulWidget {
+  const LoginScreen({super.key});
+
+  @override
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends ConsumerState<LoginScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _obscurePassword = true;
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _login() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      await ref.read(authNotifierProvider.notifier).signIn(
+            email: _emailController.text.trim(),
+            password: _passwordController.text,
+          );
+      if (mounted) context.go(AppRoutes.home);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_rounded),
+          onPressed: () => context.pop(),
+        ),
+        title: const Text('Sign In'),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 16),
+
+              Text(
+                'Welcome back',
+                style: Theme.of(context).textTheme.headlineLarge,
+              ).animate().fadeIn(duration: 400.ms),
+
+              const SizedBox(height: 8),
+
+              Text(
+                'Sign in to continue your Indian adventure',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: isDark ? AppColors.grey400 : AppColors.grey600,
+                    ),
+              ).animate().fadeIn(duration: 400.ms, delay: 100.ms),
+
+              const SizedBox(height: 40),
+
+              // Email
+              _buildLabel('Email address'),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                autocorrect: false,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  hintText: 'your@email.com',
+                  prefixIcon: Icon(Icons.email_outlined, size: 20),
+                ),
+                validator: (v) {
+                  if (v == null || v.isEmpty) return 'Please enter your email';
+                  if (!v.contains('@')) return 'Please enter a valid email';
+                  return null;
+                },
+              ).animate().slideY(
+                    begin: 0.1,
+                    duration: 400.ms,
+                    delay: 200.ms,
+                    curve: Curves.easeOutCubic,
+                  ),
+
+              const SizedBox(height: 20),
+
+              // Password
+              _buildLabel('Password'),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _passwordController,
+                obscureText: _obscurePassword,
+                textInputAction: TextInputAction.done,
+                onFieldSubmitted: (_) => _login(),
+                decoration: InputDecoration(
+                  hintText: '••••••••',
+                  prefixIcon: const Icon(Icons.lock_outline, size: 20),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                      size: 20,
+                    ),
+                    onPressed: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
+                  ),
+                ),
+                validator: (v) {
+                  if (v == null || v.isEmpty) return 'Please enter your password';
+                  if (v.length < 6) return 'Password must be at least 6 characters';
+                  return null;
+                },
+              ).animate().slideY(
+                    begin: 0.1,
+                    duration: 400.ms,
+                    delay: 300.ms,
+                    curve: Curves.easeOutCubic,
+                  ),
+
+              const SizedBox(height: 12),
+
+              // Forgot password
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => _showForgotPassword(context),
+                  child: const Text('Forgot password?'),
+                ),
+              ),
+
+              const SizedBox(height: 32),
+
+              // Login button
+              AppButton(
+                label: 'Sign In',
+                onPressed: _login,
+                isLoading: _isLoading,
+                isFullWidth: true,
+                height: 56,
+              ).animate().slideY(
+                    begin: 0.1,
+                    duration: 400.ms,
+                    delay: 400.ms,
+                    curve: Curves.easeOutCubic,
+                  ),
+
+              const SizedBox(height: 24),
+
+              // Register CTA
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    "Don't have an account? ",
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: isDark ? AppColors.grey400 : AppColors.grey600,
+                        ),
+                  ),
+                  TextButton(
+                    onPressed: () => context.push(AppRoutes.register),
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Text(
+                      'Create Account',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLabel(String label) {
+    return Text(
+      label,
+      style: Theme.of(context).textTheme.labelLarge,
+    );
+  }
+
+  void _showForgotPassword(BuildContext context) {
+    final controller = TextEditingController();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(ctx).viewInsets.bottom,
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Reset Password',
+                  style: Theme.of(context).textTheme.headlineSmall),
+              const SizedBox(height: 8),
+              Text('We\'ll send a reset link to your email.',
+                  style: Theme.of(context).textTheme.bodyMedium),
+              const SizedBox(height: 24),
+              TextFormField(
+                controller: controller,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(
+                  hintText: 'your@email.com',
+                  prefixIcon: Icon(Icons.email_outlined, size: 20),
+                ),
+              ),
+              const SizedBox(height: 16),
+              AppButton(
+                label: 'Send Reset Link',
+                onPressed: () async {
+                  if (controller.text.isNotEmpty) {
+                    try {
+                      await ref
+                          .read(authNotifierProvider.notifier)
+                          .resetPassword(controller.text.trim());
+                      if (ctx.mounted) {
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Reset link sent!'),
+                            backgroundColor: AppColors.success,
+                          ),
+                        );
+                      }
+                    } catch (_) {}
+                  }
+                },
+                isFullWidth: true,
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
