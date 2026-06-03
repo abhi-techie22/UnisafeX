@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -81,7 +82,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 data: (p) => Text(
                                   p?.fullName != null
                                       ? 'Hello, ${p!.fullName!.split(' ').first} 👋'
-                                      : 'Explore $cityName',
+                                      : 'explore'.tr() + ' $cityName',
                                   style: Theme.of(context)
                                       .textTheme
                                       .headlineMedium,
@@ -97,7 +98,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   ),
                                 ),
                                 error: (_, __) => Text(
-                                  'Explore $cityName',
+                                  'explore'.tr() + ' $cityName',
                                   style: Theme.of(context)
                                       .textTheme
                                       .headlineMedium,
@@ -153,7 +154,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                       const SizedBox(width: 10),
                       Text(
-                        'Search places, cities, monuments...',
+                        'search'.tr(),
                         style: TextStyle(
                           fontSize: 14,
                           color:
@@ -200,7 +201,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
           ),
 
-          // Featured / Hero cards
+          // Featured
           SliverToBoxAdapter(
             child: featured.when(
               data: (places) => places.isEmpty
@@ -209,7 +210,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         SectionHeader(
-                          title: 'Featured Destinations',
+                          title: 'featured_destinations'.tr(),
                           onSeeAll: () => context.go(
                             '${AppRoutes.placesList}?title=Featured',
                           ),
@@ -248,7 +249,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         SectionHeader(
-                          title: 'Must Visit Places',
+                          title: 'must_visit_places'.tr(),
                           subtitle: 'Iconic Indian landmarks',
                           onSeeAll: () => context.go(
                             '${AppRoutes.placesList}?title=Must Visit',
@@ -289,7 +290,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         SectionHeader(
-                          title: '🔥 Trending Now',
+                          title: 'trending_now'.tr(),
                           subtitle: 'Popular with travelers this week',
                           onSeeAll: () => context.go(
                             '${AppRoutes.placesList}?title=Trending',
@@ -323,7 +324,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ),
 
-          // Popular Places vertical
+          // Popular Places
           SliverToBoxAdapter(
             child: popular.when(
               data: (places) {
@@ -339,7 +340,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           SectionHeader(
-                            title: 'Popular Places',
+                            title: 'popular_places'.tr(),
                             subtitle: 'Loved by international tourists',
                             onSeeAll: () => context.go(
                               '${AppRoutes.placesList}?title=Popular',
@@ -372,9 +373,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
+    if (hour < 12) return 'good_morning'.tr();
+    if (hour < 17) return 'good_afternoon'.tr();
+    return 'good_evening'.tr();
   }
 
   Widget _buildAvatar(
@@ -436,24 +437,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Color _getCategoryColor(String category) {
     switch (category) {
-      case 'Historical':
-        return AppColors.historical;
-      case 'Nature':
-        return AppColors.nature;
-      case 'Spiritual':
-        return AppColors.spiritual;
-      case 'Adventure':
-        return AppColors.adventure;
-      case 'Photography':
-        return AppColors.photography;
-      case 'Food':
-        return AppColors.food;
-      case 'Shopping':
-        return AppColors.shopping;
-      case 'Wildlife':
-        return AppColors.wildlife;
-      default:
-        return AppColors.primary;
+      case 'Historical': return AppColors.historical;
+      case 'Nature': return AppColors.nature;
+      case 'Spiritual': return AppColors.spiritual;
+      case 'Adventure': return AppColors.adventure;
+      case 'Photography': return AppColors.photography;
+      case 'Food': return AppColors.food;
+      case 'Shopping': return AppColors.shopping;
+      case 'Wildlife': return AppColors.wildlife;
+      default: return AppColors.primary;
     }
   }
 
@@ -527,12 +519,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 size: 48, color: AppColors.grey400),
             const SizedBox(height: 12),
             Text(
-              'No places found',
+              'no_results'.tr(),
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 6),
             Text(
-              'Try a different category',
+              'browse_by_category'.tr(),
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
@@ -575,7 +567,6 @@ class _PopularPlaceListItem extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Image
             ClipRRect(
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(15),
@@ -597,7 +588,6 @@ class _PopularPlaceListItem extends StatelessWidget {
 
             const SizedBox(width: 14),
 
-            // Info
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -617,8 +607,7 @@ class _PopularPlaceListItem extends StatelessWidget {
                         const SizedBox(height: 3),
                         Text(
                           '${place.city}, ${place.state}',
-                          style:
-                              Theme.of(context).textTheme.bodySmall,
+                          style: Theme.of(context).textTheme.bodySmall,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -648,9 +637,9 @@ class _PopularPlaceListItem extends StatelessWidget {
                               color: AppColors.success.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(6),
                             ),
-                            child: const Text(
-                              'Free Entry',
-                              style: TextStyle(
+                            child: Text(
+                              'free_entry'.tr(),
+                              style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.success,

@@ -49,6 +49,17 @@ class UniSafeXApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
     final router = ref.watch(appRouterProvider);
+    final locale = ref.watch(localeProvider);
+
+    print('🌍 Riverpod locale: ${locale.languageCode}');
+    print('🌍 EasyLocalization locale: ${context.locale.languageCode}');
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (context.mounted && context.locale != locale) {
+        print('🔄 Syncing to: ${locale.languageCode}');
+        context.setLocale(locale);
+      }
+    });
 
     return MaterialApp.router(
       title: 'UniSafeX',
@@ -59,7 +70,7 @@ class UniSafeXApp extends ConsumerWidget {
       routerConfig: router,
       localizationsDelegates: context.localizationDelegates,
       supportedLocales: context.supportedLocales,
-      locale: context.locale,
+      locale: locale,
     );
   }
 }

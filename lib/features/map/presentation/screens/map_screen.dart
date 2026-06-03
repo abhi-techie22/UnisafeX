@@ -21,11 +21,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   TourismPlace? _selectedPlace;
   bool _isLoading = true;
 
-  static const String _mapStyleUrl =
-      'https://api.maptiler.com/maps/streets-v2/style.json?key=get_your_own_key';
+ // static const String _mapStyleUrl =
+//      'https://api.maptiler.com/maps/streets-v2/style.json?key=EsVsZmalQDmWNlTKAIi4';
 
   static const String _fallbackStyleUrl =
-      'https://demotiles.maplibre.org/style.json';
+    'https://tiles.openfreemap.org/styles/liberty';
 
   @override
   Widget build(BuildContext context) {

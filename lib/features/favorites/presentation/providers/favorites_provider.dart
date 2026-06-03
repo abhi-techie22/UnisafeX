@@ -75,16 +75,23 @@ final favoritesRepositoryProvider = Provider<FavoritesRepository>((ref) {
 
 class FavoritesNotifier extends StateNotifier<AsyncValue<List<Favorite>>> {
   final FavoritesRepository _repo;
-  final String _userId;
+  final String? _userId; // ✅ nullable now
 
   FavoritesNotifier(this._repo, this._userId)
-      : super(const AsyncValue.loading()) {
-    _load();
+      : super(const AsyncValue.data([])) { // ✅ default to empty, not loading
+    if (_userId != null && _userId!.isNotEmpty) {
+      _load();
+    }
   }
 
   Future<void> _load() async {
+    if (_userId == null || _userId!.isEmpty) {
+      state = const AsyncValue.data([]);
+      return;
+    }
     try {
-      final favs = await _repo.getFavorites(_userId);
+      state = const AsyncValue.loading();
+      final favs = await _repo.getFavorites(_userId!);
       state = AsyncValue.data(favs);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
@@ -92,15 +99,17 @@ class FavoritesNotifier extends StateNotifier<AsyncValue<List<Favorite>>> {
   }
 
   Future<void> addFavorite(String placeId) async {
+    if (_userId == null || _userId!.isEmpty) return; // ✅ guard
     try {
-      await _repo.addFavorite(_userId, placeId);
+      await _repo.addFavorite(_userId!, placeId);
       await _load();
     } catch (_) {}
   }
 
   Future<void> removeFavorite(String placeId) async {
+    if (_userId == null || _userId!.isEmpty) return; // ✅ guard
     try {
-      await _repo.removeFavorite(_userId, placeId);
+      await _repo.removeFavorite(_userId!, placeId);
       final current = state.value ?? [];
       state = AsyncValue.data(
           current.where((f) => f.placeId != placeId).toList());
@@ -115,11 +124,12 @@ final favoritesProvider =
         (ref) {
   final user = ref.watch(currentUserProvider);
   final repo = ref.read(favoritesRepositoryProvider);
-  return FavoritesNotifier(repo, user?.id ?? '');
+  // ✅ pass null instead of empty string when guest
+  return FavoritesNotifier(repo, user?.id);
 });
 
 final favoritePlacesProvider = FutureProvider<List<TourismPlace>>((ref) async {
   final user = ref.watch(currentUserProvider);
-  if (user == null) return [];
+  if (user == null) return []; // ✅ already correct
   return ref.read(favoritesRepositoryProvider).getFavoritePlaces(user.id);
 });
