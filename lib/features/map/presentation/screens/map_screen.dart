@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:maplibre_gl/maplibre_gl.dart';
+
 import 'package:unisafex/core/constants/app_constants.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
@@ -10,196 +12,232 @@ import 'package:unisafex/features/tourism/domain/entities/tourism_place.dart';
 import 'package:unisafex/features/tourism/presentation/providers/tourism_provider.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
-  const MapScreen({super.key});
+  final TourismPlace? selectedPlace;
+
+  const MapScreen({
+    super.key,
+    this.selectedPlace,
+  });
 
   @override
-  ConsumerState<MapScreen> createState() => _MapScreenState();
+  ConsumerState<MapScreen> createState() =>
+      _MapScreenState();
 }
 
-class _MapScreenState extends ConsumerState<MapScreen> {
-  MapLibreMapController? _mapController; // ✅ Fixed: MaplibreMapController -> MapLibreMapController
+class _MapScreenState
+    extends ConsumerState<MapScreen> {
+  MapLibreMapController? _controller;
+
   TourismPlace? _selectedPlace;
-  bool _isLoading = true;
 
- // static const String _mapStyleUrl =
-//      'https://api.maptiler.com/maps/streets-v2/style.json?key=EsVsZmalQDmWNlTKAIi4';
+  bool _mapReady = false;
+  bool _markersAdded = false;
 
-  static const String _fallbackStyleUrl =
-    'https://tiles.openfreemap.org/styles/liberty';
+  final Map<String, TourismPlace>
+      _symbolPlaces = {};
+
+  static const String _mapStyle =
+      'https://demotiles.maplibre.org/style.json';
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final location = ref.watch(locationProvider);
-    final popularPlaces = ref.watch(popularPlacesProvider);
+    final location =
+        ref.watch(locationProvider);
 
-    final initialLat =
-        location.value?.latitude ?? AppConstants.defaultLatitude;
-    final initialLng =
-        location.value?.longitude ?? AppConstants.defaultLongitude;
+    final placesAsync =
+        ref.watch(popularPlacesProvider);
+
+    final latitude =
+        widget.selectedPlace?.latitude ??
+            location.value?.latitude ??
+            AppConstants.defaultLatitude;
+
+    final longitude =
+        widget.selectedPlace?.longitude ??
+            location.value?.longitude ??
+            AppConstants.defaultLongitude;
 
     return Scaffold(
       body: Stack(
         children: [
-          // Map
-          MapLibreMap( // ✅ Fixed: MaplibreMap -> MapLibreMap
-            styleString: _fallbackStyleUrl,
-            initialCameraPosition: CameraPosition(
-              target: LatLng(initialLat, initialLng),
-              zoom: location.value != null ? 10 : AppConstants.defaultZoom,
+          MapLibreMap(
+            styleString: _mapStyle,
+
+            initialCameraPosition:
+                CameraPosition(
+              target: LatLng(
+                latitude,
+                longitude,
+              ),
+              zoom:
+                  widget.selectedPlace !=
+                          null
+                      ? 14
+                      : 5.5,
             ),
-            onMapCreated: _onMapCreated,
-            onStyleLoadedCallback: () {
-              setState(() => _isLoading = false);
-              _addMarkers(popularPlaces.value ?? []);
+
+            onMapCreated:
+                _onMapCreated,
+
+            onStyleLoadedCallback:
+                () async {
+              debugPrint(
+                  'STYLE LOADED');
+
+              _mapReady = true;
+
+              final places =
+                  placesAsync.value ??
+                      [];
+
+              if (widget
+                      .selectedPlace !=
+                  null) {
+                await _addSinglePlaceMarker(
+                  widget.selectedPlace!,
+                );
+              } else {
+                await _addMarkers(
+                  places,
+                );
+              }
+
+              if (mounted) {
+                setState(() {});
+              }
             },
-            myLocationEnabled: true,
-            myLocationTrackingMode: MyLocationTrackingMode.none, // ✅ Fixed: .None -> .none
+
             compassEnabled: true,
-            rotateGesturesEnabled: true,
-            scrollGesturesEnabled: true,
-            zoomGesturesEnabled: true,
+            rotateGesturesEnabled:
+                true,
+            scrollGesturesEnabled:
+                true,
+            zoomGesturesEnabled:
+                true,
+
+            myLocationEnabled:
+                !kIsWeb,
           ),
 
-          // Loading overlay
-          if (_isLoading)
+          if (!_mapReady)
             Container(
-              color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-              child: const Center(
-                child: CircularProgressIndicator(
-                  color: AppColors.primary,
-                ),
+              color: Theme.of(
+                      context)
+                  .scaffoldBackgroundColor,
+              child:
+                  const Center(
+                child:
+                    CircularProgressIndicator(),
               ),
             ),
 
-          // App bar overlay
           SafeArea(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                  child: Row(
-                    children: [
-                      // Back
-                      GestureDetector(
-                        onTap: () => context.go(AppRoutes.home),
-                        child: Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? AppColors.cardDark
-                                : AppColors.cardLight,
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 8,
-                              ),
-                            ],
-                          ),
-                          child: Icon(
-                            Icons.arrow_back_ios_rounded,
-                            size: 18,
-                            color: isDark ? AppColors.white : AppColors.grey900,
-                          ),
+            child: Padding(
+              padding:
+                  const EdgeInsets.all(
+                16,
+              ),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      context.pop();
+                    },
+                    child: Container(
+                      width: 46,
+                      height: 46,
+                      decoration:
+                          BoxDecoration(
+                        color: Colors.white,
+                        borderRadius:
+                            BorderRadius
+                                .circular(
+                          14,
                         ),
                       ),
-                      const SizedBox(width: 10),
-                      // Search bar
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => context.go(AppRoutes.search),
-                          child: Container(
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? AppColors.cardDark
-                                  : AppColors.cardLight,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 8,
-                                ),
-                              ],
-                            ),
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 14),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.search_rounded,
-                                  size: 18,
-                                  color: isDark
-                                      ? AppColors.grey400
-                                      : AppColors.grey500,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Search on map...',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: isDark
-                                        ? AppColors.grey500
-                                        : AppColors.grey400,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                      child: const Icon(
+                        Icons
+                            .arrow_back,
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ],
+
+                  const SizedBox(
+                    width: 12,
+                  ),
+
+                  Expanded(
+                    child:
+                        GestureDetector(
+                      onTap: () {
+                        context.push(
+                          AppRoutes
+                              .search,
+                        );
+                      },
+                      child:
+                          Container(
+                        height: 46,
+                        decoration:
+                            BoxDecoration(
+                          color:
+                              Colors
+                                  .white,
+                          borderRadius:
+                              BorderRadius.circular(
+                            14,
+                          ),
+                        ),
+                        child:
+                            const Row(
+                          children: [
+                            SizedBox(
+                                width:
+                                    16),
+                            Icon(Icons
+                                .search),
+                            SizedBox(
+                                width:
+                                    12),
+                            Text(
+                              'Search places...',
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
 
-          // Bottom place card
-          if (_selectedPlace != null)
+          if (_selectedPlace !=
+              null)
             Positioned(
-              bottom: 24 + MediaQuery.of(context).padding.bottom,
               left: 16,
               right: 16,
-              child: _PlaceMapCard(
-                place: _selectedPlace!,
-                onTap: () => context.push(
-                  AppRoutes.placeDetail,
-                  extra: _selectedPlace!,
-                ),
-                onClose: () => setState(() => _selectedPlace = null),
+              bottom: 30,
+              child: _PlaceCard(
+                place:
+                    _selectedPlace!,
               ),
             ),
 
-          // My location button
           Positioned(
             right: 16,
-            bottom: _selectedPlace != null
-                ? 160 + MediaQuery.of(context).padding.bottom
-                : 40 + MediaQuery.of(context).padding.bottom,
-            child: GestureDetector(
-              onTap: _goToMyLocation,
-              child: Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.cardDark : AppColors.cardLight,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.12),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.my_location_rounded,
-                  color: AppColors.primary,
-                  size: 22,
-                ),
+            bottom: 130,
+            child:
+                FloatingActionButton(
+              heroTag: 'loc',
+              backgroundColor:
+                  Colors.white,
+              onPressed:
+                  _goToMyLocation,
+              child: const Icon(
+                Icons.my_location,
+                color: AppColors
+                    .primary,
               ),
             ),
           ),
@@ -208,181 +246,315 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     );
   }
 
-  void _onMapCreated(MapLibreMapController controller) { // ✅ Fixed: MaplibreMapController -> MapLibreMapController
-    _mapController = controller;
-    controller.onSymbolTapped.add(_onMarkerTapped);
+  void _onMapCreated(
+    MapLibreMapController
+        controller,
+  ) {
+    _controller = controller;
+
+    debugPrint(
+        'MAP CREATED');
+
+    controller.onSymbolTapped.add(
+      _onSymbolTapped,
+    );
   }
 
-  Future<void> _addMarkers(List<TourismPlace> places) async {
-    if (_mapController == null) return;
+  Future<void> _addMarkers(
+    List<TourismPlace> places,
+  ) async {
+    if (_controller == null) return;
+    if (_markersAdded) return;
 
-    for (final place in places) {
-      await _mapController!.addSymbol(
+    debugPrint(
+      'Loaded places: ${places.length}',
+    );
+
+    for (final place
+        in places) {
+      if (place.latitude ==
+              0 ||
+          place.longitude ==
+              0) {
+        continue;
+      }
+
+      try {
+        final symbol =
+            await _controller!
+                .addSymbol(
+          SymbolOptions(
+            geometry: LatLng(
+              place.latitude,
+              place.longitude,
+            ),
+            iconImage:
+                "circle-15",
+            iconSize: 2.0,
+            iconColor:
+                "#1A6B4A",
+            textField:
+                place.name,
+            textSize: 12,
+            textOffset:
+                const Offset(
+              0,
+              1.5,
+            ),
+            textAnchor:
+                "top",
+          ),
+        );
+
+        _symbolPlaces[
+            symbol.id] = place;
+      } catch (e) {
+        debugPrint(
+          'Marker error: $e',
+        );
+      }
+    }
+
+    _markersAdded = true;
+
+    debugPrint(
+      'Markers added successfully',
+    );
+  }
+
+  Future<void>
+      _addSinglePlaceMarker(
+    TourismPlace place,
+  ) async {
+    if (_controller == null)
+      return;
+
+    try {
+      final symbol =
+          await _controller!
+              .addSymbol(
         SymbolOptions(
-          geometry: LatLng(place.latitude, place.longitude),
-          iconImage: 'marker-15',
-          iconColor: '#1A6B4A',
-          iconSize: 2.0,
-          textField: place.name,
-          textSize: 11,
-          textOffset: const Offset(0, 1.8),
-          textHaloColor: '#FFFFFF',
-          textHaloWidth: 1,
+          geometry: LatLng(
+            place.latitude,
+            place.longitude,
+          ),
+          iconImage:
+              "circle-15",
+          iconSize: 2.5,
+          iconColor:
+              "#1A6B4A",
+          textField:
+              place.name,
+          textSize: 14,
+          textOffset:
+              const Offset(
+            0,
+            1.5,
+          ),
+          textAnchor: "top",
         ),
-        {'placeId': place.id, 'placeName': place.name},
+      );
+
+      _symbolPlaces[
+          symbol.id] = place;
+
+      setState(() {
+        _selectedPlace =
+            place;
+      });
+
+      await _controller!
+          .animateCamera(
+        CameraUpdate
+            .newLatLngZoom(
+          LatLng(
+            place.latitude,
+            place.longitude,
+          ),
+          14,
+        ),
+      );
+    } catch (e) {
+      debugPrint(
+        e.toString(),
       );
     }
   }
 
-  void _onMarkerTapped(Symbol symbol) {
-    final places = ref.read(popularPlacesProvider).value ?? [];
-    final placeId = symbol.data?['placeId'] as String?;
-    if (placeId != null) {
-      final place = places.firstWhere((p) => p.id == placeId,
-          orElse: () => places.first);
-      setState(() => _selectedPlace = place);
+  void _onSymbolTapped(
+    Symbol symbol,
+  ) async {
+    final place =
+        _symbolPlaces[
+            symbol.id];
 
-      _mapController?.animateCamera(
-        CameraUpdate.newCameraPosition(
-          CameraPosition(
-            target: LatLng(place.latitude, place.longitude),
-            zoom: AppConstants.placeZoom,
-          ),
+    if (place == null)
+      return;
+
+    setState(() {
+      _selectedPlace =
+          place;
+    });
+
+    await _controller
+        ?.animateCamera(
+      CameraUpdate
+          .newLatLngZoom(
+        LatLng(
+          place.latitude,
+          place.longitude,
         ),
-      );
-    }
+        14,
+      ),
+    );
   }
 
-  Future<void> _goToMyLocation() async {
-    final location = ref.read(locationProvider).value;
-    if (location != null && _mapController != null) {
-      await _mapController!.animateCamera(
-        CameraUpdate.newCameraPosition(
-          CameraPosition(
-            target: LatLng(location.latitude, location.longitude),
-            zoom: 12,
-          ),
+  Future<void>
+      _goToMyLocation() async {
+    final location =
+        ref
+            .read(
+              locationProvider,
+            )
+            .value;
+
+    if (location == null)
+      return;
+
+    await _controller
+        ?.animateCamera(
+      CameraUpdate
+          .newLatLngZoom(
+        LatLng(
+          location.latitude,
+          location.longitude,
         ),
-      );
-    }
+        12,
+      ),
+    );
   }
 }
 
-class _PlaceMapCard extends StatelessWidget {
+class _PlaceCard
+    extends StatelessWidget {
   final TourismPlace place;
-  final VoidCallback onTap;
-  final VoidCallback onClose;
 
-  const _PlaceMapCard({
+  const _PlaceCard({
     required this.place,
-    required this.onTap,
-    required this.onClose,
   });
 
   @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
+  Widget build(
+      BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.cardDark : AppColors.cardLight,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.15),
-              blurRadius: 20,
-              offset: const Offset(0, 6),
-            ),
-          ],
+      onTap: () {
+        context.push(
+          AppRoutes.placeDetail,
+          extra: place,
+        );
+      },
+      child: Material(
+        elevation: 8,
+        borderRadius:
+            BorderRadius.circular(
+          20,
         ),
-        clipBehavior: Clip.antiAlias,
-        child: Row(
-          children: [
-            Image.network(
-              place.primaryImage,
-              width: 90,
-              height: 90,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                width: 90,
-                height: 90,
-                color: AppColors.primary.withOpacity(0.1),
-                child: const Icon(Icons.image_outlined, color: AppColors.grey400),
-              ),
+        child: Container(
+          padding:
+              const EdgeInsets.all(
+            14,
+          ),
+          decoration:
+              BoxDecoration(
+            color: Colors.white,
+            borderRadius:
+                BorderRadius
+                    .circular(
+              20,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 14),
+          ),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius:
+                    BorderRadius
+                        .circular(
+                  14,
+                ),
+                child:
+                    Image.network(
+                  place
+                      .primaryImage,
+                  width: 90,
+                  height: 90,
+                  fit: BoxFit.cover,
+                  errorBuilder:
+                      (
+                    _,
+                    __,
+                    ___,
+                  ) {
+                    return Container(
+                      width:
+                          90,
+                      height:
+                          90,
+                      color: Colors
+                          .grey
+                          .shade200,
+                      child:
+                          const Icon(
+                        Icons
+                            .image,
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+              const SizedBox(
+                width: 14,
+              ),
+
+              Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment:
+                      CrossAxisAlignment
+                          .start,
                   children: [
                     Text(
                       place.name,
-                      style: Theme.of(context).textTheme.titleMedium,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      style:
+                          const TextStyle(
+                        fontWeight:
+                            FontWeight
+                                .bold,
+                        fontSize:
+                            17,
+                      ),
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(
+                      height: 4,
+                    ),
                     Text(
                       '${place.city}, ${place.state}',
-                      style: Theme.of(context).textTheme.bodySmall,
                     ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(Icons.star_rounded,
-                            size: 13, color: AppColors.accent),
-                        const SizedBox(width: 3),
-                        Text(
-                          place.rating.toStringAsFixed(1),
-                          style: Theme.of(context).textTheme.labelMedium,
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: const Text(
-                            'View Details →',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ),
-                      ],
+                    const SizedBox(
+                      height: 6,
+                    ),
+                    Text(
+                      '⭐ ${place.rating}',
                     ),
                   ],
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(right: 10),
-              child: GestureDetector(
-                onTap: onClose,
-                child: Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.grey700 : AppColors.grey200,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.close_rounded,
-                    size: 14,
-                    color: isDark ? AppColors.grey300 : AppColors.grey600,
-                  ),
-                ),
+
+              const Icon(
+                Icons
+                    .arrow_forward_ios,
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -8,197 +8,567 @@ class TourismRepository {
 
   TourismRepository(this._client);
 
-  Future<List<TourismPlace>> getFeaturedPlaces() async {
-    final response = await _client
-        .from('tourism_places')
-        .select()
-        .eq('featured', true)
-        .order('rating', ascending: false)
-        .limit(10);
+  // FEATURED PLACES
+  Future<List<TourismPlace>>
+      getFeaturedPlaces() async {
+    try {
+      final response =
+          await _client
+              .from(
+                'tourism_places',
+              )
+              .select()
+              .order(
+                'rating',
+                ascending: false,
+              )
+              .limit(10);
 
-    return (response as List).map((e) => TourismPlace.fromJson(e)).toList();
+      return (response as List)
+          .map(
+            (e) =>
+                TourismPlace.fromJson(
+              e,
+            ),
+          )
+          .toList();
+    } catch (e) {
+      print(
+        'Featured error: $e',
+      );
+      return [];
+    }
   }
 
-  Future<List<TourismPlace>> getPopularPlaces() async {
-    final response = await _client
-        .from('tourism_places')
-        .select()
-        .eq('is_popular', true)
-        .order('rating', ascending: false)
-        .limit(20);
+  // POPULAR PLACES
+  Future<List<TourismPlace>>
+      getPopularPlaces() async {
+    try {
+      final response =
+          await _client
+              .from(
+                'tourism_places',
+              )
+              .select()
+              .order(
+                'rating',
+                ascending: false,
+              )
+              .limit(200);
 
-    return (response as List).map((e) => TourismPlace.fromJson(e)).toList();
+      print(
+        'SUPABASE DATA: ${response.length}',
+      );
+
+      return (response as List)
+          .map(
+            (e) =>
+                TourismPlace.fromJson(
+              e,
+            ),
+          )
+          .toList();
+    } catch (e) {
+      print(
+        'Popular error: $e',
+      );
+      return [];
+    }
   }
 
-  Future<List<TourismPlace>> getPlacesByCategory(String category) async {
-    final response = await _client
-        .from('tourism_places')
-        .select()
-        .eq('category', category)
-        .order('rating', ascending: false)
-        .limit(AppConstants.pageSize);
+  // TRENDING
+  Future<List<TourismPlace>>
+      getTrendingPlaces() async {
+    try {
+      final response =
+          await _client
+              .from(
+                'tourism_places',
+              )
+              .select()
+              .order(
+                'rating',
+                ascending: false,
+              )
+              .limit(20);
 
-    return (response as List).map((e) => TourismPlace.fromJson(e)).toList();
+      return (response as List)
+          .map(
+            (e) =>
+                TourismPlace.fromJson(
+              e,
+            ),
+          )
+          .toList();
+    } catch (e) {
+      print(
+        'Trending error: $e',
+      );
+      return [];
+    }
   }
 
-  Future<List<TourismPlace>> getPlacesByCity(String city) async {
-    final response = await _client
-        .from('tourism_places')
-        .select()
-        .ilike('city', '%$city%')
-        .order('rating', ascending: false)
-        .limit(20);
+  // MUST VISIT
+  Future<List<TourismPlace>>
+      getMustVisitPlaces() async {
+    try {
+      final response =
+          await _client
+              .from(
+                'tourism_places',
+              )
+              .select()
+              .order(
+                'rating',
+                ascending: false,
+              )
+              .limit(20);
 
-    return (response as List).map((e) => TourismPlace.fromJson(e)).toList();
+      return (response as List)
+          .map(
+            (e) =>
+                TourismPlace.fromJson(
+              e,
+            ),
+          )
+          .toList();
+    } catch (e) {
+      print(
+        'Must visit error: $e',
+      );
+      return [];
+    }
   }
 
-  Future<List<TourismPlace>> getTrendingPlaces() async {
-    final response = await _client
-        .from('tourism_places')
-        .select()
-        .eq('tier', 1)
-        .order('rating', ascending: false)
-        .limit(10);
+  // CATEGORY
+  Future<List<TourismPlace>>
+      getPlacesByCategory(
+    String category,
+  ) async {
+    try {
+      final response =
+          await _client
+              .from(
+                'tourism_places',
+              )
+              .select()
+              .eq(
+                'category',
+                category,
+              )
+              .order(
+                'rating',
+                ascending: false,
+              )
+              .limit(50);
 
-    return (response as List).map((e) => TourismPlace.fromJson(e)).toList();
+      return (response as List)
+          .map(
+            (e) =>
+                TourismPlace.fromJson(
+              e,
+            ),
+          )
+          .toList();
+    } catch (e) {
+      print(
+        'Category error: $e',
+      );
+      return [];
+    }
   }
 
-  Future<List<TourismPlace>> searchPlaces(String query) async {
-    final response = await _client
-        .from('tourism_places')
-        .select()
-        .or('place_name.ilike.%$query%,city.ilike.%$query%,state.ilike.%$query%,category.ilike.%$query%')
-        .order('rating', ascending: false)
-        .limit(30);
+  // CITY
+  Future<List<TourismPlace>>
+      getPlacesByCity(
+    String city,
+  ) async {
+    try {
+      final response =
+          await _client
+              .from(
+                'tourism_places',
+              )
+              .select()
+              .ilike(
+                'city',
+                '%$city%',
+              )
+              .order(
+                'rating',
+                ascending: false,
+              )
+              .limit(50);
 
-    return (response as List).map((e) => TourismPlace.fromJson(e)).toList();
+      return (response as List)
+          .map(
+            (e) =>
+                TourismPlace.fromJson(
+              e,
+            ),
+          )
+          .toList();
+    } catch (e) {
+      print(
+        'City error: $e',
+      );
+      return [];
+    }
   }
 
-  Future<List<TourismPlace>> getNearbyPlaces({
-    required double latitude,
-    required double longitude,
-    double radiusKm = 50,
-  }) async {
-    // Using Supabase PostGIS if available, or fallback to bounding box
-    final latDelta = radiusKm / 111.0;
-    final lngDelta = radiusKm / (111.0 * (1 / (latitude.abs() * (3.14159 / 180)).abs().clamp(0.0001, 1.0)));
+  // SEARCH
+  Future<List<TourismPlace>>
+      searchPlaces(
+    String query,
+  ) async {
+    try {
+      final response =
+          await _client
+              .from(
+                'tourism_places',
+              )
+              .select()
+              .or(
+                'place_name.ilike.%$query%,city.ilike.%$query%,state.ilike.%$query%,category.ilike.%$query%',
+              )
+              .order(
+                'rating',
+                ascending: false,
+              )
+              .limit(100);
 
-    final response = await _client
-        .from('tourism_places')
-        .select()
-        .gte('latitude', latitude - latDelta)
-        .lte('latitude', latitude + latDelta)
-        .gte('longitude', longitude - lngDelta)
-        .lte('longitude', longitude + lngDelta)
-        .order('rating', ascending: false)
-        .limit(20);
-
-    return (response as List).map((e) => TourismPlace.fromJson(e)).toList();
+      return (response as List)
+          .map(
+            (e) =>
+                TourismPlace.fromJson(
+              e,
+            ),
+          )
+          .toList();
+    } catch (e) {
+      print(
+        'Search error: $e',
+      );
+      return [];
+    }
   }
 
-  Future<List<TourismPlace>> getPlacesWithFilters({
+  // FILTERS
+  Future<List<TourismPlace>>
+      getPlacesWithFilters({
     String? category,
     bool? isFree,
     bool? isPopular,
     String? bestSeason,
     int? page,
   }) async {
-    var query = _client.from('tourism_places').select();
+    try {
+      dynamic query =
+          _client.from(
+        'tourism_places',
+      ).select();
 
-    if (category != null && category.isNotEmpty) {
-      query = query.eq('category', category);
-    }
-    if (isFree == true) {
-      query = query.or('entry_fee_foreigner.is.null,entry_fee_foreigner.eq.0');
-    }
-    if (isPopular == true) {
-      query = query.eq('is_popular', true);
-    }
-    if (bestSeason != null && bestSeason.isNotEmpty) {
-      query = query.ilike('best_season', '%$bestSeason%');
-    }
+      if (category != null &&
+          category.isNotEmpty) {
+        query = query.eq(
+          'category',
+          category,
+        );
+      }
 
-    final from = (page ?? 0) * AppConstants.pageSize;
-    final to = from + AppConstants.pageSize - 1;
+      if (isFree == true) {
+        query = query.or(
+          'entry_fee_foreigner.eq.0,entry_fee_foreigner.is.null',
+        );
+      }
 
-    final response = await query
-        .order('rating', ascending: false)
-        .range(from, to);
+      // only apply if requested
+      if (isPopular == true) {
+        query = query.eq(
+          'is_popular',
+          true,
+        );
+      }
 
-    return (response as List).map((e) => TourismPlace.fromJson(e)).toList();
+      if (bestSeason != null &&
+          bestSeason.isNotEmpty) {
+        query = query.ilike(
+          'best_season',
+          '%$bestSeason%',
+        );
+      }
+
+      final from =
+          (page ?? 0) *
+              AppConstants
+                  .pageSize;
+
+      final to =
+          from +
+              AppConstants
+                  .pageSize -
+              1;
+
+      final response =
+          await query
+              .order(
+                'rating',
+                ascending: false,
+              )
+              .range(
+                from,
+                to,
+              );
+
+      return (response as List)
+          .map(
+            (e) =>
+                TourismPlace.fromJson(
+              e,
+            ),
+          )
+          .toList();
+    } catch (e) {
+      print(
+        'Filter error: $e',
+      );
+      return [];
+    }
   }
 
-  Future<TourismPlace?> getPlaceById(String id) async {
-    final response = await _client
-        .from('tourism_places')
-        .select()
-        .eq('place_id', id)
-        .single();
+  // NEARBY
+  Future<List<TourismPlace>>
+      getNearbyPlaces({
+    required double
+        latitude,
+    required double
+        longitude,
+    double radiusKm =
+        50,
+  }) async {
+    try {
+      final response =
+          await _client
+              .from(
+                'tourism_places',
+              )
+              .select()
+              .limit(50);
 
-    return TourismPlace.fromJson(response);
+      return (response as List)
+          .map(
+            (e) =>
+                TourismPlace.fromJson(
+              e,
+            ),
+          )
+          .toList();
+    } catch (e) {
+      print(
+        'Nearby error: $e',
+      );
+      return [];
+    }
   }
 
-  Future<List<TourismPlace>> getMustVisitPlaces() async {
-    final response = await _client
-        .from('tourism_places')
-        .select()
-        .eq('tier', 1)
-        .eq('featured', true)
-        .order('rating', ascending: false)
-        .limit(8);
+  // BY ID
+  Future<TourismPlace?>
+      getPlaceById(
+    String id,
+  ) async {
+    try {
+      final response =
+          await _client
+              .from(
+                'tourism_places',
+              )
+              .select()
+              .eq(
+                'place_id',
+                id,
+              )
+              .single();
 
-    return (response as List).map((e) => TourismPlace.fromJson(e)).toList();
+      return TourismPlace
+          .fromJson(
+        response,
+      );
+    } catch (e) {
+      print(
+        'Place by ID error: $e',
+      );
+      return null;
+    }
   }
 
-  Future<List<TourismPlace>> getAllPlaces({int page = 0}) async {
-    final from = page * AppConstants.pageSize;
-    final to = from + AppConstants.pageSize - 1;
+  // ALL PLACES
+  Future<List<TourismPlace>>
+      getAllPlaces({
+    int page = 0,
+  }) async {
+    try {
+      final from =
+          page *
+              AppConstants
+                  .pageSize;
 
-    final response = await _client
-        .from('tourism_places')
-        .select()
-        .order('rating', ascending: false)
-        .range(from, to);
+      final to =
+          from +
+              AppConstants
+                  .pageSize -
+              1;
 
-    return (response as List).map((e) => TourismPlace.fromJson(e)).toList();
+      final response =
+          await _client
+              .from(
+                'tourism_places',
+              )
+              .select()
+              .order(
+                'rating',
+                ascending: false,
+              )
+              .range(
+                from,
+                to,
+              );
+
+      return (response as List)
+          .map(
+            (e) =>
+                TourismPlace.fromJson(
+              e,
+            ),
+          )
+          .toList();
+    } catch (e) {
+      print(
+        'All places error: $e',
+      );
+      return [];
+    }
   }
 }
 
-final tourismRepositoryProvider = Provider<TourismRepository>((ref) {
-  return TourismRepository(Supabase.instance.client);
-});
+// PROVIDERS
 
-final featuredPlacesProvider = FutureProvider<List<TourismPlace>>((ref) async {
-  return ref.read(tourismRepositoryProvider).getFeaturedPlaces();
-});
+final tourismRepositoryProvider =
+    Provider<
+        TourismRepository>(
+  (ref) {
+    return TourismRepository(
+      Supabase
+          .instance
+          .client,
+    );
+  },
+);
 
-final popularPlacesProvider = FutureProvider<List<TourismPlace>>((ref) async {
-  return ref.read(tourismRepositoryProvider).getPopularPlaces();
-});
+final featuredPlacesProvider =
+    FutureProvider<
+        List<TourismPlace>>(
+  (ref) async {
+    return ref
+        .read(
+          tourismRepositoryProvider,
+        )
+        .getFeaturedPlaces();
+  },
+);
 
-final trendingPlacesProvider = FutureProvider<List<TourismPlace>>((ref) async {
-  return ref.read(tourismRepositoryProvider).getTrendingPlaces();
-});
+final popularPlacesProvider =
+    FutureProvider<
+        List<TourismPlace>>(
+  (ref) async {
+    return ref
+        .read(
+          tourismRepositoryProvider,
+        )
+        .getPopularPlaces();
+  },
+);
 
-final mustVisitPlacesProvider = FutureProvider<List<TourismPlace>>((ref) async {
-  return ref.read(tourismRepositoryProvider).getMustVisitPlaces();
-});
+final trendingPlacesProvider =
+    FutureProvider<
+        List<TourismPlace>>(
+  (ref) async {
+    return ref
+        .read(
+          tourismRepositoryProvider,
+        )
+        .getTrendingPlaces();
+  },
+);
+
+final mustVisitPlacesProvider =
+    FutureProvider<
+        List<TourismPlace>>(
+  (ref) async {
+    return ref
+        .read(
+          tourismRepositoryProvider,
+        )
+        .getMustVisitPlaces();
+  },
+);
 
 final placesByCategoryProvider =
-    FutureProvider.family<List<TourismPlace>, String>((ref, category) async {
-  return ref.read(tourismRepositoryProvider).getPlacesByCategory(category);
-});
+    FutureProvider.family<
+        List<TourismPlace>,
+        String>(
+  (
+    ref,
+    category,
+  ) async {
+    return ref
+        .read(
+          tourismRepositoryProvider,
+        )
+        .getPlacesByCategory(
+          category,
+        );
+  },
+);
 
 final placesByCityProvider =
-    FutureProvider.family<List<TourismPlace>, String>((ref, city) async {
-  return ref.read(tourismRepositoryProvider).getPlacesByCity(city);
-});
+    FutureProvider.family<
+        List<TourismPlace>,
+        String>(
+  (
+    ref,
+    city,
+  ) async {
+    return ref
+        .read(
+          tourismRepositoryProvider,
+        )
+        .getPlacesByCity(
+          city,
+        );
+  },
+);
 
 final searchPlacesProvider =
-    FutureProvider.family<List<TourismPlace>, String>((ref, query) async {
-  if (query.isEmpty) return [];
-  return ref.read(tourismRepositoryProvider).searchPlaces(query);
-});
+    FutureProvider.family<
+        List<TourismPlace>,
+        String>(
+  (
+    ref,
+    query,
+  ) async {
+    if (query.isEmpty) {
+      return [];
+    }
+
+    return ref
+        .read(
+          tourismRepositoryProvider,
+        )
+        .searchPlaces(
+          query,
+        );
+  },
+);
 
 class NearbyParams {
   final double lat;
@@ -213,10 +583,24 @@ class NearbyParams {
 }
 
 final nearbyPlacesProvider =
-    FutureProvider.family<List<TourismPlace>, NearbyParams>((ref, params) async {
-  return ref.read(tourismRepositoryProvider).getNearbyPlaces(
-        latitude: params.lat,
-        longitude: params.lng,
-        radiusKm: params.radiusKm,
-      );
-});
+    FutureProvider.family<
+        List<TourismPlace>,
+        NearbyParams>(
+  (
+    ref,
+    params,
+  ) async {
+    return ref
+        .read(
+          tourismRepositoryProvider,
+        )
+        .getNearbyPlaces(
+          latitude:
+              params.lat,
+          longitude:
+              params.lng,
+          radiusKm:
+              params.radiusKm,
+        );
+  },
+);
