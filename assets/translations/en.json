@@ -89,5 +89,16 @@
   "onboarding_4_title": "In-App Maps\n& Navigation",
   "onboarding_4_subtitle": "Navigate effortlessly with built-in maps, distance calculations, and turn-by-turn directions.",
   "onboarding_5_title": "Personalized\nExperience",
-  "onboarding_5_subtitle": "Create your traveler profile, save favorite places, and get recommendations that match your unique travel style."
+  "onboarding_5_subtitle": "Create your traveler profile, save favorite places, and get recommendations that match your unique travel style.",
+  "travel_toolkit": "Travel Toolkit",
+  "smart_trip_planner": "Smart Trip Planner",
+  "currency_helper": "Currency Helper",
+  "local_phrase_book": "Local Phrase Book",
+  "ai_travel_assistant": "AI Travel Assistant",
+  "safety_score": "Safety score",
+  "hidden_gems": "Hidden gems",
+  "foreigner_friendly": "Foreigner-friendly",
+  "open_now": "Open now",
+  "nearby_hotels": "Nearby hotels",
+  "emergency_help": "Emergency help"
 }
