@@ -409,11 +409,6 @@ final tourismRepositoryProvider = Provider<TourismRepository>(
   },
 );
 
-final placeDetailsProvider =
-    FutureProvider.family<TourismPlace?, String>((ref, placeId) {
-  return ref.read(tourismRepositoryProvider).getPlaceById(placeId);
-});
-
 final featuredPlacesProvider = FutureProvider<List<TourismPlace>>(
   (ref) async {
     return ref

@@ -12,7 +12,7 @@ class AppConstants {
 
   // App Info
   static const String appName = 'UniSafeX';
-  static const String appVersion = '1.0.2-google-profilefix (build 6)';
+  static const String appVersion = '1.0.3-place-details-fix (build 7)';
 
   // Localization
   static const List<Locale> supportedLocales = [
