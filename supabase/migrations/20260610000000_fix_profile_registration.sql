@@ -3,6 +3,9 @@
 
 alter table public.profiles enable row level security;
 
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on public.profiles to authenticated;
+
 drop policy if exists "profiles_select_own" on public.profiles;
 drop policy if exists "profiles_insert_own" on public.profiles;
 drop policy if exists "profiles_update_own" on public.profiles;

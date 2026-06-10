@@ -96,6 +96,9 @@ create index if not exists idx_favorites_place_id on public.favorites(place_id);
 -- profiles: users can only read/write their own profile
 alter table public.profiles enable row level security;
 
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on public.profiles to authenticated;
+
 drop policy if exists "profiles_select_own" on public.profiles;
 drop policy if exists "profiles_insert_own" on public.profiles;
 drop policy if exists "profiles_update_own" on public.profiles;

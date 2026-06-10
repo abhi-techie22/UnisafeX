@@ -156,13 +156,6 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                 ),
                 const SizedBox(height: 28),
                 _Section(
-                  title: 'About',
-                  child: Text(
-                    place.description,
-                    style: const TextStyle(height: 1.6),
-                  ),
-                ),
-                _Section(
                   title: 'Visitor Information',
                   child: _InfoCard(
                     isDark: isDark,
@@ -204,6 +197,13 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                           value: _formatDuration(place.visitDurationMinutes!),
                         ),
                     ],
+                  ),
+                ),
+                _Section(
+                  title: 'About',
+                  child: Text(
+                    place.description,
+                    style: const TextStyle(height: 1.6),
                   ),
                 ),
                 if (place.bestMonths.isNotEmpty)

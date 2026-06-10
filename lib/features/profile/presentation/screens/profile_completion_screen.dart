@@ -97,6 +97,56 @@ class _ProfileCompletionScreenState
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final session = ref.watch(currentSessionProvider);
+
+    if (session == null) {
+      return Scaffold(
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Icon(
+                      Icons.mark_email_read_outlined,
+                      size: 36,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Sign in required',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Confirm your email, then sign in before completing your '
+                    'profile. Profile data cannot be saved without an active '
+                    'Supabase session.',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
+                  const SizedBox(height: 28),
+                  AppButton(
+                    label: 'Go to Sign In',
+                    onPressed: () => context.go(AppRoutes.login),
+                    isFullWidth: true,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       body: SafeArea(
