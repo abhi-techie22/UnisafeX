@@ -12,9 +12,13 @@ class TripPlannerService {
     required TravelStyle style,
     required List<TourismPlace> places,
   }) {
-    final cityPlaces = places
-        .where((place) => place.city.toLowerCase() == city.toLowerCase())
-        .toList()
+    final uniquePlaces = <String, TourismPlace>{};
+    for (final place in places.where(
+      (place) => place.city.toLowerCase() == city.toLowerCase(),
+    )) {
+      uniquePlaces.putIfAbsent(place.name.toLowerCase(), () => place);
+    }
+    final cityPlaces = uniquePlaces.values.toList()
       ..sort((a, b) => _score(b, style).compareTo(_score(a, style)));
 
     final selected = cityPlaces.take(days * 3).toList();

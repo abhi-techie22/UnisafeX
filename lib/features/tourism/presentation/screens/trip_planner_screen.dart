@@ -27,8 +27,16 @@ class _TripPlannerScreenState extends ConsumerState<TripPlannerScreen> {
       appBar: AppBar(title: const Text('Smart Trip Planner')),
       body: places.when(
         data: (items) {
-          final cities = items.map((place) => place.city).toSet().toList()
-            ..sort();
+          final cityCounts = <String, Set<String>>{};
+          for (final place in items) {
+            cityCounts
+                .putIfAbsent(place.city, () => <String>{})
+                .add(place.name.toLowerCase());
+          }
+          final cities = cityCounts.keys.toList()
+            ..sort(
+              (a, b) => cityCounts[b]!.length.compareTo(cityCounts[a]!.length),
+            );
           if (_city == null && cities.isNotEmpty) _city = cities.first;
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
