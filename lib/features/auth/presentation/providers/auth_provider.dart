@@ -74,6 +74,28 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
     }
   }
 
+  Future<void> signInWithGoogle() async {
+    state = const AsyncValue.loading();
+    try {
+      final launched = await _client.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: _emailRedirectUrl,
+      );
+      if (!launched) {
+        state = const AsyncValue.data(null);
+        throw const AuthException('Could not open Google sign in.');
+      }
+    } on AuthException {
+      state = const AsyncValue.data(null);
+      rethrow;
+    } catch (_) {
+      state = const AsyncValue.data(null);
+      throw const AuthException(
+        'Google sign in could not be started. Please try again.',
+      );
+    }
+  }
+
   Future<SignUpResult> signUp({
     required String email,
     required String password,

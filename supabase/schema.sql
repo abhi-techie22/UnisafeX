@@ -501,6 +501,10 @@ insert into public.tourism_places (
   2, true, 4.6, true, 360
 );
 
+update public.tourism_places
+set address = concat_ws(', ', nullif(city, ''), nullif(state, ''))
+where address is null or btrim(address) = '';
+
 -- Verify seed data
 select count(*) as total_places from public.tourism_places;
 select category, count(*) as count from public.tourism_places group by category order by count desc;

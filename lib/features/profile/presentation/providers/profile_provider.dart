@@ -26,13 +26,21 @@ class ProfileRepository {
     _requireMatchingAuthenticatedUser(profile.userId);
     final data = profile.toJson();
 
-    final response = await _client
+    final updated = await _client
         .from('profiles')
-        .upsert(data, onConflict: 'user_id')
+        .update(data)
+        .eq('user_id', profile.userId)
         .select()
-        .single();
+        .maybeSingle();
 
-    return UserProfile.fromJson(response);
+    if (updated != null) {
+      return UserProfile.fromJson(updated);
+    }
+
+    final inserted =
+        await _client.from('profiles').insert(data).select().single();
+
+    return UserProfile.fromJson(inserted);
   }
 
   Future<String> uploadProfileImage(String userId, File imageFile) async {

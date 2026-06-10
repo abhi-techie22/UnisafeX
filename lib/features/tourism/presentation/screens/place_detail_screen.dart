@@ -8,6 +8,7 @@ import 'package:unisafex/core/theme/app_theme.dart';
 import 'package:unisafex/core/widgets/app_button.dart';
 import 'package:unisafex/features/home/presentation/providers/location_provider.dart';
 import 'package:unisafex/features/tourism/domain/entities/tourism_place.dart';
+import 'package:unisafex/features/tourism/presentation/providers/tourism_provider.dart';
 
 class PlaceDetailScreen extends ConsumerStatefulWidget {
   final TourismPlace place;
@@ -42,18 +43,18 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
     super.dispose();
   }
 
-  double? _calculateDistance() {
+  double? _calculateDistance(TourismPlace place) {
     final location = ref.read(locationProvider).value;
     if (location == null) return null;
 
     const radians = math.pi / 180;
     final haversine = 0.5 -
-        math.cos((widget.place.latitude - location.latitude) * radians) / 2 +
+        math.cos((place.latitude - location.latitude) * radians) / 2 +
         math.cos(location.latitude * radians) *
-            math.cos(widget.place.latitude * radians) *
+            math.cos(place.latitude * radians) *
             (1 -
                 math.cos(
-                  (widget.place.longitude - location.longitude) * radians,
+                  (place.longitude - location.longitude) * radians,
                 )) /
             2;
 
@@ -63,13 +64,18 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final place = widget.place;
-    final distance = _calculateDistance();
+    final placeDetails = ref.watch(placeDetailsProvider(widget.place.id));
+    final place = placeDetails.value ?? widget.place;
+    final distance = _calculateDistance(place);
 
     return Scaffold(
       body: CustomScrollView(
         controller: _scrollController,
         slivers: [
+          if (placeDetails.isLoading)
+            const SliverToBoxAdapter(
+              child: LinearProgressIndicator(minHeight: 3),
+            ),
           SliverAppBar(
             expandedHeight: 340,
             pinned: true,

@@ -9,25 +9,22 @@ class TourismRepository {
   TourismRepository(this._client);
 
   // FEATURED PLACES
-  Future<List<TourismPlace>>
-      getFeaturedPlaces() async {
+  Future<List<TourismPlace>> getFeaturedPlaces() async {
     try {
-      final response =
-          await _client
-              .from(
-                'tourism_places',
-              )
-              .select()
-              .order(
-                'rating',
-                ascending: false,
-              )
-              .limit(10);
+      final response = await _client
+          .from(
+            'tourism_places',
+          )
+          .select()
+          .order(
+            'rating',
+            ascending: false,
+          )
+          .limit(10);
 
       return (response as List)
           .map(
-            (e) =>
-                TourismPlace.fromJson(
+            (e) => TourismPlace.fromJson(
               e,
             ),
           )
@@ -41,20 +38,18 @@ class TourismRepository {
   }
 
   // POPULAR PLACES
-  Future<List<TourismPlace>>
-      getPopularPlaces() async {
+  Future<List<TourismPlace>> getPopularPlaces() async {
     try {
-      final response =
-          await _client
-              .from(
-                'tourism_places',
-              )
-              .select()
-              .order(
-                'rating',
-                ascending: false,
-              )
-              .limit(200);
+      final response = await _client
+          .from(
+            'tourism_places',
+          )
+          .select()
+          .order(
+            'rating',
+            ascending: false,
+          )
+          .limit(200);
 
       print(
         'SUPABASE DATA: ${response.length}',
@@ -62,8 +57,7 @@ class TourismRepository {
 
       return (response as List)
           .map(
-            (e) =>
-                TourismPlace.fromJson(
+            (e) => TourismPlace.fromJson(
               e,
             ),
           )
@@ -77,25 +71,22 @@ class TourismRepository {
   }
 
   // TRENDING
-  Future<List<TourismPlace>>
-      getTrendingPlaces() async {
+  Future<List<TourismPlace>> getTrendingPlaces() async {
     try {
-      final response =
-          await _client
-              .from(
-                'tourism_places',
-              )
-              .select()
-              .order(
-                'rating',
-                ascending: false,
-              )
-              .limit(20);
+      final response = await _client
+          .from(
+            'tourism_places',
+          )
+          .select()
+          .order(
+            'rating',
+            ascending: false,
+          )
+          .limit(20);
 
       return (response as List)
           .map(
-            (e) =>
-                TourismPlace.fromJson(
+            (e) => TourismPlace.fromJson(
               e,
             ),
           )
@@ -109,25 +100,22 @@ class TourismRepository {
   }
 
   // MUST VISIT
-  Future<List<TourismPlace>>
-      getMustVisitPlaces() async {
+  Future<List<TourismPlace>> getMustVisitPlaces() async {
     try {
-      final response =
-          await _client
-              .from(
-                'tourism_places',
-              )
-              .select()
-              .order(
-                'rating',
-                ascending: false,
-              )
-              .limit(20);
+      final response = await _client
+          .from(
+            'tourism_places',
+          )
+          .select()
+          .order(
+            'rating',
+            ascending: false,
+          )
+          .limit(20);
 
       return (response as List)
           .map(
-            (e) =>
-                TourismPlace.fromJson(
+            (e) => TourismPlace.fromJson(
               e,
             ),
           )
@@ -141,31 +129,28 @@ class TourismRepository {
   }
 
   // CATEGORY
-  Future<List<TourismPlace>>
-      getPlacesByCategory(
+  Future<List<TourismPlace>> getPlacesByCategory(
     String category,
   ) async {
     try {
-      final response =
-          await _client
-              .from(
-                'tourism_places',
-              )
-              .select()
-              .eq(
-                'category',
-                category,
-              )
-              .order(
-                'rating',
-                ascending: false,
-              )
-              .limit(50);
+      final response = await _client
+          .from(
+            'tourism_places',
+          )
+          .select()
+          .eq(
+            'category',
+            category,
+          )
+          .order(
+            'rating',
+            ascending: false,
+          )
+          .limit(50);
 
       return (response as List)
           .map(
-            (e) =>
-                TourismPlace.fromJson(
+            (e) => TourismPlace.fromJson(
               e,
             ),
           )
@@ -179,31 +164,28 @@ class TourismRepository {
   }
 
   // CITY
-  Future<List<TourismPlace>>
-      getPlacesByCity(
+  Future<List<TourismPlace>> getPlacesByCity(
     String city,
   ) async {
     try {
-      final response =
-          await _client
-              .from(
-                'tourism_places',
-              )
-              .select()
-              .ilike(
-                'city',
-                '%$city%',
-              )
-              .order(
-                'rating',
-                ascending: false,
-              )
-              .limit(50);
+      final response = await _client
+          .from(
+            'tourism_places',
+          )
+          .select()
+          .ilike(
+            'city',
+            '%$city%',
+          )
+          .order(
+            'rating',
+            ascending: false,
+          )
+          .limit(50);
 
       return (response as List)
           .map(
-            (e) =>
-                TourismPlace.fromJson(
+            (e) => TourismPlace.fromJson(
               e,
             ),
           )
@@ -217,30 +199,27 @@ class TourismRepository {
   }
 
   // SEARCH
-  Future<List<TourismPlace>>
-      searchPlaces(
+  Future<List<TourismPlace>> searchPlaces(
     String query,
   ) async {
     try {
-      final response =
-          await _client
-              .from(
-                'tourism_places',
-              )
-              .select()
-              .or(
-                'place_name.ilike.%$query%,city.ilike.%$query%,state.ilike.%$query%,category.ilike.%$query%',
-              )
-              .order(
-                'rating',
-                ascending: false,
-              )
-              .limit(100);
+      final response = await _client
+          .from(
+            'tourism_places',
+          )
+          .select()
+          .or(
+            'place_name.ilike.%$query%,city.ilike.%$query%,state.ilike.%$query%,category.ilike.%$query%',
+          )
+          .order(
+            'rating',
+            ascending: false,
+          )
+          .limit(100);
 
       return (response as List)
           .map(
-            (e) =>
-                TourismPlace.fromJson(
+            (e) => TourismPlace.fromJson(
               e,
             ),
           )
@@ -254,8 +233,7 @@ class TourismRepository {
   }
 
   // FILTERS
-  Future<List<TourismPlace>>
-      getPlacesWithFilters({
+  Future<List<TourismPlace>> getPlacesWithFilters({
     String? category,
     bool? isFree,
     bool? isPopular,
@@ -263,13 +241,13 @@ class TourismRepository {
     int? page,
   }) async {
     try {
-      dynamic query =
-          _client.from(
-        'tourism_places',
-      ).select();
+      dynamic query = _client
+          .from(
+            'tourism_places',
+          )
+          .select();
 
-      if (category != null &&
-          category.isNotEmpty) {
+      if (category != null && category.isNotEmpty) {
         query = query.eq(
           'category',
           category,
@@ -290,40 +268,30 @@ class TourismRepository {
         );
       }
 
-      if (bestSeason != null &&
-          bestSeason.isNotEmpty) {
+      if (bestSeason != null && bestSeason.isNotEmpty) {
         query = query.ilike(
           'best_season',
           '%$bestSeason%',
         );
       }
 
-      final from =
-          (page ?? 0) *
-              AppConstants
-                  .pageSize;
+      final from = (page ?? 0) * AppConstants.pageSize;
 
-      final to =
-          from +
-              AppConstants
-                  .pageSize -
-              1;
+      final to = from + AppConstants.pageSize - 1;
 
-      final response =
-          await query
-              .order(
-                'rating',
-                ascending: false,
-              )
-              .range(
-                from,
-                to,
-              );
+      final response = await query
+          .order(
+            'rating',
+            ascending: false,
+          )
+          .range(
+            from,
+            to,
+          );
 
       return (response as List)
           .map(
-            (e) =>
-                TourismPlace.fromJson(
+            (e) => TourismPlace.fromJson(
               e,
             ),
           )
@@ -337,28 +305,22 @@ class TourismRepository {
   }
 
   // NEARBY
-  Future<List<TourismPlace>>
-      getNearbyPlaces({
-    required double
-        latitude,
-    required double
-        longitude,
-    double radiusKm =
-        50,
+  Future<List<TourismPlace>> getNearbyPlaces({
+    required double latitude,
+    required double longitude,
+    double radiusKm = 50,
   }) async {
     try {
-      final response =
-          await _client
-              .from(
-                'tourism_places',
-              )
-              .select()
-              .limit(50);
+      final response = await _client
+          .from(
+            'tourism_places',
+          )
+          .select()
+          .limit(50);
 
       return (response as List)
           .map(
-            (e) =>
-                TourismPlace.fromJson(
+            (e) => TourismPlace.fromJson(
               e,
             ),
           )
@@ -372,25 +334,22 @@ class TourismRepository {
   }
 
   // BY ID
-  Future<TourismPlace?>
-      getPlaceById(
+  Future<TourismPlace?> getPlaceById(
     String id,
   ) async {
     try {
-      final response =
-          await _client
-              .from(
-                'tourism_places',
-              )
-              .select()
-              .eq(
-                'place_id',
-                id,
-              )
-              .single();
+      final response = await _client
+          .from(
+            'tourism_places',
+          )
+          .select()
+          .eq(
+            'place_id',
+            id,
+          )
+          .single();
 
-      return TourismPlace
-          .fromJson(
+      return TourismPlace.fromJson(
         response,
       );
     } catch (e) {
@@ -402,41 +361,31 @@ class TourismRepository {
   }
 
   // ALL PLACES
-  Future<List<TourismPlace>>
-      getAllPlaces({
+  Future<List<TourismPlace>> getAllPlaces({
     int page = 0,
   }) async {
     try {
-      final from =
-          page *
-              AppConstants
-                  .pageSize;
+      final from = page * AppConstants.pageSize;
 
-      final to =
-          from +
-              AppConstants
-                  .pageSize -
-              1;
+      final to = from + AppConstants.pageSize - 1;
 
-      final response =
-          await _client
-              .from(
-                'tourism_places',
-              )
-              .select()
-              .order(
-                'rating',
-                ascending: false,
-              )
-              .range(
-                from,
-                to,
-              );
+      final response = await _client
+          .from(
+            'tourism_places',
+          )
+          .select()
+          .order(
+            'rating',
+            ascending: false,
+          )
+          .range(
+            from,
+            to,
+          );
 
       return (response as List)
           .map(
-            (e) =>
-                TourismPlace.fromJson(
+            (e) => TourismPlace.fromJson(
               e,
             ),
           )
@@ -452,21 +401,20 @@ class TourismRepository {
 
 // PROVIDERS
 
-final tourismRepositoryProvider =
-    Provider<
-        TourismRepository>(
+final tourismRepositoryProvider = Provider<TourismRepository>(
   (ref) {
     return TourismRepository(
-      Supabase
-          .instance
-          .client,
+      Supabase.instance.client,
     );
   },
 );
 
-final featuredPlacesProvider =
-    FutureProvider<
-        List<TourismPlace>>(
+final placeDetailsProvider =
+    FutureProvider.family<TourismPlace?, String>((ref, placeId) {
+  return ref.read(tourismRepositoryProvider).getPlaceById(placeId);
+});
+
+final featuredPlacesProvider = FutureProvider<List<TourismPlace>>(
   (ref) async {
     return ref
         .read(
@@ -476,9 +424,7 @@ final featuredPlacesProvider =
   },
 );
 
-final popularPlacesProvider =
-    FutureProvider<
-        List<TourismPlace>>(
+final popularPlacesProvider = FutureProvider<List<TourismPlace>>(
   (ref) async {
     return ref
         .read(
@@ -488,9 +434,7 @@ final popularPlacesProvider =
   },
 );
 
-final trendingPlacesProvider =
-    FutureProvider<
-        List<TourismPlace>>(
+final trendingPlacesProvider = FutureProvider<List<TourismPlace>>(
   (ref) async {
     return ref
         .read(
@@ -500,9 +444,7 @@ final trendingPlacesProvider =
   },
 );
 
-final mustVisitPlacesProvider =
-    FutureProvider<
-        List<TourismPlace>>(
+final mustVisitPlacesProvider = FutureProvider<List<TourismPlace>>(
   (ref) async {
     return ref
         .read(
@@ -513,9 +455,7 @@ final mustVisitPlacesProvider =
 );
 
 final placesByCategoryProvider =
-    FutureProvider.family<
-        List<TourismPlace>,
-        String>(
+    FutureProvider.family<List<TourismPlace>, String>(
   (
     ref,
     category,
@@ -530,10 +470,7 @@ final placesByCategoryProvider =
   },
 );
 
-final placesByCityProvider =
-    FutureProvider.family<
-        List<TourismPlace>,
-        String>(
+final placesByCityProvider = FutureProvider.family<List<TourismPlace>, String>(
   (
     ref,
     city,
@@ -548,10 +485,7 @@ final placesByCityProvider =
   },
 );
 
-final searchPlacesProvider =
-    FutureProvider.family<
-        List<TourismPlace>,
-        String>(
+final searchPlacesProvider = FutureProvider.family<List<TourismPlace>, String>(
   (
     ref,
     query,
@@ -583,9 +517,7 @@ class NearbyParams {
 }
 
 final nearbyPlacesProvider =
-    FutureProvider.family<
-        List<TourismPlace>,
-        NearbyParams>(
+    FutureProvider.family<List<TourismPlace>, NearbyParams>(
   (
     ref,
     params,
@@ -595,12 +527,9 @@ final nearbyPlacesProvider =
           tourismRepositoryProvider,
         )
         .getNearbyPlaces(
-          latitude:
-              params.lat,
-          longitude:
-              params.lng,
-          radiusKm:
-              params.radiusKm,
+          latitude: params.lat,
+          longitude: params.lng,
+          radiusKm: params.radiusKm,
         );
   },
 );

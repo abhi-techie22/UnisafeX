@@ -1,22 +1,87 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
 import 'package:unisafex/core/widgets/app_button.dart';
-import 'package:unisafex/features/home/presentation/screens/home_screen.dart';
+import 'package:unisafex/features/auth/presentation/providers/auth_provider.dart';
+import 'package:unisafex/features/profile/presentation/providers/profile_provider.dart';
 
-class AuthSelectionScreen extends StatelessWidget {
+class AuthSelectionScreen extends ConsumerStatefulWidget {
   const AuthSelectionScreen({super.key});
 
-  Future<void> _continueAsGuest(BuildContext context) async {
-    await Supabase.instance.client.auth.signInAnonymously();
-    if (context.mounted) context.go(AppRoutes.home);
+  @override
+  ConsumerState<AuthSelectionScreen> createState() =>
+      _AuthSelectionScreenState();
+}
+
+class _AuthSelectionScreenState extends ConsumerState<AuthSelectionScreen> {
+  bool _isGoogleLoading = false;
+  bool _isRoutingAuthenticatedUser = false;
+
+  Future<void> _signInWithGoogle() async {
+    setState(() => _isGoogleLoading = true);
+    try {
+      await ref.read(authNotifierProvider.notifier).signInWithGoogle();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_authErrorMessage(error)),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isGoogleLoading = false);
+    }
+  }
+
+  Future<void> _routeAuthenticatedUser(Session session) async {
+    if (_isRoutingAuthenticatedUser) return;
+    _isRoutingAuthenticatedUser = true;
+    try {
+      final profile =
+          await ref.read(profileRepositoryProvider).getProfile(session.user.id);
+      ref.invalidate(profileNotifierProvider);
+      if (!mounted) return;
+      context.go(
+        profile?.isProfileComplete == true
+            ? AppRoutes.home
+            : AppRoutes.profileCompletion,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_authErrorMessage(error)),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      _isRoutingAuthenticatedUser = false;
+    }
+  }
+
+  String _authErrorMessage(Object error) {
+    if (error is AuthException) return error.message;
+    return 'Sign in failed. Please try again.';
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AsyncValue<AuthState>>(authStateProvider, (previous, next) {
+      final authState = next.value;
+      if (authState?.event == AuthChangeEvent.signedIn &&
+          authState?.session != null) {
+        _routeAuthenticatedUser(authState!.session!);
+      }
+    });
+
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final size = MediaQuery.of(context).size;
 
@@ -89,9 +154,7 @@ class AuthSelectionScreen extends StatelessWidget {
                           ),
                         ],
                       ).animate().fadeIn(duration: 400.ms),
-
                       const SizedBox(height: 48),
-
                       const Text(
                         'Welcome to\nIncredible India',
                         style: TextStyle(
@@ -110,9 +173,7 @@ class AuthSelectionScreen extends StatelessWidget {
                             curve: Curves.easeOutCubic,
                           )
                           .fadeIn(duration: 400.ms, delay: 100.ms),
-
                       const SizedBox(height: 14),
-
                       Text(
                         'Your safe and trusted companion for exploring the wonders of India.',
                         style: TextStyle(
@@ -178,6 +239,17 @@ class AuthSelectionScreen extends StatelessWidget {
 
                       const SizedBox(height: 12),
 
+                      AppOutlinedButton(
+                        label: _isGoogleLoading
+                            ? 'Opening Google...'
+                            : 'Continue with Google',
+                        onPressed: _isGoogleLoading ? null : _signInWithGoogle,
+                        icon: FontAwesomeIcons.google,
+                        isFullWidth: true,
+                      ),
+
+                      const SizedBox(height: 12),
+
                       // Register
                       AppOutlinedButton(
                         label: 'Create Account',
@@ -197,8 +269,7 @@ class AuthSelectionScreen extends StatelessWidget {
                                       ? AppColors.borderDark
                                       : AppColors.borderLight)),
                           Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 16),
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
                             child: Text(
                               'or',
                               style: TextStyle(
@@ -265,9 +336,8 @@ class AuthSelectionScreen extends StatelessWidget {
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 12,
-                            color: isDark
-                                ? AppColors.grey600
-                                : AppColors.grey400,
+                            color:
+                                isDark ? AppColors.grey600 : AppColors.grey400,
                             height: 1.5,
                           ),
                         ),
