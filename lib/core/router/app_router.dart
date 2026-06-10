@@ -11,6 +11,8 @@ import 'package:unisafex/core/widgets/main_scaffold.dart';
 import 'package:unisafex/features/auth/presentation/screens/auth_selection_screen.dart';
 import 'package:unisafex/features/auth/presentation/screens/login_screen.dart';
 import 'package:unisafex/features/auth/presentation/screens/register_screen.dart';
+import 'package:unisafex/features/booking/presentation/screens/flight_booking_screen.dart';
+import 'package:unisafex/features/booking/presentation/screens/hotel_booking_screen.dart';
 
 import 'package:unisafex/features/favorites/presentation/screens/favorites_screen.dart';
 import 'package:unisafex/features/home/presentation/screens/home_screen.dart';
@@ -251,6 +253,14 @@ GoRouter appRouter(
         path: AppRoutes.aiAssistant,
         builder: (context, state) => const AiTravelAssistantScreen(),
       ),
+      GoRoute(
+        path: AppRoutes.hotelBooking,
+        builder: (context, state) => const HotelBookingScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.flightBooking,
+        builder: (context, state) => const FlightBookingScreen(),
+      ),
     ],
     errorBuilder: (
       context,
@@ -303,4 +313,6 @@ class AppRoutes {
   static const String currencyHelper = '/travel-toolkit/currency';
   static const String phraseBook = '/travel-toolkit/phrase-book';
   static const String aiAssistant = '/travel-toolkit/ai-assistant';
+  static const String hotelBooking = '/booking/hotels';
+  static const String flightBooking = '/booking/flights';
 }

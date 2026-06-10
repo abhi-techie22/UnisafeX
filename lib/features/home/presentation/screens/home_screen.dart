@@ -7,6 +7,7 @@ import 'package:unisafex/core/constants/app_constants.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
 import 'package:unisafex/features/auth/presentation/providers/auth_provider.dart';
+import 'package:unisafex/features/booking/presentation/widgets/booking_home_section.dart';
 import 'package:unisafex/features/home/presentation/providers/location_provider.dart';
 import 'package:unisafex/features/profile/presentation/providers/profile_provider.dart';
 import 'package:unisafex/features/tourism/domain/entities/tourism_place.dart';
@@ -165,6 +166,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ).animate().fadeIn(duration: 400.ms),
           ),
+
+          const SliverToBoxAdapter(child: BookingHomeSection()),
 
           SliverToBoxAdapter(
             child: Padding(
