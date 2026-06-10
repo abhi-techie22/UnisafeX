@@ -32,137 +32,96 @@ import 'package:unisafex/features/tourism/domain/entities/tourism_place.dart';
 
 import 'package:unisafex/features/tourism/presentation/screens/place_detail_screen.dart';
 import 'package:unisafex/features/tourism/presentation/screens/places_list_screen.dart';
+import 'package:unisafex/features/tourism/presentation/screens/ai_travel_assistant_screen.dart';
+import 'package:unisafex/features/tourism/presentation/screens/currency_helper_screen.dart';
+import 'package:unisafex/features/tourism/presentation/screens/phrase_book_screen.dart';
+import 'package:unisafex/features/tourism/presentation/screens/travel_toolkit_screen.dart';
+import 'package:unisafex/features/tourism/presentation/screens/trip_planner_screen.dart';
 
 part 'app_router.g.dart';
 
-final _rootNavigatorKey =
-    GlobalKey<NavigatorState>();
+final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
-final _shellNavigatorKey =
-    GlobalKey<NavigatorState>();
+final _shellNavigatorKey = GlobalKey<NavigatorState>();
 
 @riverpod
 GoRouter appRouter(
   AppRouterRef ref,
 ) {
   return GoRouter(
-    navigatorKey:
-        _rootNavigatorKey,
+    navigatorKey: _rootNavigatorKey,
+    initialLocation: AppRoutes.splash,
+    debugLogDiagnostics: false,
+    redirect: (context, state) async {
+      final session = Supabase.instance.client.auth.currentSession;
 
-    initialLocation:
-        AppRoutes.splash,
+      final prefs = await SharedPreferences.getInstance();
 
-    debugLogDiagnostics:
-        false,
+      final onboardingDone = prefs.getBool(
+            AppConstants.cacheKeyOnboarding,
+          ) ??
+          false;
 
-    redirect:
-        (context, state) async {
-      final session =
-          Supabase.instance.client
-              .auth.currentSession;
+      final isOnSplash = state.matchedLocation == AppRoutes.splash;
 
-      final prefs =
-          await SharedPreferences
-              .getInstance();
+      final isOnOnboarding = state.matchedLocation == AppRoutes.onboarding;
 
-      final onboardingDone =
-          prefs.getBool(
-                AppConstants
-                    .cacheKeyOnboarding,
-              ) ??
-              false;
-
-      final isOnSplash =
-          state.matchedLocation ==
-              AppRoutes.splash;
-
-      final isOnOnboarding =
-          state.matchedLocation ==
-              AppRoutes.onboarding;
-
-      final isOnAuth =
-          state.matchedLocation
-              .startsWith('/auth');
+      final isOnAuth = state.matchedLocation.startsWith('/auth');
 
       if (isOnSplash) {
         return null;
       }
 
-      if (!onboardingDone &&
-          !isOnOnboarding) {
-        return AppRoutes
-            .onboarding;
+      if (!onboardingDone && !isOnOnboarding) {
+        return AppRoutes.onboarding;
       }
 
-      if (onboardingDone &&
-          isOnOnboarding) {
-        return AppRoutes
-            .authSelection;
+      if (onboardingDone && isOnOnboarding) {
+        return AppRoutes.authSelection;
       }
 
       return null;
     },
-
     routes: [
       /// Splash
       GoRoute(
-        path:
-            AppRoutes.splash,
-        builder:
-            (context, state) =>
-                const SplashScreen(),
+        path: AppRoutes.splash,
+        builder: (context, state) => const SplashScreen(),
       ),
 
       /// Onboarding
       GoRoute(
-        path:
-            AppRoutes.onboarding,
-        builder:
-            (context, state) =>
-                const OnboardingScreen(),
+        path: AppRoutes.onboarding,
+        builder: (context, state) => const OnboardingScreen(),
       ),
 
       /// Auth Selection
       GoRoute(
-        path: AppRoutes
-            .authSelection,
-        builder:
-            (context, state) =>
-                const AuthSelectionScreen(),
+        path: AppRoutes.authSelection,
+        builder: (context, state) => const AuthSelectionScreen(),
       ),
 
       /// Login
       GoRoute(
-        path:
-            AppRoutes.login,
-        builder:
-            (context, state) =>
-                const LoginScreen(),
+        path: AppRoutes.login,
+        builder: (context, state) => const LoginScreen(),
       ),
 
       /// Register
       GoRoute(
-        path: AppRoutes
-            .register,
-        builder:
-            (context, state) =>
-                const RegisterScreen(),
+        path: AppRoutes.register,
+        builder: (context, state) => const RegisterScreen(),
       ),
 
       /// Profile Completion
       GoRoute(
-        path: AppRoutes
-            .profileCompletion,
-        builder:
-            (context, state) =>
-                const ProfileCompletionScreen(),
+        path: AppRoutes.profileCompletion,
+        builder: (context, state) => const ProfileCompletionScreen(),
       ),
 
       /// Bottom Nav Pages
       ShellRoute(
-        navigatorKey:
-            _shellNavigatorKey,
-
+        navigatorKey: _shellNavigatorKey,
         builder: (
           context,
           state,
@@ -172,12 +131,10 @@ GoRouter appRouter(
             child: child,
           );
         },
-
         routes: [
           /// Home
           GoRoute(
-            path:
-                AppRoutes.home,
+            path: AppRoutes.home,
             builder: (
               context,
               state,
@@ -188,8 +145,7 @@ GoRouter appRouter(
 
           /// Search
           GoRoute(
-            path: AppRoutes
-                .search,
+            path: AppRoutes.search,
             builder: (
               context,
               state,
@@ -200,27 +156,22 @@ GoRouter appRouter(
 
           /// MAP (UPDATED)
           GoRoute(
-            path:
-                AppRoutes.map,
+            path: AppRoutes.map,
             builder: (
               context,
               state,
             ) {
-              final place =
-                  state.extra
-                      as TourismPlace?;
+              final place = state.extra as TourismPlace?;
 
               return MapScreen(
-                selectedPlace:
-                    place,
+                selectedPlace: place,
               );
             },
           ),
 
           /// Favorites
           GoRoute(
-            path: AppRoutes
-                .favorites,
+            path: AppRoutes.favorites,
             builder: (
               context,
               state,
@@ -231,8 +182,7 @@ GoRouter appRouter(
 
           /// Profile
           GoRoute(
-            path:
-                AppRoutes.profile,
+            path: AppRoutes.profile,
             builder: (
               context,
               state,
@@ -245,15 +195,12 @@ GoRouter appRouter(
 
       /// Place Detail
       GoRoute(
-        path:
-            AppRoutes.placeDetail,
+        path: AppRoutes.placeDetail,
         builder: (
           context,
           state,
         ) {
-          final place =
-              state.extra
-                  as TourismPlace;
+          final place = state.extra as TourismPlace;
 
           return PlaceDetailScreen(
             place: place,
@@ -263,26 +210,17 @@ GoRouter appRouter(
 
       /// Places List
       GoRoute(
-        path:
-            AppRoutes.placesList,
+        path: AppRoutes.placesList,
         builder: (
           context,
           state,
         ) {
-          final category = state
-              .uri
-              .queryParameters[
-                  'category'];
+          final category = state.uri.queryParameters['category'];
 
-          final title = state
-                  .uri
-                  .queryParameters[
-              'title'] ??
-              'Places';
+          final title = state.uri.queryParameters['title'] ?? 'Places';
 
           return PlacesListScreen(
-            category:
-                category,
+            category: category,
             title: title,
           );
         },
@@ -290,14 +228,30 @@ GoRouter appRouter(
 
       /// Settings
       GoRoute(
-        path:
-            AppRoutes.settings,
-        builder:
-            (context, state) =>
-                const SettingsScreen(),
+        path: AppRoutes.settings,
+        builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.travelToolkit,
+        builder: (context, state) => const TravelToolkitScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.tripPlanner,
+        builder: (context, state) => const TripPlannerScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.currencyHelper,
+        builder: (context, state) => const CurrencyHelperScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.phraseBook,
+        builder: (context, state) => const PhraseBookScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.aiAssistant,
+        builder: (context, state) => const AiTravelAssistantScreen(),
       ),
     ],
-
     errorBuilder: (
       context,
       state,
@@ -316,48 +270,37 @@ GoRouter appRouter(
 class AppRoutes {
   AppRoutes._();
 
-  static const String splash =
-      '/';
+  static const String splash = '/';
 
-  static const String onboarding =
-      '/onboarding';
+  static const String onboarding = '/onboarding';
 
-  static const String authSelection =
-      '/auth';
+  static const String authSelection = '/auth';
 
-  static const String login =
-      '/auth/login';
+  static const String login = '/auth/login';
 
-  static const String register =
-      '/auth/register';
+  static const String register = '/auth/register';
 
-  static const String
-      profileCompletion =
-      '/profile-completion';
+  static const String profileCompletion = '/profile-completion';
 
-  static const String home =
-      '/home';
+  static const String home = '/home';
 
-  static const String search =
-      '/search';
+  static const String search = '/search';
 
-  static const String map =
-      '/map';
+  static const String map = '/map';
 
-  static const String favorites =
-      '/favorites';
+  static const String favorites = '/favorites';
 
-  static const String profile =
-      '/profile';
+  static const String profile = '/profile';
 
-  static const String
-      placeDetail =
-      '/place-detail';
+  static const String placeDetail = '/place-detail';
 
-  static const String
-      placesList =
-      '/places-list';
+  static const String placesList = '/places-list';
 
-  static const String settings =
-      '/settings';
+  static const String settings = '/settings';
+
+  static const String travelToolkit = '/travel-toolkit';
+  static const String tripPlanner = '/travel-toolkit/trip-planner';
+  static const String currencyHelper = '/travel-toolkit/currency';
+  static const String phraseBook = '/travel-toolkit/phrase-book';
+  static const String aiAssistant = '/travel-toolkit/ai-assistant';
 }

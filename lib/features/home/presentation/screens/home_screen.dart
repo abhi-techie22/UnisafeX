@@ -50,7 +50,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             floating: true,
             snap: true,
             pinned: false,
-            backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+            backgroundColor:
+                isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
             elevation: 0,
             flexibleSpace: FlexibleSpaceBar(
               background: Padding(
@@ -115,8 +116,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             data: (p) => _buildAvatar(p?.profileImageUrl,
                                 p?.initials ?? 'T', p?.countryCode),
                             loading: () => const _AvatarShimmer(),
-                            error: (_, __) =>
-                                _buildAvatar(null, 'T', null),
+                            error: (_, __) => _buildAvatar(null, 'T', null),
                           ),
                         ),
                       ],
@@ -139,9 +139,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     color: isDark ? AppColors.grey800 : AppColors.grey100,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                      color: isDark
-                          ? AppColors.borderDark
-                          : AppColors.borderLight,
+                      color:
+                          isDark ? AppColors.borderDark : AppColors.borderLight,
                     ),
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -157,8 +156,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         'search'.tr(),
                         style: TextStyle(
                           fontSize: 14,
-                          color:
-                              isDark ? AppColors.grey500 : AppColors.grey400,
+                          color: isDark ? AppColors.grey500 : AppColors.grey400,
                         ),
                       ),
                     ],
@@ -166,6 +164,66 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
             ).animate().fadeIn(duration: 400.ms),
+          ),
+
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(18),
+                onTap: () => context.push(AppRoutes.travelToolkit),
+                child: Ink(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [AppColors.primaryDark, AppColors.primary],
+                    ),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const Icon(
+                          Icons.auto_awesome,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Plan your India journey',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Trip planner, currency, phrases and more',
+                              style: TextStyle(color: Colors.white70),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(
+                        Icons.arrow_forward_rounded,
+                        color: Colors.white,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
 
           // Categories
@@ -219,8 +277,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           height: 260,
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 20),
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
                             itemCount: places.length,
                             separatorBuilder: (_, __) =>
                                 const SizedBox(width: 14),
@@ -259,8 +316,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           height: 200,
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 20),
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
                             itemCount: places.length,
                             separatorBuilder: (_, __) =>
                                 const SizedBox(width: 14),
@@ -300,8 +356,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           height: 210,
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 20),
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
                             itemCount: places.length,
                             separatorBuilder: (_, __) =>
                                 const SizedBox(width: 14),
@@ -347,8 +402,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ),
                           ),
                           ...filtered.take(6).map((place) => Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                    20, 0, 20, 12),
+                                padding:
+                                    const EdgeInsets.fromLTRB(20, 0, 20, 12),
                                 child: _PopularPlaceListItem(
                                   place: place,
                                   onTap: () => context.push(
@@ -378,8 +433,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return 'good_evening'.tr();
   }
 
-  Widget _buildAvatar(
-      String? imageUrl, String initials, String? countryCode) {
+  Widget _buildAvatar(String? imageUrl, String initials, String? countryCode) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Stack(
@@ -432,20 +486,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   String _countryCodeToFlag(String countryCode) {
-    return countryCode.toUpperCase().runes.map((r) => String.fromCharCode(r + 127397)).join('');
+    return countryCode
+        .toUpperCase()
+        .runes
+        .map((r) => String.fromCharCode(r + 127397))
+        .join('');
   }
 
   Color _getCategoryColor(String category) {
     switch (category) {
-      case 'Historical': return AppColors.historical;
-      case 'Nature': return AppColors.nature;
-      case 'Spiritual': return AppColors.spiritual;
-      case 'Adventure': return AppColors.adventure;
-      case 'Photography': return AppColors.photography;
-      case 'Food': return AppColors.food;
-      case 'Shopping': return AppColors.shopping;
-      case 'Wildlife': return AppColors.wildlife;
-      default: return AppColors.primary;
+      case 'Historical':
+        return AppColors.historical;
+      case 'Nature':
+        return AppColors.nature;
+      case 'Spiritual':
+        return AppColors.spiritual;
+      case 'Adventure':
+        return AppColors.adventure;
+      case 'Photography':
+        return AppColors.photography;
+      case 'Food':
+        return AppColors.food;
+      case 'Shopping':
+        return AppColors.shopping;
+      case 'Wildlife':
+        return AppColors.wildlife;
+      default:
+        return AppColors.primary;
     }
   }
 
@@ -547,8 +614,7 @@ class _PopularPlaceListItem extends StatelessWidget {
   final TourismPlace place;
   final VoidCallback onTap;
 
-  const _PopularPlaceListItem(
-      {required this.place, required this.onTap});
+  const _PopularPlaceListItem({required this.place, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -585,9 +651,7 @@ class _PopularPlaceListItem extends StatelessWidget {
                 ),
               ),
             ),
-
             const SizedBox(width: 14),
-
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -652,7 +716,6 @@ class _PopularPlaceListItem extends StatelessWidget {
                 ),
               ),
             ),
-
             Padding(
               padding: const EdgeInsets.only(right: 16),
               child: Icon(
