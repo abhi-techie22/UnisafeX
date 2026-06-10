@@ -12,16 +12,26 @@ class MainScaffold extends ConsumerWidget {
   const MainScaffold({super.key, required this.child});
 
   static const List<_NavItem> _navItems = [
-    _NavItem(label: 'Explore', icon: Icons.explore_outlined, activeIcon: Icons.explore),
-    _NavItem(label: 'Search', icon: Icons.search_outlined, activeIcon: Icons.search),
+    _NavItem(
+        label: 'Explore',
+        icon: Icons.explore_outlined,
+        activeIcon: Icons.explore),
+    _NavItem(
+        label: 'Booking',
+        icon: Icons.luggage_outlined,
+        activeIcon: Icons.luggage),
     _NavItem(label: 'Map', icon: Icons.map_outlined, activeIcon: Icons.map),
-    _NavItem(label: 'Saved', icon: Icons.bookmark_border_outlined, activeIcon: Icons.bookmark),
-    _NavItem(label: 'Profile', icon: Icons.person_outline, activeIcon: Icons.person),
+    _NavItem(
+        label: 'Saved',
+        icon: Icons.bookmark_border_outlined,
+        activeIcon: Icons.bookmark),
+    _NavItem(
+        label: 'Profile', icon: Icons.person_outline, activeIcon: Icons.person),
   ];
 
   static const List<String> _routes = [
     AppRoutes.home,
-    AppRoutes.search,
+    AppRoutes.booking,
     AppRoutes.map,
     AppRoutes.favorites,
     AppRoutes.profile,
@@ -29,6 +39,7 @@ class MainScaffold extends ConsumerWidget {
 
   int _getActiveIndex(BuildContext context) {
     final location = GoRouterState.of(context).matchedLocation;
+    if (location.startsWith(AppRoutes.booking)) return 1;
     for (int i = 0; i < _routes.length; i++) {
       if (location == _routes[i]) return i;
     }
@@ -75,7 +86,9 @@ class MainScaffold extends ConsumerWidget {
                               key: ValueKey(isActive),
                               color: isActive
                                   ? AppColors.primary
-                                  : (isDark ? AppColors.grey600 : AppColors.grey400),
+                                  : (isDark
+                                      ? AppColors.grey600
+                                      : AppColors.grey400),
                               size: 24,
                             ),
                           ),
@@ -84,10 +97,13 @@ class MainScaffold extends ConsumerWidget {
                             duration: const Duration(milliseconds: 200),
                             style: TextStyle(
                               fontSize: 11,
-                              fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                              fontWeight:
+                                  isActive ? FontWeight.w600 : FontWeight.w400,
                               color: isActive
                                   ? AppColors.primary
-                                  : (isDark ? AppColors.grey600 : AppColors.grey400),
+                                  : (isDark
+                                      ? AppColors.grey600
+                                      : AppColors.grey400),
                             ),
                             child: Text(item.label),
                           ),

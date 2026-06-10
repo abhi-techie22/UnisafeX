@@ -13,6 +13,7 @@ import 'package:unisafex/features/auth/presentation/screens/login_screen.dart';
 import 'package:unisafex/features/auth/presentation/screens/register_screen.dart';
 import 'package:unisafex/features/booking/presentation/screens/flight_booking_screen.dart';
 import 'package:unisafex/features/booking/presentation/screens/hotel_booking_screen.dart';
+import 'package:unisafex/features/booking/presentation/screens/booking_hub_screen.dart';
 
 import 'package:unisafex/features/favorites/presentation/screens/favorites_screen.dart';
 import 'package:unisafex/features/home/presentation/screens/home_screen.dart';
@@ -156,6 +157,19 @@ GoRouter appRouter(
             },
           ),
 
+          GoRoute(
+            path: AppRoutes.booking,
+            builder: (context, state) => const BookingHubScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.hotelBooking,
+            builder: (context, state) => const HotelBookingScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.flightBooking,
+            builder: (context, state) => const FlightBookingScreen(),
+          ),
+
           /// MAP (UPDATED)
           GoRoute(
             path: AppRoutes.map,
@@ -253,14 +267,6 @@ GoRouter appRouter(
         path: AppRoutes.aiAssistant,
         builder: (context, state) => const AiTravelAssistantScreen(),
       ),
-      GoRoute(
-        path: AppRoutes.hotelBooking,
-        builder: (context, state) => const HotelBookingScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.flightBooking,
-        builder: (context, state) => const FlightBookingScreen(),
-      ),
     ],
     errorBuilder: (
       context,
@@ -295,6 +301,7 @@ class AppRoutes {
   static const String home = '/home';
 
   static const String search = '/search';
+  static const String booking = '/booking';
 
   static const String map = '/map';
 

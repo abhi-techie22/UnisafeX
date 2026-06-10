@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:unisafex/features/booking/data/booking_link_service.dart';
-import 'package:unisafex/features/booking/domain/booking_partner_config.dart';
+import 'package:unisafex/features/booking/domain/booking_partner.dart';
 import 'package:unisafex/features/booking/presentation/widgets/booking_form_widgets.dart';
 
 class FlightBookingScreen extends StatefulWidget {
@@ -18,7 +17,7 @@ class _FlightBookingScreenState extends State<FlightBookingScreen> {
   late DateTime _returnDate;
   bool _roundTrip = true;
   int _travellers = 1;
-  bool _opening = false;
+  BookingPartner _selectedPartner = flightBookingPartners.first;
 
   @override
   void initState() {
@@ -63,23 +62,7 @@ class _FlightBookingScreenState extends State<FlightBookingScreen> {
 
   Future<void> _search() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _opening = true);
-    final opened = await BookingLinkService.open(
-      BookingLinkService.buildFlightSearch(
-        origin: _originController.text,
-        destination: _destinationController.text,
-        departure: _departure,
-        returnDate: _roundTrip ? _returnDate : null,
-        travellers: _travellers,
-      ),
-    );
-    if (!mounted) return;
-    setState(() => _opening = false);
-    if (!opened) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open the flight partner.')),
-      );
-    }
+    showPartnerPendingMessage(context, _selectedPartner);
   }
 
   @override
@@ -155,21 +138,19 @@ class _FlightBookingScreenState extends State<FlightBookingScreen> {
                 ),
               ),
               const SizedBox(height: 18),
-              AffiliateDisclosure(
-                isConfigured: BookingPartnerConfig.hasFlightAffiliate,
+              BookingPartnerSelector(
+                partners: flightBookingPartners,
+                selected: _selectedPartner,
+                onSelected: (partner) =>
+                    setState(() => _selectedPartner = partner),
               ),
               const SizedBox(height: 18),
               FilledButton.icon(
-                onPressed: _opening ? null : _search,
-                icon: _opening
-                    ? const SizedBox.square(
-                        dimension: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.travel_explore_rounded),
-                label: const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 14),
-                  child: Text('Search flight partner'),
+                onPressed: _search,
+                icon: const Icon(Icons.travel_explore_rounded),
+                label: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  child: Text('Search with ${_selectedPartner.name}'),
                 ),
               ),
             ],

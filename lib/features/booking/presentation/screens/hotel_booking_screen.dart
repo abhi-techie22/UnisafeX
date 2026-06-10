@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
-import 'package:unisafex/features/booking/data/booking_link_service.dart';
-import 'package:unisafex/features/booking/domain/booking_partner_config.dart';
+import 'package:unisafex/features/booking/domain/booking_partner.dart';
 import 'package:unisafex/features/booking/presentation/widgets/booking_form_widgets.dart';
 
 class HotelBookingScreen extends StatefulWidget {
@@ -18,7 +17,7 @@ class _HotelBookingScreenState extends State<HotelBookingScreen> {
   late DateTime _checkOut;
   int _guests = 2;
   int _rooms = 1;
-  bool _opening = false;
+  BookingPartner _selectedPartner = hotelBookingPartners.first;
 
   @override
   void initState() {
@@ -62,23 +61,7 @@ class _HotelBookingScreenState extends State<HotelBookingScreen> {
 
   Future<void> _search() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _opening = true);
-    final opened = await BookingLinkService.open(
-      BookingLinkService.buildHotelSearch(
-        destination: _destinationController.text,
-        checkIn: _checkIn,
-        checkOut: _checkOut,
-        adults: _guests,
-        rooms: _rooms,
-      ),
-    );
-    if (!mounted) return;
-    setState(() => _opening = false);
-    if (!opened) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open the booking partner.')),
-      );
-    }
+    showPartnerPendingMessage(context, _selectedPartner);
   }
 
   @override
@@ -144,21 +127,19 @@ class _HotelBookingScreenState extends State<HotelBookingScreen> {
                     setState(() => _rooms = (_rooms + 1).clamp(1, 10)),
               ),
               const SizedBox(height: 18),
-              AffiliateDisclosure(
-                isConfigured: BookingPartnerConfig.hasHotelAffiliate,
+              BookingPartnerSelector(
+                partners: hotelBookingPartners,
+                selected: _selectedPartner,
+                onSelected: (partner) =>
+                    setState(() => _selectedPartner = partner),
               ),
               const SizedBox(height: 18),
               FilledButton.icon(
-                onPressed: _opening ? null : _search,
-                icon: _opening
-                    ? const SizedBox.square(
-                        dimension: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.search_rounded),
-                label: const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 14),
-                  child: Text('Search hotel partner'),
+                onPressed: _search,
+                icon: const Icon(Icons.search_rounded),
+                label: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  child: Text('Search with ${_selectedPartner.name}'),
                 ),
               ),
             ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
+import 'package:unisafex/features/booking/domain/booking_partner.dart';
 
 class BookingHero extends StatelessWidget {
   const BookingHero({
@@ -125,36 +126,158 @@ class BookingCounter extends StatelessWidget {
   }
 }
 
-class AffiliateDisclosure extends StatelessWidget {
-  const AffiliateDisclosure({super.key, required this.isConfigured});
+class BookingPartnerSelector extends StatelessWidget {
+  const BookingPartnerSelector({
+    super.key,
+    required this.partners,
+    required this.selected,
+    required this.onSelected,
+  });
 
-  final bool isConfigured;
+  final List<BookingPartner> partners;
+  final BookingPartner selected;
+  final ValueChanged<BookingPartner> onSelected;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.info.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.info.withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.verified_user_outlined,
-              color: AppColors.info, size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              isConfigured
-                  ? 'UniSafeX may earn a commission from partner bookings at no extra cost to you.'
-                  : 'Preview mode: partner search works, but commission tracking is not configured yet.',
-              style: Theme.of(context).textTheme.bodySmall,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Choose booking partner',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 10),
+        ...partners.map(
+          (partner) => Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: InkWell(
+              onTap: () => onSelected(partner),
+              borderRadius: BorderRadius.circular(15),
+              child: Ink(
+                padding: const EdgeInsets.all(13),
+                decoration: BoxDecoration(
+                  color: selected.name == partner.name
+                      ? AppColors.primary.withValues(alpha: 0.08)
+                      : Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(
+                    color: selected.name == partner.name
+                        ? AppColors.primary
+                        : Theme.of(context).dividerColor,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: partner.color,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        partner.shortName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            partner.name,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            partner.description,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      selected.name == partner.name
+                          ? Icons.check_circle_rounded
+                          : Icons.circle_outlined,
+                      color: selected.name == partner.name
+                          ? AppColors.primary
+                          : AppColors.grey400,
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
+}
+
+void showPartnerPendingMessage(
+  BuildContext context,
+  BookingPartner partner,
+) {
+  showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    builder: (context) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: partner.color,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Text(
+                partner.shortName,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '${partner.name} integration is coming soon',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Your search details are ready. Live availability and in-app '
+              'checkout will be enabled after the partner API is approved.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Got it'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
