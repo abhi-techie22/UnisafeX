@@ -8,6 +8,16 @@ class TourismRepository {
 
   TourismRepository(this._client);
 
+  List<TourismPlace> _placesFrom(dynamic response) {
+    final unique = <String, TourismPlace>{};
+    for (final row in response as List) {
+      final place = TourismPlace.fromJson(row as Map<String, dynamic>);
+      final key = '${place.name.toLowerCase()}|${place.city.toLowerCase()}';
+      unique.putIfAbsent(key, () => place);
+    }
+    return unique.values.toList();
+  }
+
   // FEATURED PLACES
   Future<List<TourismPlace>> getFeaturedPlaces() async {
     try {
@@ -22,13 +32,7 @@ class TourismRepository {
           )
           .limit(10);
 
-      return (response as List)
-          .map(
-            (e) => TourismPlace.fromJson(
-              e,
-            ),
-          )
-          .toList();
+      return _placesFrom(response);
     } catch (e) {
       print(
         'Featured error: $e',
@@ -55,13 +59,7 @@ class TourismRepository {
         'SUPABASE DATA: ${response.length}',
       );
 
-      return (response as List)
-          .map(
-            (e) => TourismPlace.fromJson(
-              e,
-            ),
-          )
-          .toList();
+      return _placesFrom(response);
     } catch (e) {
       print(
         'Popular error: $e',
@@ -84,13 +82,7 @@ class TourismRepository {
           )
           .limit(20);
 
-      return (response as List)
-          .map(
-            (e) => TourismPlace.fromJson(
-              e,
-            ),
-          )
-          .toList();
+      return _placesFrom(response);
     } catch (e) {
       print(
         'Trending error: $e',
@@ -113,13 +105,7 @@ class TourismRepository {
           )
           .limit(20);
 
-      return (response as List)
-          .map(
-            (e) => TourismPlace.fromJson(
-              e,
-            ),
-          )
-          .toList();
+      return _placesFrom(response);
     } catch (e) {
       print(
         'Must visit error: $e',
@@ -148,13 +134,7 @@ class TourismRepository {
           )
           .limit(50);
 
-      return (response as List)
-          .map(
-            (e) => TourismPlace.fromJson(
-              e,
-            ),
-          )
-          .toList();
+      return _placesFrom(response);
     } catch (e) {
       print(
         'Category error: $e',
@@ -183,13 +163,7 @@ class TourismRepository {
           )
           .limit(50);
 
-      return (response as List)
-          .map(
-            (e) => TourismPlace.fromJson(
-              e,
-            ),
-          )
-          .toList();
+      return _placesFrom(response);
     } catch (e) {
       print(
         'City error: $e',
@@ -217,13 +191,7 @@ class TourismRepository {
           )
           .limit(100);
 
-      return (response as List)
-          .map(
-            (e) => TourismPlace.fromJson(
-              e,
-            ),
-          )
-          .toList();
+      return _placesFrom(response);
     } catch (e) {
       print(
         'Search error: $e',
@@ -289,13 +257,7 @@ class TourismRepository {
             to,
           );
 
-      return (response as List)
-          .map(
-            (e) => TourismPlace.fromJson(
-              e,
-            ),
-          )
-          .toList();
+      return _placesFrom(response);
     } catch (e) {
       print(
         'Filter error: $e',
@@ -318,13 +280,7 @@ class TourismRepository {
           .select()
           .limit(50);
 
-      return (response as List)
-          .map(
-            (e) => TourismPlace.fromJson(
-              e,
-            ),
-          )
-          .toList();
+      return _placesFrom(response);
     } catch (e) {
       print(
         'Nearby error: $e',
@@ -383,13 +339,7 @@ class TourismRepository {
             to,
           );
 
-      return (response as List)
-          .map(
-            (e) => TourismPlace.fromJson(
-              e,
-            ),
-          )
-          .toList();
+      return _placesFrom(response);
     } catch (e) {
       print(
         'All places error: $e',
