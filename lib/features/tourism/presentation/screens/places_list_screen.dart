@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:unisafex/core/constants/app_constants.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
-import 'package:unisafex/core/widgets/shimmer_loader.dart';
+import 'package:unisafex/features/tourism/domain/entities/tourism_filters.dart';
 import 'package:unisafex/features/tourism/domain/entities/tourism_place.dart';
+import 'package:unisafex/features/tourism/domain/services/safety_score_service.dart';
 import 'package:unisafex/features/tourism/presentation/providers/tourism_provider.dart';
 
 class PlacesListScreen extends ConsumerStatefulWidget {
@@ -18,92 +20,104 @@ class PlacesListScreen extends ConsumerStatefulWidget {
 }
 
 class _PlacesListScreenState extends ConsumerState<PlacesListScreen> {
-  String? _activeCategory;
-  bool? _freeOnly;
-  bool _popularOnly = false;
+  late TourismFilters _filters =
+      TourismFilters(category: widget.category, popularOnly: false);
+  final _searchController = TextEditingController();
 
   @override
-  void initState() {
-    super.initState();
-    _activeCategory = widget.category;
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    final placesAsync = ref.watch(
-      placesByFilterProvider(FilterParams(
-        category: _activeCategory,
-        isFree: _freeOnly,
-        isPopular: _popularOnly ? true : null,
-      )),
-    );
-
+    final placesAsync = ref.watch(popularPlacesProvider);
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded),
-          onPressed: () => context.pop(),
-        ),
         title: Text(widget.title),
         actions: [
           IconButton(
-            icon: const Icon(Icons.tune_rounded),
-            onPressed: () => _showFilterSheet(context),
+            tooltip: 'Filters',
+            icon: Badge(
+              isLabelVisible: _filters.hasActiveFilters,
+              child: const Icon(Icons.tune_rounded),
+            ),
+            onPressed: () => _showFilters(context),
           ),
         ],
       ),
       body: Column(
         children: [
-          // Active filters row
-          if (_activeCategory != null || _freeOnly == true || _popularOnly)
-            Container(
-              height: 44,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (value) =>
+                  setState(() => _filters = _filters.copyWith(query: value)),
+              decoration: InputDecoration(
+                hintText: 'Search places or cities',
+                prefixIcon: const Icon(Icons.search_rounded),
+                suffixIcon: _filters.query.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(
+                              () => _filters = _filters.copyWith(query: ''));
+                        },
+                      ),
+              ),
+            ),
+          ),
+          if (_filters.hasActiveFilters)
+            SizedBox(
+              height: 42,
               child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 scrollDirection: Axis.horizontal,
                 children: [
-                  if (_activeCategory != null)
-                    _ActiveFilter(
-                      label: _activeCategory!,
-                      onRemove: () =>
-                          setState(() => _activeCategory = null),
-                    ),
-                  if (_freeOnly == true)
-                    _ActiveFilter(
-                      label: 'Free Entry',
-                      onRemove: () =>
-                          setState(() => _freeOnly = null),
-                    ),
-                  if (_popularOnly)
-                    _ActiveFilter(
-                      label: 'Popular',
-                      onRemove: () =>
-                          setState(() => _popularOnly = false),
-                    ),
+                  if (_filters.city != null) _FilterTag(label: _filters.city!),
+                  if (_filters.category != null)
+                    _FilterTag(label: _filters.category!),
+                  if (_filters.popularOnly) const _FilterTag(label: 'Popular'),
+                  if (_filters.hiddenGemsOnly)
+                    const _FilterTag(label: 'Hidden gems'),
+                  if (_filters.freeOnly) const _FilterTag(label: 'Free entry'),
+                  if (_filters.foreignerFriendlyOnly)
+                    const _FilterTag(label: 'Foreigner-friendly'),
+                  if (_filters.openNowOnly) const _FilterTag(label: 'Open now'),
+                  if (_filters.minimumRating > 0)
+                    _FilterTag(
+                        label: '${_filters.minimumRating.toStringAsFixed(1)}+'),
                 ],
               ),
             ),
-
           Expanded(
             child: placesAsync.when(
-              data: (places) => places.isEmpty
-                  ? _buildEmpty()
-                  : ListView.separated(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: places.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (_, i) => _PlaceListTile(
-                        place: places[i],
-                        onTap: () => context.push(
-                          AppRoutes.placeDetail,
-                          extra: places[i],
-                        ),
+              data: (places) {
+                final filtered = _applyFilters(places);
+                if (filtered.isEmpty) return const _EmptyResults();
+                return ListView.separated(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: filtered.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (_, index) {
+                    final place = filtered[index];
+                    return _PlaceListCard(
+                      place: place,
+                      onTap: () => context.push(
+                        AppRoutes.placeDetail,
+                        extra: place,
                       ),
-                    ),
-              loading: () => _buildLoading(),
-              error: (e, _) => _buildError(e.toString()),
+                    );
+                  },
+                );
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, _) =>
+                  Center(child: Text('Unable to load places: $error')),
             ),
           ),
         ],
@@ -111,200 +125,150 @@ class _PlacesListScreenState extends ConsumerState<PlacesListScreen> {
     );
   }
 
-  void _showFilterSheet(BuildContext context) {
-    showModalBottomSheet(
+  List<TourismPlace> _applyFilters(List<TourismPlace> places) {
+    final query = _filters.query.trim().toLowerCase();
+    return places.where((place) {
+      if (query.isNotEmpty &&
+          !place.name.toLowerCase().contains(query) &&
+          !place.city.toLowerCase().contains(query) &&
+          !place.state.toLowerCase().contains(query)) {
+        return false;
+      }
+      if (_filters.city != null && place.city != _filters.city) return false;
+      if (_filters.category != null && place.category != _filters.category) {
+        return false;
+      }
+      if (_filters.popularOnly && !place.isPopular) return false;
+      if (_filters.hiddenGemsOnly && !place.isHiddenGem) return false;
+      if (_filters.freeOnly && !place.isFree) return false;
+      if (_filters.foreignerFriendlyOnly && !place.isForeignerFriendly) {
+        return false;
+      }
+      if (_filters.openNowOnly && !place.isLikelyOpenNow) return false;
+      if (place.rating < _filters.minimumRating) return false;
+      return true;
+    }).toList();
+  }
+
+  Future<void> _showFilters(BuildContext context) async {
+    final places = ref.read(popularPlacesProvider).value ?? [];
+    final result = await showModalBottomSheet<TourismFilters>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _FilterSheet(
-        activeCategory: _activeCategory,
-        isFree: _freeOnly,
-        isPopular: _popularOnly,
-        onApply: (cat, free, popular) {
-          setState(() {
-            _activeCategory = cat;
-            _freeOnly = free;
-            _popularOnly = popular;
-          });
-          Navigator.pop(context);
-        },
+      builder: (_) => _AdvancedFilterSheet(
+        initial: _filters,
+        cities: (places.map((place) => place.city).toSet().toList()..sort()),
       ),
     );
-  }
-
-  Widget _buildEmpty() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.search_off_rounded, size: 56, color: AppColors.grey400),
-          const SizedBox(height: 16),
-          Text('No places found',
-              style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 8),
-          Text('Try adjusting your filters',
-              style: Theme.of(context).textTheme.bodyMedium),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLoading() {
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: 8,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (_, __) => ShimmerLoader(
-        width: double.infinity,
-        height: 100,
-        borderRadius: 14,
-      ),
-    );
-  }
-
-  Widget _buildError(String error) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.error_outline, size: 48, color: AppColors.error),
-          const SizedBox(height: 12),
-          Text('Something went wrong', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          TextButton(
-            onPressed: () => ref.invalidate(placesByFilterProvider),
-            child: const Text('Try Again'),
-          ),
-        ],
-      ),
-    );
+    if (result != null) setState(() => _filters = result);
   }
 }
 
-class FilterParams {
-  final String? category;
-  final bool? isFree;
-  final bool? isPopular;
+class _AdvancedFilterSheet extends StatefulWidget {
+  final TourismFilters initial;
+  final List<String> cities;
 
-  const FilterParams({this.category, this.isFree, this.isPopular});
-
-  @override
-  bool operator ==(Object other) =>
-      other is FilterParams &&
-      other.category == category &&
-      other.isFree == isFree &&
-      other.isPopular == isPopular;
+  const _AdvancedFilterSheet({required this.initial, required this.cities});
 
   @override
-  int get hashCode => Object.hash(category, isFree, isPopular);
+  State<_AdvancedFilterSheet> createState() => _AdvancedFilterSheetState();
 }
 
-final placesByFilterProvider =
-    FutureProvider.family<List<TourismPlace>, FilterParams>((ref, params) async {
-  return ref.read(tourismRepositoryProvider).getPlacesWithFilters(
-        category: params.category,
-        isFree: params.isFree,
-        isPopular: params.isPopular,
-      );
-});
-
-class _PlaceListTile extends StatelessWidget {
-  final TourismPlace place;
-  final VoidCallback onTap;
-
-  const _PlaceListTile({required this.place, required this.onTap});
+class _AdvancedFilterSheetState extends State<_AdvancedFilterSheet> {
+  late TourismFilters filters = widget.initial;
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 100,
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.cardDark : AppColors.cardLight,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isDark ? AppColors.borderDark : AppColors.borderLight,
-          ),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Row(
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        16,
+        20,
+        24 + MediaQuery.paddingOf(context).bottom,
+      ),
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Image.network(
-              place.primaryImage,
-              width: 100,
-              height: 100,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                width: 100,
-                color: AppColors.primary.withOpacity(0.1),
-                child: const Icon(Icons.image_outlined, color: AppColors.grey400),
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          place.name,
-                          style: Theme.of(context).textTheme.titleMedium,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${place.city}, ${place.state}',
-                          style: Theme.of(context).textTheme.bodySmall,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        const Icon(Icons.star_rounded, size: 13, color: AppColors.accent),
-                        const SizedBox(width: 3),
-                        Text(
-                          place.rating.toStringAsFixed(1),
-                          style: Theme.of(context).textTheme.labelMedium,
-                        ),
-                        const SizedBox(width: 10),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: _categoryColor(place.category).withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            place.category,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: _categoryColor(place.category),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+            Row(
+              children: [
+                Text('Refine your journey',
+                    style: Theme.of(context).textTheme.headlineSmall),
+                const Spacer(),
+                TextButton(
+                  onPressed: () =>
+                      setState(() => filters = const TourismFilters()),
+                  child: const Text('Reset'),
                 ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              initialValue: filters.city,
+              decoration: const InputDecoration(labelText: 'City'),
+              items: widget.cities
+                  .map((city) =>
+                      DropdownMenuItem(value: city, child: Text(city)))
+                  .toList(),
+              onChanged: (value) =>
+                  setState(() => filters = filters.copyWith(city: value)),
+            ),
+            const SizedBox(height: 14),
+            DropdownButtonFormField<String>(
+              initialValue: filters.category,
+              decoration: const InputDecoration(labelText: 'Category'),
+              items: AppConstants.placeCategories
+                  .map((category) =>
+                      DropdownMenuItem(value: category, child: Text(category)))
+                  .toList(),
+              onChanged: (value) =>
+                  setState(() => filters = filters.copyWith(category: value)),
+            ),
+            const SizedBox(height: 18),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _choice('Popular', filters.popularOnly, (value) {
+                  filters = filters.copyWith(popularOnly: value);
+                }),
+                _choice('Hidden gems', filters.hiddenGemsOnly, (value) {
+                  filters = filters.copyWith(hiddenGemsOnly: value);
+                }),
+                _choice('Free entry', filters.freeOnly, (value) {
+                  filters = filters.copyWith(freeOnly: value);
+                }),
+                _choice('Foreigner-friendly', filters.foreignerFriendlyOnly,
+                    (value) {
+                  filters = filters.copyWith(foreignerFriendlyOnly: value);
+                }),
+                _choice('Open now', filters.openNowOnly, (value) {
+                  filters = filters.copyWith(openNowOnly: value);
+                }),
+              ],
+            ),
+            const SizedBox(height: 22),
+            Text('Minimum rating: ${filters.minimumRating.toStringAsFixed(1)}'),
+            Slider(
+              value: filters.minimumRating,
+              min: 0,
+              max: 5,
+              divisions: 10,
+              onChanged: (value) => setState(
+                () => filters = filters.copyWith(minimumRating: value),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.only(right: 14),
-              child: Icon(
-                Icons.arrow_forward_ios_rounded,
-                size: 13,
-                color: isDark ? AppColors.grey600 : AppColors.grey400,
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.pop(context, filters),
+                child: const Text('Show matching places'),
               ),
             ),
           ],
@@ -313,216 +277,112 @@ class _PlaceListTile extends StatelessWidget {
     );
   }
 
-  Color _categoryColor(String cat) {
-    switch (cat) {
-      case 'Historical': return AppColors.historical;
-      case 'Nature': return AppColors.nature;
-      case 'Spiritual': return AppColors.spiritual;
-      case 'Adventure': return AppColors.adventure;
-      default: return AppColors.primary;
-    }
+  Widget _choice(String label, bool selected, ValueChanged<bool> onChanged) {
+    return FilterChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (value) => setState(() => onChanged(value)),
+    );
   }
 }
 
-class _ActiveFilter extends StatelessWidget {
-  final String label;
-  final VoidCallback onRemove;
+class _PlaceListCard extends StatelessWidget {
+  final TourismPlace place;
+  final VoidCallback onTap;
 
-  const _ActiveFilter({required this.label, required this.onRemove});
+  const _PlaceListCard({required this.place, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(right: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.primary.withOpacity(0.3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppColors.primary,
+    final score = SafetyScoreService.calculate(place);
+    return Card(
+      child: InkWell(
+        onTap: onTap,
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius:
+                  const BorderRadius.horizontal(left: Radius.circular(16)),
+              child: Image.network(
+                place.primaryImage,
+                width: 112,
+                height: 116,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const SizedBox(
+                  width: 112,
+                  height: 116,
+                  child: Icon(Icons.image_outlined),
+                ),
+              ),
             ),
-          ),
-          const SizedBox(width: 6),
-          GestureDetector(
-            onTap: onRemove,
-            child: const Icon(Icons.close_rounded, size: 14, color: AppColors.primary),
-          ),
-        ],
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(place.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 4),
+                    Text('${place.city}, ${place.state}',
+                        style: Theme.of(context).textTheme.bodySmall),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        const Icon(Icons.star_rounded,
+                            size: 16, color: AppColors.accent),
+                        Text(' ${place.rating.toStringAsFixed(1)}'),
+                        const Spacer(),
+                        Icon(Icons.shield_outlined,
+                            size: 16,
+                            color: score >= 70
+                                ? AppColors.success
+                                : AppColors.warning),
+                        Text(' $score'),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _FilterSheet extends StatefulWidget {
-  final String? activeCategory;
-  final bool? isFree;
-  final bool isPopular;
-  final Function(String?, bool?, bool) onApply;
-
-  const _FilterSheet({
-    required this.activeCategory,
-    required this.isFree,
-    required this.isPopular,
-    required this.onApply,
-  });
-
-  @override
-  State<_FilterSheet> createState() => _FilterSheetState();
-}
-
-class _FilterSheetState extends State<_FilterSheet> {
-  String? _category;
-  bool? _free;
-  bool _popular = false;
-
-  final List<String> categories = [
-    'Historical', 'Nature', 'Spiritual', 'Adventure',
-    'Photography', 'Food', 'Shopping', 'Wildlife',
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _category = widget.activeCategory;
-    _free = widget.isFree;
-    _popular = widget.isPopular;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.cardDark : AppColors.cardLight,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 40, height: 4,
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.grey700 : AppColors.grey300,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text('Filters', style: Theme.of(context).textTheme.headlineSmall),
-          const SizedBox(height: 20),
-
-          Text('Category', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: categories.map((cat) {
-              final selected = _category == cat;
-              return GestureDetector(
-                onTap: () => setState(() => _category = selected ? null : cat),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: selected
-                        ? AppColors.primary.withOpacity(0.12)
-                        : (isDark ? AppColors.grey800 : AppColors.grey100),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: selected ? AppColors.primary : Colors.transparent,
-                    ),
-                  ),
-                  child: Text(
-                    cat,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                      color: selected ? AppColors.primary : null,
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-
-          const SizedBox(height: 20),
-          Text('More Filters', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 12),
-
-          _FilterToggle(
-            label: 'Free Entry Only',
-            value: _free ?? false,
-            onChanged: (v) => setState(() => _free = v ? true : null),
-          ),
-          _FilterToggle(
-            label: 'Popular Only',
-            value: _popular,
-            onChanged: (v) => setState(() => _popular = v),
-          ),
-
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () {
-                    setState(() {
-                      _category = null;
-                      _free = null;
-                      _popular = false;
-                    });
-                  },
-                  child: const Text('Clear All'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 2,
-                child: ElevatedButton(
-                  onPressed: () => widget.onApply(_category, _free, _popular),
-                  child: const Text('Apply Filters'),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FilterToggle extends StatelessWidget {
+class _FilterTag extends StatelessWidget {
   final String label;
-  final bool value;
-  final ValueChanged<bool> onChanged;
 
-  const _FilterToggle({required this.label, required this.value, required this.onChanged});
+  const _FilterTag({required this.label});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      padding: const EdgeInsets.only(right: 8),
+      child: Chip(label: Text(label)),
+    );
+  }
+}
+
+class _EmptyResults extends StatelessWidget {
+  const _EmptyResults();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(label, style: Theme.of(context).textTheme.bodyLarge),
-          Switch.adaptive(
-            value: value,
-            onChanged: onChanged,
-            activeColor: AppColors.primary,
-          ),
+          const Icon(Icons.travel_explore, size: 52, color: AppColors.grey400),
+          const SizedBox(height: 14),
+          Text('No matching places',
+              style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 6),
+          const Text('Try removing one or two filters.'),
         ],
       ),
     );

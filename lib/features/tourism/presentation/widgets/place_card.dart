@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
 import 'package:unisafex/features/tourism/domain/entities/tourism_place.dart';
+import 'package:unisafex/features/tourism/domain/services/safety_score_service.dart';
 
 class PlaceCard extends StatelessWidget {
   final TourismPlace place;
@@ -22,6 +23,7 @@ class PlaceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final imageHeight = width * 0.65;
+    final safetyScore = SafetyScoreService.calculate(place);
 
     return GestureDetector(
       onTap: onTap,
@@ -100,8 +102,8 @@ class PlaceCard extends StatelessWidget {
                   bottom: 8,
                   right: 8,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 7, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
                     decoration: BoxDecoration(
                       color: Colors.black.withOpacity(0.5),
                       borderRadius: BorderRadius.circular(7),
@@ -118,6 +120,33 @@ class PlaceCard extends StatelessWidget {
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.9),
+                      borderRadius: BorderRadius.circular(7),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.shield_outlined,
+                            size: 12, color: Colors.white),
+                        const SizedBox(width: 3),
+                        Text(
+                          '$safetyScore',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ],
@@ -157,9 +186,8 @@ class PlaceCard extends StatelessWidget {
                           place.city,
                           style: TextStyle(
                             fontSize: 11,
-                            color: isDark
-                                ? AppColors.grey500
-                                : AppColors.grey500,
+                            color:
+                                isDark ? AppColors.grey500 : AppColors.grey500,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,

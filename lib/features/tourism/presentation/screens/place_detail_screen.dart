@@ -1,13 +1,18 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
 import 'package:unisafex/core/widgets/app_button.dart';
+import 'package:unisafex/features/auth/presentation/providers/auth_provider.dart';
+import 'package:unisafex/features/favorites/presentation/providers/favorites_provider.dart';
 import 'package:unisafex/features/home/presentation/providers/location_provider.dart';
 import 'package:unisafex/features/tourism/domain/entities/tourism_place.dart';
+import 'package:unisafex/features/tourism/domain/services/safety_score_service.dart';
+import 'package:unisafex/features/tourism/presentation/providers/saved_places_provider.dart';
 
 class PlaceDetailScreen extends ConsumerStatefulWidget {
   final TourismPlace place;
@@ -65,6 +70,12 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final place = widget.place;
     final distance = _calculateDistance();
+    final safetyScore = SafetyScoreService.calculate(place);
+    final localSaved = ref.watch(savedPlacesProvider).contains(place.id);
+    final remoteFavorites = ref.watch(favoritesProvider).value ?? [];
+    final remoteSaved =
+        remoteFavorites.any((favorite) => favorite.placeId == place.id);
+    final isFavorite = localSaved || remoteSaved;
 
     return Scaffold(
       body: CustomScrollView(
@@ -77,6 +88,26 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
               icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
               onPressed: () => context.pop(),
             ),
+            actions: [
+              IconButton(
+                tooltip: isFavorite ? 'Remove saved place' : 'Save place',
+                icon: Icon(
+                  isFavorite
+                      ? Icons.bookmark_rounded
+                      : Icons.bookmark_border_rounded,
+                  color: Colors.white,
+                ),
+                onPressed: () => _toggleFavorite(
+                  localSaved: localSaved,
+                  remoteSaved: remoteSaved,
+                ),
+              ),
+              IconButton(
+                tooltip: 'Share',
+                icon: const Icon(Icons.ios_share_rounded, color: Colors.white),
+                onPressed: _sharePlace,
+              ),
+            ],
             title: AnimatedOpacity(
               duration: const Duration(milliseconds: 200),
               opacity: _showAppBarTitle ? 1 : 0,
@@ -155,6 +186,8 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                   ],
                 ),
                 const SizedBox(height: 28),
+                _SafetyScoreCard(score: safetyScore),
+                const SizedBox(height: 28),
                 _Section(
                   title: 'Visitor Information',
                   child: _InfoCard(
@@ -229,6 +262,30 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                     icon: Icons.lightbulb_outline,
                     items: place.touristTips,
                   ),
+                _Section(
+                  title: 'Continue Planning',
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _PlanningCard(
+                          icon: Icons.hotel_outlined,
+                          title: 'Nearby hotels',
+                          subtitle: 'Find a stay near ${place.name}',
+                          onTap: () => _showHotelsPlaceholder(place.city),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _PlanningCard(
+                          icon: Icons.emergency_outlined,
+                          title: 'Emergency help',
+                          subtitle: 'Essential India helplines',
+                          onTap: _showEmergencyHelp,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 _Section(
                   title: 'Coordinates',
                   child: Text(
@@ -309,6 +366,205 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
     if (hours == 0) return '$minutes min';
     if (remainingMinutes == 0) return '$hours hr';
     return '$hours hr $remainingMinutes min';
+  }
+
+  Future<void> _toggleFavorite({
+    required bool localSaved,
+    required bool remoteSaved,
+  }) async {
+    final isFavorite = localSaved || remoteSaved;
+    if (localSaved || !isFavorite) {
+      await ref.read(savedPlacesProvider.notifier).toggle(widget.place.id);
+    }
+    final user = ref.read(currentUserProvider);
+    if (user != null) {
+      final notifier = ref.read(favoritesProvider.notifier);
+      if (remoteSaved) {
+        await notifier.removeFavorite(widget.place.id);
+      } else if (!isFavorite) {
+        await notifier.addFavorite(widget.place.id);
+      }
+      ref.invalidate(favoritePlacesProvider);
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          isFavorite
+              ? '${widget.place.name} removed from saved places'
+              : '${widget.place.name} saved for offline reference',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _sharePlace() async {
+    final text = '${widget.place.name}, ${widget.place.city}, India\n'
+        '${widget.place.description}';
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Place details copied to share')),
+    );
+  }
+
+  void _showHotelsPlaceholder(String city) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.hotel_outlined,
+                size: 42, color: AppColors.primary),
+            const SizedBox(height: 14),
+            Text('Hotels near $city',
+                style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 8),
+            const Text(
+              'Curated nearby hotel results will appear here when the hotel '
+              'module is connected to the main travel flow.',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showEmergencyHelp() {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (context) => const Padding(
+        padding: EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Emergency help in India',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+            ),
+            SizedBox(height: 18),
+            _EmergencyRow(label: 'National emergency', number: '112'),
+            _EmergencyRow(label: 'Police', number: '100'),
+            _EmergencyRow(label: 'Ambulance', number: '108'),
+            _EmergencyRow(label: 'Tourist helpline', number: '1363'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SafetyScoreCard extends StatelessWidget {
+  final int score;
+
+  const _SafetyScoreCard({required this.score});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = score >= 70 ? AppColors.success : AppColors.warning;
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: color.withValues(alpha: 0.24)),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: color,
+            foregroundColor: Colors.white,
+            child: const Icon(Icons.shield_rounded),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Safety score · ${SafetyScoreService.label(score)}',
+                    style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 4),
+                const Text(
+                  'Estimated from ratings, popularity, and available safety guidance.',
+                ),
+              ],
+            ),
+          ),
+          Text(
+            '$score',
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w800,
+              fontSize: 24,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlanningCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _PlanningCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Ink(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.07),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: AppColors.primary),
+            const SizedBox(height: 12),
+            Text(title, style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmergencyRow extends StatelessWidget {
+  final String label;
+  final String number;
+
+  const _EmergencyRow({required this.label, required this.number});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.phone_outlined, color: AppColors.error),
+      title: Text(label),
+      trailing: Text(
+        number,
+        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17),
+      ),
+    );
   }
 }
 

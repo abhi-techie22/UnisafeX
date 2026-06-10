@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
 import 'package:unisafex/features/tourism/domain/entities/tourism_place.dart';
+import 'package:unisafex/features/tourism/domain/services/safety_score_service.dart';
 
 class FeaturedPlaceCard extends StatelessWidget {
   final TourismPlace place;
@@ -16,6 +17,7 @@ class FeaturedPlaceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final safetyScore = SafetyScoreService.calculate(place);
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -93,6 +95,30 @@ class FeaturedPlaceCard extends StatelessWidget {
                         ),
                       ),
                     const Spacer(),
+                    Container(
+                      margin: const EdgeInsets.only(right: 7),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.9),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.shield_outlined,
+                              size: 13, color: Colors.white),
+                          const SizedBox(width: 4),
+                          Text(
+                            '$safetyScore',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 5),
