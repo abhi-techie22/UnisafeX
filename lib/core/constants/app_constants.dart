@@ -5,7 +5,10 @@ class AppConstants {
 
   // Supabase
   static const String supabaseUrl = 'https://anslzankezcrxvuoidxj.supabase.co';
-  static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFuc2x6YW5rZXpjcnh2dW9pZHhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0ODM4NDMsImV4cCI6MjA5NjA1OTg0M30.G2TbpW3dA7IRo1zf0ft7cR7AMKZL4TjNobnfNa9QJE0';
+  static const String supabaseAnonKey =
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFuc2x6YW5rZXpjcnh2dW9pZHhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0ODM4NDMsImV4cCI6MjA5NjA1OTg0M30.G2TbpW3dA7IRo1zf0ft7cR7AMKZL4TjNobnfNa9QJE0';
+
+  static const String authCallbackUrl = 'unisafex://login-callback/';
 
   // App Info
   static const String appName = 'UniSafeX';

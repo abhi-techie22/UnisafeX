@@ -1,7 +1,9 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:unisafex/core/constants/app_constants.dart';
 
 final supabaseClientProvider = Provider<SupabaseClient>((ref) {
   return Supabase.instance.client;
@@ -81,6 +83,8 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
       final response = await _client.auth.signUp(
         email: email,
         password: password,
+        emailRedirectTo:
+            kIsWeb ? Uri.base.origin : AppConstants.authCallbackUrl,
       );
       final user = response.user;
       if (user == null) {

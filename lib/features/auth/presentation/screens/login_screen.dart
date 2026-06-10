@@ -22,6 +22,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
+  bool _isHandlingAuthCallback = false;
 
   @override
   void dispose() {
@@ -71,6 +72,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AsyncValue<AuthState>>(authStateProvider, (previous, next) {
+      final authState = next.value;
+      if (authState?.event == AuthChangeEvent.signedIn &&
+          authState?.session != null) {
+        _handleConfirmedSession(authState!.session!);
+      }
+    });
+
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
@@ -237,6 +246,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   String _errorMessage(Object error) {
     if (error is AuthException) return error.message;
     return error.toString();
+  }
+
+  Future<void> _handleConfirmedSession(Session session) async {
+    if (_isHandlingAuthCallback) return;
+    _isHandlingAuthCallback = true;
+
+    try {
+      final profile =
+          await ref.read(profileRepositoryProvider).getProfile(session.user.id);
+      ref.invalidate(profileNotifierProvider);
+
+      if (mounted) {
+        context.go(
+          profile?.isProfileComplete == true
+              ? AppRoutes.home
+              : AppRoutes.profileCompletion,
+        );
+      }
+    } finally {
+      _isHandlingAuthCallback = false;
+    }
   }
 
   void _showForgotPassword(BuildContext context) {

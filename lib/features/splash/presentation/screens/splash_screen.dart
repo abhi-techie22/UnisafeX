@@ -42,6 +42,8 @@ class _SplashScreenState extends State<SplashScreen>
     if (!mounted) return;
 
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+
     final onboardingDone =
         prefs.getBool(AppConstants.cacheKeyOnboarding) ?? false;
     final session = Supabase.instance.client.auth.currentSession;
@@ -49,7 +51,17 @@ class _SplashScreenState extends State<SplashScreen>
     if (!onboardingDone) {
       context.go(AppRoutes.onboarding);
     } else if (session != null) {
-      context.go(AppRoutes.home);
+      final profile = await Supabase.instance.client
+          .from('profiles')
+          .select('is_profile_complete')
+          .eq('user_id', session.user.id)
+          .maybeSingle();
+      if (!mounted) return;
+
+      final isComplete = profile?['is_profile_complete'] as bool? ?? false;
+      context.go(
+        isComplete ? AppRoutes.home : AppRoutes.profileCompletion,
+      );
     } else {
       context.go(AppRoutes.authSelection);
     }
@@ -101,7 +113,7 @@ class _SplashScreenState extends State<SplashScreen>
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.black.withOpacity(0.15),
+                        color: AppColors.black.withValues(alpha: 0.15),
                         blurRadius: 30,
                         offset: const Offset(0, 12),
                       ),
@@ -181,9 +193,7 @@ class _SplashScreenState extends State<SplashScreen>
                 color: AppColors.white,
                 letterSpacing: 2.0,
               ),
-            )
-                .animate()
-                .fadeIn(duration: 600.ms, delay: 800.ms),
+            ).animate().fadeIn(duration: 600.ms, delay: 800.ms),
           ),
         ],
       ),
@@ -197,7 +207,7 @@ class _SplashScreenState extends State<SplashScreen>
       height: maxRadius * 2 * animValue,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: color.withOpacity(opacity * (1 - animValue)),
+        color: color.withValues(alpha: opacity * (1 - animValue)),
       ),
     );
   }

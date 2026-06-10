@@ -45,6 +45,16 @@ static const String supabaseAnonKey = 'YOUR_SUPABASE_ANON_KEY';
 
 With your actual Supabase project URL and anon key (found in Settings > API).
 
+In Supabase Dashboard, open **Authentication > URL Configuration** and add
+this exact value to **Redirect URLs**:
+
+```text
+unisafex://login-callback/
+```
+
+Without this allowlist entry, confirmation emails fall back to the configured
+Site URL, which is often `http://localhost:3000` in a new Supabase project.
+
 ### 4. Set Up Database
 
 In the Supabase SQL Editor, run the complete schema:
