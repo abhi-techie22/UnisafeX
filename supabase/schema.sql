@@ -96,6 +96,11 @@ create index if not exists idx_favorites_place_id on public.favorites(place_id);
 -- profiles: users can only read/write their own profile
 alter table public.profiles enable row level security;
 
+drop policy if exists "profiles_select_own" on public.profiles;
+drop policy if exists "profiles_insert_own" on public.profiles;
+drop policy if exists "profiles_update_own" on public.profiles;
+drop policy if exists "profiles_delete_own" on public.profiles;
+
 create policy "profiles_select_own" on public.profiles
   for select to authenticated
   using ((select auth.uid()) = user_id);
@@ -116,11 +121,17 @@ create policy "profiles_delete_own" on public.profiles
 -- tourism_places: public read, admin write
 alter table public.tourism_places enable row level security;
 
+drop policy if exists "tourism_places_public_read" on public.tourism_places;
+
 create policy "tourism_places_public_read" on public.tourism_places
   for select using (true);
 
 -- favorites: users can only access their own favorites
 alter table public.favorites enable row level security;
+
+drop policy if exists "favorites_select_own" on public.favorites;
+drop policy if exists "favorites_insert_own" on public.favorites;
+drop policy if exists "favorites_delete_own" on public.favorites;
 
 create policy "favorites_select_own" on public.favorites
   for select using (auth.uid() = user_id);
@@ -144,9 +155,13 @@ begin
 end;
 $$ language plpgsql;
 
+drop trigger if exists profiles_updated_at on public.profiles;
+
 create trigger profiles_updated_at
   before update on public.profiles
   for each row execute function public.handle_updated_at();
+
+drop trigger if exists tourism_places_updated_at on public.tourism_places;
 
 create trigger tourism_places_updated_at
   before update on public.tourism_places
@@ -167,6 +182,8 @@ begin
 end;
 $$;
 
+drop trigger if exists on_auth_user_created on auth.users;
+
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
@@ -178,6 +195,10 @@ create trigger on_auth_user_created
 insert into storage.buckets (id, name, public)
 values ('user-media', 'user-media', true)
 on conflict (id) do nothing;
+
+drop policy if exists "user_media_public_read" on storage.objects;
+drop policy if exists "user_media_auth_upload" on storage.objects;
+drop policy if exists "user_media_own_delete" on storage.objects;
 
 create policy "user_media_public_read" on storage.objects
   for select using (bucket_id = 'user-media');
