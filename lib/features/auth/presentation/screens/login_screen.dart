@@ -184,9 +184,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               // Forgot password
               Align(
                 alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () => _showForgotPassword(context),
-                  child: const Text('Forgot password?'),
+                child: Wrap(
+                  alignment: WrapAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => _showResendConfirmation(context),
+                      child: const Text('Resend confirmation'),
+                    ),
+                    TextButton(
+                      onPressed: () => _showForgotPassword(context),
+                      child: const Text('Forgot password?'),
+                    ),
+                  ],
                 ),
               ),
 
@@ -269,8 +278,46 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  void _showResendConfirmation(BuildContext context) {
+    final controller =
+        TextEditingController(text: _emailController.text.trim());
+    _showEmailActionSheet(
+      context: context,
+      title: 'Resend Confirmation',
+      description:
+          'Enter the email used during registration. Supabase may limit '
+          'built-in email delivery to two messages per hour.',
+      buttonLabel: 'Resend Email',
+      controller: controller,
+      action: (email) =>
+          ref.read(authNotifierProvider.notifier).resendConfirmation(email),
+      successMessage: 'Confirmation email requested. Check spam as well.',
+    );
+  }
+
   void _showForgotPassword(BuildContext context) {
     final controller = TextEditingController();
+    _showEmailActionSheet(
+      context: context,
+      title: 'Reset Password',
+      description: 'We\'ll send a reset link to your email.',
+      buttonLabel: 'Send Reset Link',
+      controller: controller,
+      action: (email) =>
+          ref.read(authNotifierProvider.notifier).resetPassword(email),
+      successMessage: 'Reset link sent!',
+    );
+  }
+
+  void _showEmailActionSheet({
+    required BuildContext context,
+    required String title,
+    required String description,
+    required String buttonLabel,
+    required TextEditingController controller,
+    required Future<void> Function(String email) action,
+    required String successMessage,
+  }) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -288,12 +335,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Reset Password',
+                title,
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               const SizedBox(height: 8),
               Text(
-                'We\'ll send a reset link to your email.',
+                description,
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               const SizedBox(height: 24),
@@ -307,23 +354,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               const SizedBox(height: 16),
               AppButton(
-                label: 'Send Reset Link',
+                label: buttonLabel,
                 onPressed: () async {
                   if (controller.text.isNotEmpty) {
                     try {
-                      await ref
-                          .read(authNotifierProvider.notifier)
-                          .resetPassword(controller.text.trim());
+                      await action(controller.text.trim());
                       if (ctx.mounted) {
                         Navigator.pop(ctx);
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Reset link sent!'),
+                          SnackBar(
+                            content: Text(successMessage),
                             backgroundColor: AppColors.success,
                           ),
                         );
                       }
-                    } catch (_) {}
+                    } catch (error) {
+                      if (ctx.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(_errorMessage(error)),
+                            backgroundColor: AppColors.error,
+                          ),
+                        );
+                      }
+                    }
                   }
                 },
                 isFullWidth: true,

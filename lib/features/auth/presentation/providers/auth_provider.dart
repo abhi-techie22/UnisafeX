@@ -83,8 +83,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
       final response = await _client.auth.signUp(
         email: email,
         password: password,
-        emailRedirectTo:
-            kIsWeb ? Uri.base.origin : AppConstants.authCallbackUrl,
+        emailRedirectTo: _emailRedirectUrl,
       );
       final user = response.user;
       if (user == null) {
@@ -117,6 +116,21 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
       rethrow;
     }
   }
+
+  Future<void> resendConfirmation(String email) async {
+    try {
+      await _client.auth.resend(
+        type: OtpType.signup,
+        email: email,
+        emailRedirectTo: _emailRedirectUrl,
+      );
+    } on AuthException {
+      rethrow;
+    }
+  }
+
+  String get _emailRedirectUrl =>
+      kIsWeb ? Uri.base.origin : AppConstants.authCallbackUrl;
 }
 
 class SignUpResult {
