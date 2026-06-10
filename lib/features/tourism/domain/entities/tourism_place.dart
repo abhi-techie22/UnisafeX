@@ -67,134 +67,46 @@ class TourismPlace {
     Map<String, dynamic> json,
   ) {
     final imageList =
-        (json['images'] as List?)
-                ?.map((e) => e.toString())
-                .toList() ??
-            [];
+        (json['images'] as List?)?.map((e) => e.toString()).toList() ?? [];
 
-    final foreignerFee =
-        ((json['entry_fee_foreigner'] ??
-                    0)
-                as num)
-            .toDouble();
+    final foreignerFee = ((json['entry_fee_foreigner'] ?? 0) as num).toDouble();
 
-    final indianFee =
-        ((json['entry_fee_indian'] ??
-                    0)
-                as num)
-            .toDouble();
+    final indianFee = ((json['entry_fee_indian'] ?? 0) as num).toDouble();
 
     return TourismPlace(
-      id:
-          json['place_id']
-                  ?.toString() ??
-              '',
-
-      name:
-          json['place_name'] ??
-              'Unknown Place',
-
-      state:
-          json['state'] ?? '',
-
-      city:
-          json['city'] ?? '',
-
-      district:
-          json['district'],
-
-      category:
-          json['category'] ??
-              'Historical',
-
-      subcategory:
-          json['subcategory'],
-
-      description:
-          json['description'] ??
-              '',
-
-      latitude:
-          ((json['latitude'] ??
-                      0)
-                  as num)
-              .toDouble(),
-
-      longitude:
-          ((json['longitude'] ??
-                      0)
-                  as num)
-              .toDouble(),
-
-      rating:
-          ((json['rating'] ??
-                      0)
-                  as num)
-              .toDouble(),
-
+      id: json['place_id']?.toString() ?? '',
+      name: json['place_name'] ?? 'Unknown Place',
+      state: json['state'] ?? '',
+      city: json['city'] ?? '',
+      district: json['district'],
+      category: json['category'] ?? 'Historical',
+      subcategory: json['subcategory'],
+      description: json['description'] ?? '',
+      latitude: ((json['latitude'] ?? 0) as num).toDouble(),
+      longitude: ((json['longitude'] ?? 0) as num).toDouble(),
+      rating: ((json['rating'] ?? 0) as num).toDouble(),
       images: imageList,
-
-      primaryImage:
-          imageList.isNotEmpty
-              ? imageList.first
-              : '',
-
-      featured:
-          json['featured'] ??
-              false,
-
-      isPopular:
-          json['is_popular'] ??
-              false,
-
-      isFree:
-          foreignerFee == 0,
-
-      tier:
-          json['tier'] ?? 2,
-
-      entryFeeForeigner:
-          foreignerFee,
-
-      entryFeeIndian:
-          indianFee,
-
-      timings:
-          json['timings'],
-
-      bestSeason:
-          json['best_season'],
-
+      primaryImage: imageList.isNotEmpty ? imageList.first : '',
+      featured: json['featured'] ?? false,
+      isPopular: json['is_popular'] ?? false,
+      isFree: foreignerFee == 0,
+      tier: json['tier'] ?? 2,
+      entryFeeForeigner: foreignerFee,
+      entryFeeIndian: indianFee,
+      timings: json['timings'],
+      bestSeason: json['best_season'],
       bestMonths:
-          (json['best_months']
-                      as List?)
-                  ?.map((e) =>
-                      e.toString())
-                  .toList() ??
+          (json['best_months'] as List?)?.map((e) => e.toString()).toList() ??
               [],
-
-      safetyGuidelines:
-          (json['safety_guidelines']
-                      as List?)
-                  ?.map((e) =>
-                      e.toString())
-                  .toList() ??
-              [],
-
+      safetyGuidelines: (json['safety_guidelines'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
       touristTips:
-          (json['tourist_tips']
-                      as List?)
-                  ?.map((e) =>
-                      e.toString())
-                  .toList() ??
+          (json['tourist_tips'] as List?)?.map((e) => e.toString()).toList() ??
               [],
-
-      visitDurationMinutes:
-          json[
-              'visit_duration_minutes'],
-
-      address:
-          json['address'],
+      visitDurationMinutes: json['visit_duration_minutes'],
+      address: json['address'],
     );
   }
 
@@ -204,5 +116,26 @@ class TourismPlace {
     }
 
     return '₹${entryFeeForeigner.toInt()}';
+  }
+
+  bool get isHiddenGem => !featured && !isPopular && rating >= 4.3;
+
+  bool get isForeignerFriendly =>
+      safetyGuidelines.isNotEmpty &&
+      touristTips.isNotEmpty &&
+      timings?.isNotEmpty == true;
+
+  bool get hasTimingData => timings?.trim().isNotEmpty == true;
+
+  bool get isLikelyOpenNow {
+    if (!hasTimingData) return false;
+    final value = timings!.toLowerCase();
+    if (value.contains('24 hours') ||
+        value.contains('all day') ||
+        value.contains('open 24')) {
+      return true;
+    }
+    final hour = DateTime.now().hour;
+    return hour >= 7 && hour < 18;
   }
 }
