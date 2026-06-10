@@ -97,16 +97,21 @@ create index if not exists idx_favorites_place_id on public.favorites(place_id);
 alter table public.profiles enable row level security;
 
 create policy "profiles_select_own" on public.profiles
-  for select using (auth.uid() = user_id);
+  for select to authenticated
+  using ((select auth.uid()) = user_id);
 
 create policy "profiles_insert_own" on public.profiles
-  for insert with check (auth.uid() = user_id);
+  for insert to authenticated
+  with check ((select auth.uid()) = user_id);
 
 create policy "profiles_update_own" on public.profiles
-  for update using (auth.uid() = user_id);
+  for update to authenticated
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
 
 create policy "profiles_delete_own" on public.profiles
-  for delete using (auth.uid() = user_id);
+  for delete to authenticated
+  using ((select auth.uid()) = user_id);
 
 -- tourism_places: public read, admin write
 alter table public.tourism_places enable row level security;
@@ -149,14 +154,18 @@ create trigger tourism_places_updated_at
 
 -- Auto-create profile on user signup
 create or replace function public.handle_new_user()
-returns trigger as $$
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
 begin
   insert into public.profiles (user_id)
   values (new.id)
   on conflict (user_id) do nothing;
   return new;
 end;
-$$ language plpgsql security definer;
+$$;
 
 create trigger on_auth_user_created
   after insert on auth.users

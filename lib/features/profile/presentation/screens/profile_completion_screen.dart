@@ -44,8 +44,20 @@ class _ProfileCompletionScreenState
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final user = ref.read(currentUserProvider);
-    if (user == null) return;
+    final session = ref.read(currentSessionProvider);
+    final user = session?.user;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Confirm your email and sign in before saving your profile.',
+          ),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      context.go(AppRoutes.login);
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -99,7 +111,7 @@ class _ProfileCompletionScreenState
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
+                      color: AppColors.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(
@@ -112,8 +124,10 @@ class _ProfileCompletionScreenState
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Complete Profile',
-                          style: Theme.of(context).textTheme.titleLarge),
+                      Text(
+                        'Complete Profile',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
                       Text(
                         'Step ${_currentStep + 1} of 2',
                         style: Theme.of(context).textTheme.bodySmall,
@@ -143,9 +157,7 @@ class _ProfileCompletionScreenState
                       decoration: BoxDecoration(
                         color: index <= _currentStep
                             ? AppColors.primary
-                            : (isDark
-                                ? AppColors.grey800
-                                : AppColors.grey200),
+                            : (isDark ? AppColors.grey800 : AppColors.grey200),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -164,9 +176,7 @@ class _ProfileCompletionScreenState
                   key: _formKey,
                   child: AnimatedSwitcher(
                     duration: AppConstants.animNormal,
-                    child: _currentStep == 0
-                        ? _buildStep1()
-                        : _buildStep2(),
+                    child: _currentStep == 0 ? _buildStep1() : _buildStep2(),
                   ),
                 ),
               ),
@@ -182,8 +192,7 @@ class _ProfileCompletionScreenState
                       flex: 1,
                       child: AppOutlinedButton(
                         label: 'Back',
-                        onPressed: () =>
-                            setState(() => _currentStep--),
+                        onPressed: () => setState(() => _currentStep--),
                         icon: Icons.arrow_back_rounded,
                       ),
                     ),
@@ -191,8 +200,7 @@ class _ProfileCompletionScreenState
                   Expanded(
                     flex: 2,
                     child: AppButton(
-                      label:
-                          _currentStep == 0 ? 'Continue' : 'Save Profile',
+                      label: _currentStep == 0 ? 'Continue' : 'Save Profile',
                       onPressed: _currentStep == 0 ? _nextStep : _save,
                       isLoading: _isLoading,
                       isFullWidth: true,
@@ -218,11 +226,10 @@ class _ProfileCompletionScreenState
       key: const ValueKey('step1'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Personal Info',
-            style: Theme.of(context).textTheme.headlineMedium)
-            .animate()
-            .fadeIn(),
-
+        Text(
+          'Personal Info',
+          style: Theme.of(context).textTheme.headlineMedium,
+        ).animate().fadeIn(),
         const SizedBox(height: 6),
         Text(
           'Tell us about yourself',
@@ -230,9 +237,7 @@ class _ProfileCompletionScreenState
                 color: isDark ? AppColors.grey400 : AppColors.grey600,
               ),
         ).animate().fadeIn(delay: 100.ms),
-
         const SizedBox(height: 32),
-
         _buildLabel('Full Name *'),
         const SizedBox(height: 8),
         TextFormField(
@@ -245,9 +250,7 @@ class _ProfileCompletionScreenState
           validator: (v) =>
               v == null || v.isEmpty ? 'Please enter your name' : null,
         ),
-
         const SizedBox(height: 20),
-
         _buildLabel('Gender'),
         const SizedBox(height: 8),
         _buildDropdown(
@@ -257,9 +260,7 @@ class _ProfileCompletionScreenState
           onChanged: (v) => setState(() => _selectedGender = v),
           prefixIcon: Icons.wc_outlined,
         ),
-
         const SizedBox(height: 20),
-
         _buildLabel('Nationality *'),
         const SizedBox(height: 8),
         _buildCountryPicker(
@@ -273,9 +274,7 @@ class _ProfileCompletionScreenState
           },
           flag: _selectedCountry?.flagEmoji,
         ),
-
         const SizedBox(height: 20),
-
         _buildLabel('Current Location in India'),
         const SizedBox(height: 8),
         TextFormField(
@@ -285,7 +284,6 @@ class _ProfileCompletionScreenState
             prefixIcon: Icon(Icons.location_on_outlined, size: 20),
           ),
         ),
-
         const SizedBox(height: 24),
       ],
     );
@@ -298,11 +296,10 @@ class _ProfileCompletionScreenState
       key: const ValueKey('step2'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Travel Details',
-            style: Theme.of(context).textTheme.headlineMedium)
-            .animate()
-            .fadeIn(),
-
+        Text(
+          'Travel Details',
+          style: Theme.of(context).textTheme.headlineMedium,
+        ).animate().fadeIn(),
         const SizedBox(height: 6),
         Text(
           'Help us personalize your experience',
@@ -310,9 +307,7 @@ class _ProfileCompletionScreenState
                 color: isDark ? AppColors.grey400 : AppColors.grey600,
               ),
         ).animate().fadeIn(delay: 100.ms),
-
         const SizedBox(height: 32),
-
         _buildLabel('Passport Country'),
         const SizedBox(height: 8),
         _buildCountryPicker(
@@ -326,9 +321,7 @@ class _ProfileCompletionScreenState
           },
           flag: _selectedPassportCountry?.flagEmoji,
         ),
-
         const SizedBox(height: 20),
-
         _buildLabel('Visa Type'),
         const SizedBox(height: 8),
         _buildDropdown(
@@ -338,9 +331,7 @@ class _ProfileCompletionScreenState
           onChanged: (v) => setState(() => _selectedVisaType = v),
           prefixIcon: Icons.document_scanner_outlined,
         ),
-
         const SizedBox(height: 20),
-
         _buildLabel('Visa Expiry Date'),
         const SizedBox(height: 8),
         GestureDetector(
@@ -378,9 +369,7 @@ class _ProfileCompletionScreenState
             ),
           ),
         ),
-
         const SizedBox(height: 20),
-
         _buildLabel('Travel Purpose'),
         const SizedBox(height: 8),
         _buildDropdown(
@@ -390,7 +379,6 @@ class _ProfileCompletionScreenState
           onChanged: (v) => setState(() => _selectedTravelPurpose = v),
           prefixIcon: Icons.luggage_outlined,
         ),
-
         const SizedBox(height: 24),
       ],
     );
@@ -420,19 +408,13 @@ class _ProfileCompletionScreenState
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return DropdownButtonFormField<String>(
-      value: value,
+      initialValue: value,
       hint: Text(hint),
-      decoration: InputDecoration(
-        prefixIcon: Icon(prefixIcon, size: 20),
-      ),
-      dropdownColor:
-          isDark ? AppColors.cardDark : AppColors.cardLight,
+      decoration: InputDecoration(prefixIcon: Icon(prefixIcon, size: 20)),
+      dropdownColor: isDark ? AppColors.cardDark : AppColors.cardLight,
       isExpanded: true,
       items: items
-          .map((item) => DropdownMenuItem(
-                value: item,
-                child: Text(item),
-              ))
+          .map((item) => DropdownMenuItem(value: item, child: Text(item)))
           .toList(),
       onChanged: onChanged,
     );
@@ -463,10 +445,11 @@ class _ProfileCompletionScreenState
               Text(flag, style: const TextStyle(fontSize: 20)),
               const SizedBox(width: 12),
             ] else ...[
-              Icon(Icons.flag_outlined,
-                  size: 20,
-                  color:
-                      isDark ? AppColors.grey400 : AppColors.grey500),
+              Icon(
+                Icons.flag_outlined,
+                size: 20,
+                color: isDark ? AppColors.grey400 : AppColors.grey500,
+              ),
               const SizedBox(width: 12),
             ],
             Expanded(
@@ -476,9 +459,7 @@ class _ProfileCompletionScreenState
                   fontSize: 14,
                   color: flag != null
                       ? (isDark ? AppColors.white : AppColors.grey900)
-                      : (isDark
-                          ? AppColors.grey500
-                          : AppColors.grey400),
+                      : (isDark ? AppColors.grey500 : AppColors.grey400),
                 ),
               ),
             ),

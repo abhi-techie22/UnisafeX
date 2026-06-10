@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
 import 'package:unisafex/core/widgets/app_button.dart';
 import 'package:unisafex/features/auth/presentation/providers/auth_provider.dart';
+import 'package:unisafex/features/profile/presentation/providers/profile_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -34,20 +36,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await ref.read(authNotifierProvider.notifier).signIn(
+      final user = await ref.read(authNotifierProvider.notifier).signIn(
             email: _emailController.text.trim(),
             password: _passwordController.text,
           );
-      if (mounted) context.go(AppRoutes.home);
+      final profile =
+          await ref.read(profileRepositoryProvider).getProfile(user.id);
+      ref.invalidate(profileNotifierProvider);
+
+      if (mounted) {
+        context.go(
+          profile?.isProfileComplete == true
+              ? AppRoutes.home
+              : AppRoutes.profileCompletion,
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString()),
+            content: Text(_errorMessage(e)),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
@@ -142,8 +155,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                 ),
                 validator: (v) {
-                  if (v == null || v.isEmpty) return 'Please enter your password';
-                  if (v.length < 6) return 'Password must be at least 6 characters';
+                  if (v == null || v.isEmpty) {
+                    return 'Please enter your password';
+                  }
+                  if (v.length < 6) {
+                    return 'Password must be at least 6 characters';
+                  }
                   return null;
                 },
               ).animate().slideY(
@@ -214,10 +231,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Widget _buildLabel(String label) {
-    return Text(
-      label,
-      style: Theme.of(context).textTheme.labelLarge,
-    );
+    return Text(label, style: Theme.of(context).textTheme.labelLarge);
+  }
+
+  String _errorMessage(Object error) {
+    if (error is AuthException) return error.message;
+    return error.toString();
   }
 
   void _showForgotPassword(BuildContext context) {
@@ -227,9 +246,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(ctx).viewInsets.bottom,
-        ),
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
         child: Container(
           decoration: BoxDecoration(
             color: Theme.of(context).scaffoldBackgroundColor,
@@ -240,11 +257,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Reset Password',
-                  style: Theme.of(context).textTheme.headlineSmall),
+              Text(
+                'Reset Password',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
               const SizedBox(height: 8),
-              Text('We\'ll send a reset link to your email.',
-                  style: Theme.of(context).textTheme.bodyMedium),
+              Text(
+                'We\'ll send a reset link to your email.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
               const SizedBox(height: 24),
               TextFormField(
                 controller: controller,

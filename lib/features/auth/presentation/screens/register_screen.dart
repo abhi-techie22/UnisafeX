@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
 import 'package:unisafex/core/widgets/app_button.dart';
@@ -37,20 +38,45 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await ref.read(authNotifierProvider.notifier).signUp(
+      final result = await ref.read(authNotifierProvider.notifier).signUp(
             email: _emailController.text.trim(),
             password: _passwordController.text,
           );
-      if (mounted) context.go(AppRoutes.profileCompletion);
+      if (!mounted) return;
+
+      if (result.requiresEmailConfirmation) {
+        await showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Confirm your email'),
+            content: Text(
+              'We sent a confirmation link to '
+              '${_emailController.text.trim()}. Open it, then sign in to '
+              'complete your profile.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Continue to Sign In'),
+              ),
+            ],
+          ),
+        );
+        if (mounted) context.go(AppRoutes.login);
+      } else {
+        context.go(AppRoutes.profileCompletion);
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString()),
+            content: Text(_errorMessage(e)),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
@@ -79,23 +105,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 16),
-
               Text(
                 'Join UniSafeX',
                 style: Theme.of(context).textTheme.headlineLarge,
               ).animate().fadeIn(duration: 400.ms),
-
               const SizedBox(height: 8),
-
               Text(
                 'Create your account to unlock the full experience',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: isDark ? AppColors.grey400 : AppColors.grey600,
                     ),
               ).animate().fadeIn(duration: 400.ms, delay: 100.ms),
-
               const SizedBox(height: 40),
-
               _buildLabel('Email address'),
               const SizedBox(height: 8),
               TextFormField(
@@ -118,9 +139,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     delay: 200.ms,
                     curve: Curves.easeOutCubic,
                   ),
-
               const SizedBox(height: 20),
-
               _buildLabel('Password'),
               const SizedBox(height: 8),
               TextFormField(
@@ -143,7 +162,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ),
                 validator: (v) {
                   if (v == null || v.isEmpty) return 'Please enter a password';
-                  if (v.length < 8) return 'Password must be at least 8 characters';
+                  if (v.length < 8) {
+                    return 'Password must be at least 8 characters';
+                  }
                   return null;
                 },
               ).animate().slideY(
@@ -152,9 +173,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     delay: 300.ms,
                     curve: Curves.easeOutCubic,
                   ),
-
               const SizedBox(height: 20),
-
               _buildLabel('Confirm password'),
               const SizedBox(height: 8),
               TextFormField(
@@ -177,10 +196,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   ),
                 ),
                 validator: (v) {
-                  if (v == null || v.isEmpty)
+                  if (v == null || v.isEmpty) {
                     return 'Please confirm your password';
-                  if (v != _passwordController.text)
+                  }
+                  if (v != _passwordController.text) {
                     return 'Passwords do not match';
+                  }
                   return null;
                 },
               ).animate().slideY(
@@ -189,9 +210,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     delay: 400.ms,
                     curve: Curves.easeOutCubic,
                   ),
-
               const SizedBox(height: 40),
-
               AppButton(
                 label: 'Create Account',
                 onPressed: _register,
@@ -204,9 +223,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     delay: 500.ms,
                     curve: Curves.easeOutCubic,
                   ),
-
               const SizedBox(height: 24),
-
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -239,5 +256,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   Widget _buildLabel(String label) {
     return Text(label, style: Theme.of(context).textTheme.labelLarge);
+  }
+
+  String _errorMessage(Object error) {
+    if (error is AuthException) return error.message;
+    return error.toString();
   }
 }

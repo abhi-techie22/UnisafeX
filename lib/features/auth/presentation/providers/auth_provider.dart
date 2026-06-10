@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -6,11 +8,16 @@ final supabaseClientProvider = Provider<SupabaseClient>((ref) {
 });
 
 final authStateProvider = StreamProvider<AuthState>((ref) {
-  return Supabase.instance.client.auth.onAuthStateChange;
+  return ref.watch(supabaseClientProvider).auth.onAuthStateChange;
+});
+
+final currentSessionProvider = Provider<Session?>((ref) {
+  ref.watch(authStateProvider);
+  return ref.watch(supabaseClientProvider).auth.currentSession;
 });
 
 final currentUserProvider = Provider<User?>((ref) {
-  return Supabase.instance.client.auth.currentUser;
+  return ref.watch(currentSessionProvider)?.user;
 });
 
 final isAuthenticatedProvider = Provider<bool>((ref) {
@@ -25,64 +32,100 @@ final isGuestProvider = Provider<bool>((ref) {
 });
 
 class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
-  AuthNotifier() : super(const AsyncValue.loading()) {
-    _init();
+  final SupabaseClient _client;
+  late final StreamSubscription<AuthState> _authSubscription;
+
+  AuthNotifier(this._client)
+      : super(AsyncValue.data(_client.auth.currentSession?.user)) {
+    _authSubscription = _client.auth.onAuthStateChange.listen((authState) {
+      state = AsyncValue.data(authState.session?.user);
+    });
   }
 
-  void _init() {
-    final user = Supabase.instance.client.auth.currentUser;
-    state = AsyncValue.data(user);
+  @override
+  void dispose() {
+    _authSubscription.cancel();
+    super.dispose();
   }
 
-  Future<void> signIn({required String email, required String password}) async {
+  Future<User> signIn({required String email, required String password}) async {
     state = const AsyncValue.loading();
     try {
-      final response = await Supabase.instance.client.auth.signInWithPassword(
+      final response = await _client.auth.signInWithPassword(
         email: email,
         password: password,
       );
-      state = AsyncValue.data(response.user);
-    } on AuthException catch (e) {
+      final user = response.user;
+      if (response.session == null || user == null) {
+        throw const AuthException('Sign in did not create a valid session.');
+      }
+      state = AsyncValue.data(user);
+      return user;
+    } on AuthException {
       state = const AsyncValue.data(null);
-      throw Exception(e.message);
-    } catch (e) {
+      rethrow;
+    } catch (_) {
       state = const AsyncValue.data(null);
-      throw Exception('An unexpected error occurred. Please try again.');
+      throw const AuthException(
+        'An unexpected error occurred. Please try again.',
+      );
     }
   }
 
-  Future<void> signUp({required String email, required String password}) async {
+  Future<SignUpResult> signUp({
+    required String email,
+    required String password,
+  }) async {
     state = const AsyncValue.loading();
     try {
-      final response = await Supabase.instance.client.auth.signUp(
+      final response = await _client.auth.signUp(
         email: email,
         password: password,
       );
-      state = AsyncValue.data(response.user);
-    } on AuthException catch (e) {
+      final user = response.user;
+      if (user == null) {
+        throw const AuthException('Account creation did not return a user.');
+      }
+
+      final hasSession = response.session != null;
+      state = AsyncValue.data(hasSession ? user : null);
+      return SignUpResult(user: user, requiresEmailConfirmation: !hasSession);
+    } on AuthException {
       state = const AsyncValue.data(null);
-      throw Exception(e.message);
-    } catch (e) {
+      rethrow;
+    } catch (_) {
       state = const AsyncValue.data(null);
-      throw Exception('An unexpected error occurred. Please try again.');
+      throw const AuthException(
+        'An unexpected error occurred. Please try again.',
+      );
     }
   }
 
   Future<void> signOut() async {
-    await Supabase.instance.client.auth.signOut();
+    await _client.auth.signOut();
     state = const AsyncValue.data(null);
   }
 
   Future<void> resetPassword(String email) async {
     try {
-      await Supabase.instance.client.auth.resetPasswordForEmail(email);
-    } on AuthException catch (e) {
-      throw Exception(e.message);
+      await _client.auth.resetPasswordForEmail(email);
+    } on AuthException {
+      rethrow;
     }
   }
 }
 
+class SignUpResult {
+  final User user;
+  final bool requiresEmailConfirmation;
+
+  const SignUpResult({
+    required this.user,
+    required this.requiresEmailConfirmation,
+  });
+}
+
 final authNotifierProvider =
     StateNotifierProvider<AuthNotifier, AsyncValue<User?>>((ref) {
-  return AuthNotifier();
+  return AuthNotifier(ref.watch(supabaseClientProvider));
 });
