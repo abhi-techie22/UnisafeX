@@ -12,35 +12,44 @@ class ProfileRepository {
 
   Future<UserProfile?> getProfile(String userId) async {
     _requireMatchingAuthenticatedUser(userId);
-    final response = await _client
-        .from('profiles')
-        .select()
-        .eq('user_id', userId)
-        .maybeSingle();
+    final rows =
+        await _client.from('profiles').select().eq('user_id', userId).limit(1);
 
-    if (response == null) return null;
-    return UserProfile.fromJson(response);
+    if (rows.isEmpty) return null;
+    return UserProfile.fromJson(rows.first);
   }
 
   Future<UserProfile> upsertProfile(UserProfile profile) async {
     _requireMatchingAuthenticatedUser(profile.userId);
     final data = profile.toJson();
 
-    final updated = await _client
+    final existingRows = await _client
         .from('profiles')
-        .update(data)
+        .select('user_id')
         .eq('user_id', profile.userId)
-        .select()
-        .maybeSingle();
+        .limit(1);
 
-    if (updated != null) {
-      return UserProfile.fromJson(updated);
+    final List<dynamic> savedRows;
+    if (existingRows.isEmpty) {
+      savedRows = await _client.from('profiles').insert(data).select().limit(1);
+    } else {
+      savedRows = await _client
+          .from('profiles')
+          .update(data)
+          .eq('user_id', profile.userId)
+          .select()
+          .limit(1);
     }
 
-    final inserted =
-        await _client.from('profiles').insert(data).select().single();
+    if (savedRows.isEmpty) {
+      throw const PostgrestException(
+        message:
+            'Profile was not saved. Verify the profiles RLS policies for the '
+            'authenticated user.',
+      );
+    }
 
-    return UserProfile.fromJson(inserted);
+    return UserProfile.fromJson(savedRows.first);
   }
 
   Future<String> uploadProfileImage(String userId, File imageFile) async {
