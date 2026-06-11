@@ -100,7 +100,13 @@ class _NearbyContent extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
             children: [
-              _LocationHeader(location: location),
+              _LocationHeader(
+                location: location,
+                onChangeLocation: () => _showLocationPicker(context, ref),
+                onUseGps: location.source == LocationSource.selected
+                    ? () => ref.read(locationProvider.notifier).refresh()
+                    : null,
+              ),
               const SizedBox(height: 22),
               Text(
                 selectedPlace == null
@@ -110,7 +116,9 @@ class _NearbyContent extends ConsumerWidget {
               ),
               const SizedBox(height: 5),
               Text(
-                'Distances are calculated from your current GPS coordinates.',
+                location.source == LocationSource.gps
+                    ? 'Calculated now from your live GPS and each place coordinate.'
+                    : 'Calculated now from your chosen location and each place coordinate.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: 14),
@@ -146,12 +154,43 @@ class _NearbyContent extends ConsumerWidget {
       ),
     );
   }
+
+  Future<void> _showLocationPicker(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final query = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => const _LocationPickerSheet(),
+    );
+    if (query == null || !context.mounted) return;
+
+    final found =
+        await ref.read(locationProvider.notifier).selectLocation(query);
+    if (!found && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Location not found. Try a city, landmark, or full address.',
+          ),
+        ),
+      );
+    }
+  }
 }
 
 class _LocationHeader extends StatelessWidget {
-  const _LocationHeader({required this.location});
+  const _LocationHeader({
+    required this.location,
+    required this.onChangeLocation,
+    this.onUseGps,
+  });
 
   final LocationData location;
+  final VoidCallback onChangeLocation;
+  final VoidCallback? onUseGps;
 
   @override
   Widget build(BuildContext context) {
@@ -182,9 +221,14 @@ class _LocationHeader extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Your live location',
-                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                Text(
+                  location.source == LocationSource.gps
+                      ? 'Your live GPS location'
+                      : 'Your chosen location',
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                  ),
                 ),
                 const SizedBox(height: 3),
                 Text(
@@ -196,11 +240,133 @@ class _LocationHeader extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 3),
-                Text(
-                  'GPS accuracy ±${location.accuracyMeters.round()} m',
-                  style: const TextStyle(color: Colors.white70, fontSize: 11),
-                ),
+                if (location.source == LocationSource.gps)
+                  Text(
+                    'GPS accuracy ±${location.accuracyMeters.round()} m',
+                    style: const TextStyle(color: Colors.white70, fontSize: 11),
+                  )
+                else
+                  const Text(
+                    'Distances use this selected starting point',
+                    style: TextStyle(color: Colors.white70, fontSize: 11),
+                  ),
               ],
+            ),
+          ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextButton(
+                onPressed: onChangeLocation,
+                style: TextButton.styleFrom(foregroundColor: Colors.white),
+                child: const Text('Change'),
+              ),
+              if (onUseGps != null)
+                IconButton(
+                  tooltip: 'Use current GPS',
+                  onPressed: onUseGps,
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(
+                    Icons.my_location_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LocationPickerSheet extends StatefulWidget {
+  const _LocationPickerSheet();
+
+  @override
+  State<_LocationPickerSheet> createState() => _LocationPickerSheetState();
+}
+
+class _LocationPickerSheetState extends State<_LocationPickerSheet> {
+  final _controller = TextEditingController();
+
+  static const _suggestions = [
+    'New Delhi',
+    'Mumbai',
+    'Jaipur',
+    'Agra',
+    'Goa',
+    'Varanasi',
+    'Bengaluru',
+    'Kochi',
+  ];
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit([String? value]) {
+    final query = (value ?? _controller.text).trim();
+    if (query.isNotEmpty) Navigator.pop(context, query);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        0,
+        20,
+        20 + MediaQuery.viewInsetsOf(context).bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Choose your starting location',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Enter a city, landmark, hotel, or full address. All distances '
+            'will be recalculated from that point.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _controller,
+            autofocus: true,
+            textInputAction: TextInputAction.search,
+            onSubmitted: _submit,
+            decoration: const InputDecoration(
+              labelText: 'City or address',
+              hintText: 'For example: Jaipur',
+              prefixIcon: Icon(Icons.location_searching_rounded),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _suggestions
+                .map(
+                  (city) => ActionChip(
+                    label: Text(city),
+                    onPressed: () => _submit(city),
+                  ),
+                )
+                .toList(),
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: _submit,
+              icon: const Icon(Icons.check_rounded),
+              label: const Text('Use this location'),
             ),
           ),
         ],
@@ -401,6 +567,12 @@ class _LocationError extends ConsumerWidget {
           icon: const Icon(Icons.refresh_rounded),
           label: const Text('Try again'),
         ),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          onPressed: () => _chooseLocation(context, ref),
+          icon: const Icon(Icons.edit_location_alt_outlined),
+          label: const Text('Choose location manually'),
+        ),
         if (locationError.failure ==
             LocationFailure.permissionDeniedForever) ...[
           const SizedBox(height: 10),
@@ -419,6 +591,23 @@ class _LocationError extends ConsumerWidget {
         ],
       ],
     );
+  }
+
+  Future<void> _chooseLocation(BuildContext context, WidgetRef ref) async {
+    final query = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => const _LocationPickerSheet(),
+    );
+    if (query == null) return;
+    final found =
+        await ref.read(locationProvider.notifier).selectLocation(query);
+    if (!found && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Location not found. Try another name.')),
+      );
+    }
   }
 }
 

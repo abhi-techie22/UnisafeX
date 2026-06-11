@@ -6,8 +6,6 @@ import 'package:go_router/go_router.dart';
 import 'package:unisafex/core/constants/app_constants.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
-import 'package:unisafex/features/auth/presentation/providers/auth_provider.dart';
-import 'package:unisafex/features/booking/presentation/widgets/booking_home_section.dart';
 import 'package:unisafex/features/home/presentation/providers/location_provider.dart';
 import 'package:unisafex/features/profile/presentation/providers/profile_provider.dart';
 import 'package:unisafex/features/tourism/domain/entities/tourism_place.dart';
@@ -37,8 +35,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final popular = ref.watch(popularPlacesProvider);
     final trending = ref.watch(trendingPlacesProvider);
     final mustVisit = ref.watch(mustVisitPlacesProvider);
-    final isGuest = ref.watch(isGuestProvider);
-
     final cityName = location.value?.name ?? 'India';
     final greeting = _getGreeting();
 
@@ -166,8 +162,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ).animate().fadeIn(duration: 400.ms),
           ),
-
-          const SliverToBoxAdapter(child: BookingHomeSection()),
 
           SliverToBoxAdapter(
             child: Padding(

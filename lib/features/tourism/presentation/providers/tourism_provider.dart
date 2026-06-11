@@ -281,9 +281,16 @@ class TourismRepository {
           .select()
           .limit(200);
 
-      final places = _placesFrom(response)
-          .where((place) => place.latitude != 0 && place.longitude != 0)
-          .toList()
+      final places = _placesFrom(response).where((place) {
+        if (place.latitude == 0 || place.longitude == 0) return false;
+        final distance = DistanceCalculator.calculate(
+          lat1: latitude,
+          lon1: longitude,
+          lat2: place.latitude,
+          lon2: place.longitude,
+        );
+        return distance <= radiusKm;
+      }).toList()
         ..sort(
           (a, b) => DistanceCalculator.calculate(
             lat1: latitude,

@@ -10,6 +10,7 @@ class LocationData {
   final String? state;
   final double accuracyMeters;
   final DateTime capturedAt;
+  final LocationSource source;
 
   const LocationData({
     required this.latitude,
@@ -19,8 +20,11 @@ class LocationData {
     this.state,
     required this.accuracyMeters,
     required this.capturedAt,
+    required this.source,
   });
 }
+
+enum LocationSource { gps, selected }
 
 enum LocationFailure {
   servicesDisabled,
@@ -103,6 +107,7 @@ class LocationNotifier extends StateNotifier<AsyncValue<LocationData?>> {
         state: stateName,
         accuracyMeters: position.accuracy,
         capturedAt: position.timestamp,
+        source: LocationSource.gps,
       ));
     } on LocationException catch (error, stackTrace) {
       state = AsyncValue.error(error, stackTrace);
@@ -116,9 +121,92 @@ class LocationNotifier extends StateNotifier<AsyncValue<LocationData?>> {
 
   Future<void> refresh() => _fetchLocation();
 
+  Future<bool> selectLocation(String query) async {
+    final value = query.trim();
+    if (value.isEmpty) return false;
+
+    final previous = state;
+    state = const AsyncValue.loading();
+    try {
+      final known = _knownLocations[value.toLowerCase()];
+      if (known != null) {
+        state = AsyncValue.data(
+          LocationData(
+            latitude: known.$1,
+            longitude: known.$2,
+            name: known.$3,
+            city: known.$3,
+            state: known.$4,
+            accuracyMeters: 0,
+            capturedAt: DateTime.now(),
+            source: LocationSource.selected,
+          ),
+        );
+        return true;
+      }
+
+      final matches = await locationFromAddress(value);
+      if (matches.isEmpty) {
+        state = previous;
+        return false;
+      }
+
+      final match = matches.first;
+      String name = value;
+      String? city;
+      String? stateName;
+      try {
+        final placemarks = await placemarkFromCoordinates(
+          match.latitude,
+          match.longitude,
+        );
+        if (placemarks.isNotEmpty) {
+          final place = placemarks.first;
+          city = place.locality ?? place.subAdministrativeArea;
+          stateName = place.administrativeArea;
+          name = [
+            if (city?.isNotEmpty == true) city!,
+            if (stateName?.isNotEmpty == true && stateName != city) stateName!,
+          ].join(', ');
+          if (name.isEmpty) name = value;
+        }
+      } catch (_) {}
+
+      state = AsyncValue.data(
+        LocationData(
+          latitude: match.latitude,
+          longitude: match.longitude,
+          name: name,
+          city: city,
+          state: stateName,
+          accuracyMeters: 0,
+          capturedAt: DateTime.now(),
+          source: LocationSource.selected,
+        ),
+      );
+      return true;
+    } catch (_) {
+      state = previous;
+      return false;
+    }
+  }
+
   Future<void> openSettings() => Geolocator.openAppSettings();
 
   Future<void> openLocationSettings() => Geolocator.openLocationSettings();
+
+  static const _knownLocations = <String, (double, double, String, String)>{
+    'new delhi': (28.6139, 77.2090, 'New Delhi', 'Delhi'),
+    'delhi': (28.6139, 77.2090, 'New Delhi', 'Delhi'),
+    'mumbai': (19.0760, 72.8777, 'Mumbai', 'Maharashtra'),
+    'jaipur': (26.9124, 75.7873, 'Jaipur', 'Rajasthan'),
+    'agra': (27.1767, 78.0081, 'Agra', 'Uttar Pradesh'),
+    'goa': (15.2993, 74.1240, 'Goa', 'Goa'),
+    'varanasi': (25.3176, 82.9739, 'Varanasi', 'Uttar Pradesh'),
+    'bengaluru': (12.9716, 77.5946, 'Bengaluru', 'Karnataka'),
+    'bangalore': (12.9716, 77.5946, 'Bengaluru', 'Karnataka'),
+    'kochi': (9.9312, 76.2673, 'Kochi', 'Kerala'),
+  };
 }
 
 final locationProvider =
