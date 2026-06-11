@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
 import 'package:unisafex/features/auth/presentation/providers/auth_provider.dart';
@@ -15,7 +14,6 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isGuest = ref.watch(isGuestProvider);
     final profileState = ref.watch(profileNotifierProvider);
-    final user = ref.watch(currentUserProvider);
 
     if (isGuest) return const _GuestProfile();
 
@@ -44,20 +42,17 @@ class ProfileScreen extends ConsumerWidget {
             children: [
               _IdentityCard(
                 profile: profile,
-                email: user?.email ?? '',
-                onEdit: () => context.push(AppRoutes.profileCompletion),
+                onTap: () => context.push(AppRoutes.identityDetails),
               ),
-              const SizedBox(height: 18),
-              _DetailsCard(profile: profile),
               const SizedBox(height: 16),
               _ActionCard(
                 title: 'Your account',
                 actions: [
                   _ProfileAction(
-                    icon: Icons.edit_outlined,
-                    label: 'Edit profile',
-                    subtitle: 'Update personal and travel details',
-                    onTap: () => context.push(AppRoutes.profileCompletion),
+                    icon: Icons.badge_outlined,
+                    label: 'My Identity',
+                    subtitle: 'View your private saved details',
+                    onTap: () => context.push(AppRoutes.identityDetails),
                   ),
                   _ProfileAction(
                     icon: Icons.bookmark_outline_rounded,
@@ -154,93 +149,100 @@ class ProfileScreen extends ConsumerWidget {
 class _IdentityCard extends StatelessWidget {
   const _IdentityCard({
     required this.profile,
-    required this.email,
-    required this.onEdit,
+    required this.onTap,
   });
 
   final UserProfile? profile;
-  final String email;
-  final VoidCallback onEdit;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Theme.of(context).dividerColor),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 64,
-            height: 64,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(18),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Ink(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Theme.of(context).dividerColor),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: profile?.profileImageUrl?.isNotEmpty == true
+                  ? Image.network(
+                      profile!.profileImageUrl!,
+                      width: 64,
+                      height: 64,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _initials(),
+                    )
+                  : _initials(),
             ),
-            clipBehavior: Clip.antiAlias,
-            child: profile?.profileImageUrl?.isNotEmpty == true
-                ? Image.network(
-                    profile!.profileImageUrl!,
-                    width: 64,
-                    height: 64,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _initials(),
-                  )
-                : _initials(),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  profile?.displayName ?? 'Traveler',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  email,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                const SizedBox(height: 7),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: (profile?.isProfileComplete == true
-                            ? AppColors.success
-                            : AppColors.warning)
-                        .withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    profile?.displayName ?? 'Traveler',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleLarge,
                   ),
-                  child: Text(
-                    profile?.isProfileComplete == true
-                        ? 'Profile complete'
-                        : 'Profile needs details',
-                    style: TextStyle(
-                      color: profile?.isProfileComplete == true
-                          ? AppColors.success
-                          : AppColors.warning,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
+                  const SizedBox(height: 5),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: (profile?.isProfileComplete == true
+                              ? AppColors.success
+                              : AppColors.warning)
+                          .withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
                     ),
+                    child: Text(
+                      profile?.isProfileComplete == true
+                          ? 'Identity ready'
+                          : 'Identity needs details',
+                      style: TextStyle(
+                        color: profile?.isProfileComplete == true
+                            ? AppColors.success
+                            : AppColors.warning,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.lock_outline_rounded, color: AppColors.primary),
+                SizedBox(height: 5),
+                Text(
+                  'View',
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
             ),
-          ),
-          IconButton.filledTonal(
-            tooltip: 'Edit profile',
-            onPressed: onEdit,
-            icon: const Icon(Icons.edit_outlined),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -253,129 +255,6 @@ class _IdentityCard extends StatelessWidget {
           fontSize: 22,
         ),
       );
-}
-
-class _DetailsCard extends StatelessWidget {
-  const _DetailsCard({required this.profile});
-
-  final UserProfile? profile;
-
-  @override
-  Widget build(BuildContext context) {
-    final details = [
-      ('Full name', profile?.fullName, Icons.person_outline_rounded),
-      ('Gender', profile?.gender, Icons.wc_outlined),
-      (
-        'Nationality',
-        profile?.nationality ?? profile?.country,
-        Icons.public_rounded,
-      ),
-      (
-        'Current location',
-        profile?.currentLocation,
-        Icons.location_on_outlined,
-      ),
-      (
-        'Passport country',
-        profile?.passportCountry,
-        Icons.badge_outlined,
-      ),
-      ('Visa type', profile?.visaType, Icons.document_scanner_outlined),
-      (
-        'Visa expiry',
-        profile?.visaExpiry == null
-            ? null
-            : DateFormat('dd MMM yyyy').format(profile!.visaExpiry!),
-        Icons.event_outlined,
-      ),
-      (
-        'Travel purpose',
-        profile?.travelPurpose,
-        Icons.luggage_outlined,
-      ),
-    ];
-
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Theme.of(context).dividerColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.contact_page_outlined, color: AppColors.primary),
-              const SizedBox(width: 9),
-              Text(
-                'Travel profile',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: details.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisExtent: 82,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-            ),
-            itemBuilder: (context, index) {
-              final detail = details[index];
-              return Container(
-                padding: const EdgeInsets.all(11),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.055),
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          detail.$3,
-                          size: 15,
-                          color: AppColors.primary,
-                        ),
-                        const SizedBox(width: 5),
-                        Expanded(
-                          child: Text(
-                            detail.$1,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.labelSmall,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Spacer(),
-                    Text(
-                      detail.$2?.trim().isNotEmpty == true
-                          ? detail.$2!
-                          : 'Not added',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _ActionCard extends StatelessWidget {

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:unisafex/core/constants/app_constants.dart';
 import 'package:unisafex/core/widgets/main_scaffold.dart';
@@ -24,6 +23,7 @@ import 'package:unisafex/features/onboarding/presentation/screens/onboarding_scr
 
 import 'package:unisafex/features/profile/presentation/screens/profile_completion_screen.dart';
 import 'package:unisafex/features/profile/presentation/screens/profile_screen.dart';
+import 'package:unisafex/features/profile/presentation/screens/identity_details_screen.dart';
 
 import 'package:unisafex/features/search/presentation/screens/search_screen.dart';
 
@@ -59,8 +59,6 @@ GoRouter appRouter(
     initialLocation: AppRoutes.splash,
     debugLogDiagnostics: false,
     redirect: (context, state) async {
-      final session = Supabase.instance.client.auth.currentSession;
-
       final prefs = await SharedPreferences.getInstance();
 
       final onboardingDone = prefs.getBool(
@@ -71,8 +69,6 @@ GoRouter appRouter(
       final isOnSplash = state.matchedLocation == AppRoutes.splash;
 
       final isOnOnboarding = state.matchedLocation == AppRoutes.onboarding;
-
-      final isOnAuth = state.matchedLocation.startsWith('/auth');
 
       if (isOnSplash) {
         return null;
@@ -212,6 +208,12 @@ GoRouter appRouter(
         ],
       ),
 
+      /// Private identity details
+      GoRoute(
+        path: AppRoutes.identityDetails,
+        builder: (context, state) => const IdentityDetailsScreen(),
+      ),
+
       /// Place Detail
       GoRoute(
         path: AppRoutes.placeDetail,
@@ -327,6 +329,7 @@ class AppRoutes {
   static const String favorites = '/favorites';
 
   static const String profile = '/profile';
+  static const String identityDetails = '/profile/identity';
 
   static const String placeDetail = '/place-detail';
 
