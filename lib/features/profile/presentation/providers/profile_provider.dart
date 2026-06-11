@@ -23,23 +23,11 @@ class ProfileRepository {
     _requireMatchingAuthenticatedUser(profile.userId);
     final data = profile.toJson();
 
-    final existingRows = await _client
+    final savedRows = await _client
         .from('profiles')
-        .select('user_id')
-        .eq('user_id', profile.userId)
+        .upsert(data, onConflict: 'user_id')
+        .select()
         .limit(1);
-
-    final List<dynamic> savedRows;
-    if (existingRows.isEmpty) {
-      savedRows = await _client.from('profiles').insert(data).select().limit(1);
-    } else {
-      savedRows = await _client
-          .from('profiles')
-          .update(data)
-          .eq('user_id', profile.userId)
-          .select()
-          .limit(1);
-    }
 
     if (savedRows.isEmpty) {
       throw const PostgrestException(

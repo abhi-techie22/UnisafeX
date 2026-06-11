@@ -29,7 +29,7 @@ final isAuthenticatedProvider = Provider<bool>((ref) {
 
 final isGuestProvider = Provider<bool>((ref) {
   final user = ref.watch(currentUserProvider);
-  if (user == null) return false;
+  if (user == null) return true;
   return user.isAnonymous;
 });
 

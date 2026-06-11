@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:unisafex/core/constants/app_constants.dart';
+import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
 import 'package:unisafex/features/settings/presentation/screens/locale_provider.dart';
 
@@ -19,9 +20,12 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     final value = prefs.getString(AppConstants.cacheKeyTheme);
-    if (value == 'light') state = ThemeMode.light;
-    else if (value == 'dark') state = ThemeMode.dark;
-    else state = ThemeMode.system;
+    if (value == 'light')
+      state = ThemeMode.light;
+    else if (value == 'dark')
+      state = ThemeMode.dark;
+    else
+      state = ThemeMode.system;
   }
 
   Future<void> setMode(ThemeMode mode) async {
@@ -50,7 +54,6 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         children: [
           _SectionHeader(title: 'appearance'.tr()),
-
           _SettingTile(
             icon: Icons.palette_outlined,
             title: 'choose_theme'.tr(),
@@ -61,18 +64,14 @@ class SettingsScreen extends ConsumerWidget {
                     : 'dark_mode'.tr(),
             onTap: () => _showThemeSheet(context, ref, themeMode),
           ),
-
           _SectionHeader(title: 'language'.tr()),
-
           _SettingTile(
             icon: Icons.language_outlined,
             title: 'choose_language'.tr(),
             subtitle: currentLocale.languageCode.toUpperCase(),
             onTap: () => _showLanguageSheet(context, ref, currentLocale),
           ),
-
           _SectionHeader(title: 'notifications'.tr()),
-
           _SettingTile(
             icon: Icons.notifications_outlined,
             title: 'notifications'.tr(),
@@ -82,41 +81,34 @@ class SettingsScreen extends ConsumerWidget {
               activeColor: AppColors.primary,
             ),
           ),
-
           _SectionHeader(title: 'app_version'.tr()),
-
           _SettingTile(
             icon: Icons.info_outline_rounded,
             title: 'app_version'.tr(),
             subtitle: AppConstants.appVersion,
           ),
-
           _SettingTile(
             icon: Icons.privacy_tip_outlined,
             title: 'privacy_policy'.tr(),
-            onTap: () {},
+            onTap: () => context.push(AppRoutes.privacyPolicy),
           ),
-
           _SettingTile(
             icon: Icons.description_outlined,
             title: 'terms_of_service'.tr(),
-            onTap: () {},
+            onTap: () => context.push(AppRoutes.termsOfService),
           ),
-
           _SettingTile(
             icon: Icons.help_outline_rounded,
             title: 'help_support'.tr(),
-            onTap: () {},
+            onTap: () => context.push(AppRoutes.helpSupport),
           ),
-
           const SizedBox(height: 32),
         ],
       ),
     );
   }
 
-  void _showThemeSheet(
-      BuildContext context, WidgetRef ref, ThemeMode current) {
+  void _showThemeSheet(BuildContext context, WidgetRef ref, ThemeMode current) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showModalBottomSheet(
@@ -204,8 +196,7 @@ class SettingsScreen extends ConsumerWidget {
         builder: (_, controller) => Container(
           decoration: BoxDecoration(
             color: isDark ? AppColors.cardDark : AppColors.cardLight,
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(24)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           ),
           padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
           child: Column(

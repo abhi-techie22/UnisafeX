@@ -28,6 +28,9 @@ import 'package:unisafex/features/profile/presentation/screens/profile_screen.da
 import 'package:unisafex/features/search/presentation/screens/search_screen.dart';
 
 import 'package:unisafex/features/settings/presentation/screens/settings_screen.dart';
+import 'package:unisafex/features/settings/presentation/screens/about_screen.dart';
+import 'package:unisafex/features/settings/presentation/screens/help_support_screen.dart';
+import 'package:unisafex/features/settings/presentation/screens/legal_document_screen.dart';
 
 import 'package:unisafex/features/splash/presentation/screens/splash_screen.dart';
 
@@ -248,6 +251,22 @@ GoRouter appRouter(
         builder: (context, state) => const SettingsScreen(),
       ),
       GoRoute(
+        path: AppRoutes.helpSupport,
+        builder: (context, state) => const HelpSupportScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.about,
+        builder: (context, state) => const AboutScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.privacyPolicy,
+        builder: (context, state) => const LegalDocumentScreen.privacy(),
+      ),
+      GoRoute(
+        path: AppRoutes.termsOfService,
+        builder: (context, state) => const LegalDocumentScreen.terms(),
+      ),
+      GoRoute(
         path: AppRoutes.travelToolkit,
         builder: (context, state) => const TravelToolkitScreen(),
       ),
@@ -314,6 +333,10 @@ class AppRoutes {
   static const String placesList = '/places-list';
 
   static const String settings = '/settings';
+  static const String helpSupport = '/help-support';
+  static const String about = '/about';
+  static const String privacyPolicy = '/privacy-policy';
+  static const String termsOfService = '/terms-of-service';
 
   static const String travelToolkit = '/travel-toolkit';
   static const String tripPlanner = '/travel-toolkit/trip-planner';

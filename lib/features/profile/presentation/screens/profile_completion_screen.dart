@@ -33,6 +33,49 @@ class _ProfileCompletionScreenState
   DateTime? _visaExpiry;
   bool _isLoading = false;
   int _currentStep = 0;
+  bool _didHydrate = false;
+  UserProfile? _existingProfile;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _hydrateExistingProfile();
+  }
+
+  void _hydrateExistingProfile() {
+    if (_didHydrate) return;
+    final existing = ref.read(profileNotifierProvider).value;
+    if (existing == null) return;
+
+    _didHydrate = true;
+    _existingProfile = existing;
+    _nameController.text = existing.fullName ?? '';
+    _locationController.text = existing.currentLocation ?? '';
+    _selectedGender = existing.gender;
+    _selectedVisaType = existing.visaType;
+    _selectedTravelPurpose = existing.travelPurpose;
+    _visaExpiry = existing.visaExpiry;
+    _selectedCountry = _findCountry(
+      existing.countryCode,
+      existing.country ?? existing.nationality,
+    );
+    _selectedPassportCountry = _findCountry(null, existing.passportCountry);
+  }
+
+  Country? _findCountry(String? code, String? name) {
+    final countries = CountryService().getAll();
+    for (final country in countries) {
+      if (code?.isNotEmpty == true &&
+          country.countryCode.toLowerCase() == code!.toLowerCase()) {
+        return country;
+      }
+      if (name?.isNotEmpty == true &&
+          country.name.toLowerCase() == name!.toLowerCase()) {
+        return country;
+      }
+    }
+    return null;
+  }
 
   @override
   void dispose() {
@@ -66,20 +109,32 @@ class _ProfileCompletionScreenState
         userId: user.id,
         fullName: _nameController.text.trim(),
         gender: _selectedGender,
-        nationality: _selectedCountry?.name,
-        country: _selectedCountry?.name,
-        countryCode: _selectedCountry?.countryCode,
+        nationality: _selectedCountry?.name ?? _existingProfile?.nationality,
+        country: _selectedCountry?.name ?? _existingProfile?.country,
+        countryCode:
+            _selectedCountry?.countryCode ?? _existingProfile?.countryCode,
         currentLocation: _locationController.text.trim(),
-        passportCountry: _selectedPassportCountry?.name,
+        passportCountry:
+            _selectedPassportCountry?.name ?? _existingProfile?.passportCountry,
         visaType: _selectedVisaType,
         visaExpiry: _visaExpiry,
         travelPurpose: _selectedTravelPurpose,
+        profileImageUrl: _existingProfile?.profileImageUrl,
+        createdAt: _existingProfile?.createdAt,
         isProfileComplete: true,
       );
 
       await ref.read(profileNotifierProvider.notifier).saveProfile(profile);
 
-      if (mounted) context.go(AppRoutes.home);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profile saved successfully'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+        context.go(AppRoutes.profile);
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -98,6 +153,15 @@ class _ProfileCompletionScreenState
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final session = ref.watch(currentSessionProvider);
+    final profileState = ref.watch(profileNotifierProvider);
+
+    if (!_didHydrate && profileState.hasValue) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(_hydrateExistingProfile);
+        }
+      });
+    }
 
     if (session == null) {
       return Scaffold(
@@ -175,7 +239,9 @@ class _ProfileCompletionScreenState
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Complete Profile',
+                        _existingProfile == null
+                            ? 'Complete Profile'
+                            : 'Edit Profile',
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
                       Text(
@@ -185,9 +251,10 @@ class _ProfileCompletionScreenState
                     ],
                   ),
                   const Spacer(),
-                  TextButton(
-                    onPressed: () => context.go(AppRoutes.home),
-                    child: const Text('Skip'),
+                  IconButton(
+                    tooltip: 'Close',
+                    onPressed: () => context.pop(),
+                    icon: const Icon(Icons.close_rounded),
                   ),
                 ],
               ),
@@ -266,6 +333,10 @@ class _ProfileCompletionScreenState
   }
 
   void _nextStep() {
+    if (_nameController.text.trim().isEmpty) {
+      _formKey.currentState?.validate();
+      return;
+    }
     setState(() => _currentStep = 1);
   }
 
@@ -437,7 +508,7 @@ class _ProfileCompletionScreenState
   Future<void> _pickVisaExpiry() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now().add(const Duration(days: 30)),
+      initialDate: _visaExpiry ?? DateTime.now().add(const Duration(days: 30)),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
     );
@@ -458,6 +529,7 @@ class _ProfileCompletionScreenState
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return DropdownButtonFormField<String>(
+      key: ValueKey('$hint-$value'),
       initialValue: value,
       hint: Text(hint),
       decoration: InputDecoration(prefixIcon: Icon(prefixIcon, size: 20)),

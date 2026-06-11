@@ -122,5 +122,21 @@ class UserProfile extends Equatable {
   }
 
   @override
-  List<Object?> get props => [userId];
+  List<Object?> get props => [
+        userId,
+        fullName,
+        gender,
+        nationality,
+        country,
+        countryCode,
+        currentLocation,
+        passportCountry,
+        visaType,
+        visaExpiry,
+        travelPurpose,
+        profileImageUrl,
+        createdAt,
+        updatedAt,
+        isProfileComplete,
+      ];
 }
