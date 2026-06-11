@@ -8,6 +8,8 @@ class LocationData {
   final String name;
   final String? city;
   final String? state;
+  final double accuracyMeters;
+  final DateTime capturedAt;
 
   const LocationData({
     required this.latitude,
@@ -15,7 +17,36 @@ class LocationData {
     required this.name,
     this.city,
     this.state,
+    required this.accuracyMeters,
+    required this.capturedAt,
   });
+}
+
+enum LocationFailure {
+  servicesDisabled,
+  permissionDenied,
+  permissionDeniedForever,
+  unavailable,
+}
+
+class LocationException implements Exception {
+  const LocationException(this.failure);
+
+  final LocationFailure failure;
+
+  String get message => switch (failure) {
+        LocationFailure.servicesDisabled =>
+          'Location services are turned off. Enable GPS to see nearby places.',
+        LocationFailure.permissionDenied =>
+          'Location permission was denied. Allow it to calculate real distances.',
+        LocationFailure.permissionDeniedForever =>
+          'Location permission is blocked. Enable it in device settings.',
+        LocationFailure.unavailable =>
+          'Your current location could not be detected. Please try again.',
+      };
+
+  @override
+  String toString() => message;
 }
 
 class LocationNotifier extends StateNotifier<AsyncValue<LocationData?>> {
@@ -26,22 +57,25 @@ class LocationNotifier extends StateNotifier<AsyncValue<LocationData?>> {
   Future<void> _fetchLocation() async {
     state = const AsyncValue.loading();
     try {
-      final permission = await Geolocator.checkPermission();
+      final servicesEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!servicesEnabled) {
+        throw const LocationException(LocationFailure.servicesDisabled);
+      }
+
+      var permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
-        final req = await Geolocator.requestPermission();
-        if (req == LocationPermission.denied ||
-            req == LocationPermission.deniedForever) {
-          state = const AsyncValue.data(LocationData(
-            latitude: 20.5937,
-            longitude: 78.9629,
-            name: 'India',
-          ));
-          return;
-        }
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied) {
+        throw const LocationException(LocationFailure.permissionDenied);
+      }
+      if (permission == LocationPermission.deniedForever) {
+        throw const LocationException(LocationFailure.permissionDeniedForever);
       }
 
       final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.medium,
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 15),
       );
 
       String locationName = 'India';
@@ -67,17 +101,24 @@ class LocationNotifier extends StateNotifier<AsyncValue<LocationData?>> {
         name: locationName,
         city: city,
         state: stateName,
+        accuracyMeters: position.accuracy,
+        capturedAt: position.timestamp,
       ));
-    } catch (e, st) {
-      state = const AsyncValue.data(LocationData(
-        latitude: 20.5937,
-        longitude: 78.9629,
-        name: 'India',
-      ));
+    } on LocationException catch (error, stackTrace) {
+      state = AsyncValue.error(error, stackTrace);
+    } catch (error, stackTrace) {
+      state = AsyncValue.error(
+        const LocationException(LocationFailure.unavailable),
+        stackTrace,
+      );
     }
   }
 
   Future<void> refresh() => _fetchLocation();
+
+  Future<void> openSettings() => Geolocator.openAppSettings();
+
+  Future<void> openLocationSettings() => Geolocator.openLocationSettings();
 }
 
 final locationProvider =

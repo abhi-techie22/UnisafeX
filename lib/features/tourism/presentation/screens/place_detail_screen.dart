@@ -1,11 +1,10 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
+import 'package:unisafex/core/utils/distance_calculator.dart';
+import 'package:unisafex/core/utils/google_maps_launcher.dart';
 import 'package:unisafex/core/widgets/app_button.dart';
 import 'package:unisafex/features/auth/presentation/providers/auth_provider.dart';
 import 'package:unisafex/features/favorites/presentation/providers/favorites_provider.dart';
@@ -47,29 +46,22 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
     super.dispose();
   }
 
-  double? _calculateDistance() {
-    final location = ref.read(locationProvider).value;
+  double? _calculateDistance(LocationData? location) {
     if (location == null) return null;
 
-    const radians = math.pi / 180;
-    final haversine = 0.5 -
-        math.cos((widget.place.latitude - location.latitude) * radians) / 2 +
-        math.cos(location.latitude * radians) *
-            math.cos(widget.place.latitude * radians) *
-            (1 -
-                math.cos(
-                  (widget.place.longitude - location.longitude) * radians,
-                )) /
-            2;
-
-    return 12742 * math.asin(math.sqrt(haversine));
+    return DistanceCalculator.calculate(
+      lat1: location.latitude,
+      lon1: location.longitude,
+      lat2: widget.place.latitude,
+      lon2: widget.place.longitude,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final place = widget.place;
-    final distance = _calculateDistance();
+    final distance = _calculateDistance(ref.watch(locationProvider).value);
     final safetyScore = SafetyScoreService.calculate(place);
     final localSaved = ref.watch(savedPlacesProvider).contains(place.id);
     final remoteFavorites = ref.watch(favoritesProvider).value ?? [];
@@ -329,7 +321,7 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
               ),
               AppButton(
                 label: 'Get Directions',
-                onPressed: () => context.go(AppRoutes.map, extra: place),
+                onPressed: _openGoogleMaps,
                 icon: Icons.navigation,
               ),
             ],
@@ -337,6 +329,21 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _openGoogleMaps() async {
+    final location = ref.read(locationProvider).value;
+    final opened = await GoogleMapsLauncher.openDirections(
+      originLatitude: location?.latitude,
+      originLongitude: location?.longitude,
+      destinationLatitude: widget.place.latitude,
+      destinationLongitude: widget.place.longitude,
+    );
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open Google Maps.')),
+      );
+    }
   }
 
   Widget _imageFallback() {

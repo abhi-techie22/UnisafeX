@@ -46,7 +46,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     OnboardingData(
       title: 'In-App Maps\n& Navigation',
       subtitle:
-          'Navigate effortlessly with built-in maps, distance calculations, and turn-by-turn directions — no internet required.',
+          'Use live GPS distances to discover nearby places, then navigate with Google Maps.',
       icon: Icons.map_rounded,
       color: const Color(0xFFB45309),
       accent: const Color(0xFFF59E0B),

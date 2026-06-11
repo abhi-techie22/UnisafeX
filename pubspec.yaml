@@ -22,9 +22,6 @@ dependencies:
   # Supabase
   supabase_flutter: ^2.5.3
 
-  # Maps
-  maplibre_gl: ^0.26.1 
-
   # Localization
   easy_localization: ^3.0.7
 

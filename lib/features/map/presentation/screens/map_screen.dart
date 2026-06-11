@@ -1,560 +1,444 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:maplibre_gl/maplibre_gl.dart';
-
-import 'package:unisafex/core/constants/app_constants.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
+import 'package:unisafex/core/utils/distance_calculator.dart';
+import 'package:unisafex/core/utils/google_maps_launcher.dart';
 import 'package:unisafex/features/home/presentation/providers/location_provider.dart';
 import 'package:unisafex/features/tourism/domain/entities/tourism_place.dart';
 import 'package:unisafex/features/tourism/presentation/providers/tourism_provider.dart';
 
-class MapScreen extends ConsumerStatefulWidget {
+class MapScreen extends ConsumerWidget {
+  const MapScreen({super.key, this.selectedPlace});
+
   final TourismPlace? selectedPlace;
 
-  const MapScreen({
-    super.key,
-    this.selectedPlace,
-  });
-
   @override
-  ConsumerState<MapScreen> createState() =>
-      _MapScreenState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final locationState = ref.watch(locationProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Nearby places'),
+        actions: [
+          IconButton(
+            tooltip: 'Refresh location',
+            onPressed: () => ref.read(locationProvider.notifier).refresh(),
+            icon: const Icon(Icons.my_location_rounded),
+          ),
+        ],
+      ),
+      body: locationState.when(
+        loading: () => const _LocationLoading(),
+        error: (error, _) => _LocationError(error: error),
+        data: (location) {
+          if (location == null) {
+            return const _LocationError(
+              error: LocationException(LocationFailure.unavailable),
+            );
+          }
+          return _NearbyContent(
+            location: location,
+            selectedPlace: selectedPlace,
+          );
+        },
+      ),
+    );
+  }
 }
 
-class _MapScreenState
-    extends ConsumerState<MapScreen> {
-  MapLibreMapController? _controller;
+class _NearbyContent extends ConsumerWidget {
+  const _NearbyContent({
+    required this.location,
+    required this.selectedPlace,
+  });
 
-  TourismPlace? _selectedPlace;
+  final LocationData location;
+  final TourismPlace? selectedPlace;
 
-  bool _mapReady = false;
-  bool _markersAdded = false;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final nearby = ref.watch(
+      nearbyPlacesProvider(
+        NearbyParams(
+          lat: location.latitude,
+          lng: location.longitude,
+          radiusKm: 500,
+        ),
+      ),
+    );
 
-  final Map<String, TourismPlace>
-      _symbolPlaces = {};
+    return RefreshIndicator(
+      onRefresh: () async {
+        await ref.read(locationProvider.notifier).refresh();
+        ref.invalidate(
+          nearbyPlacesProvider(
+            NearbyParams(
+              lat: location.latitude,
+              lng: location.longitude,
+              radiusKm: 500,
+            ),
+          ),
+        );
+      },
+      child: nearby.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) => ListView(
+          children: [
+            const SizedBox(height: 180),
+            Center(child: Text('Unable to load nearby places: $error')),
+          ],
+        ),
+        data: (places) {
+          final ordered = [...places];
+          if (selectedPlace != null) {
+            ordered.removeWhere((place) => place.id == selectedPlace!.id);
+            ordered.insert(0, selectedPlace!);
+          }
 
-  static const String _mapStyle =
-      'https://demotiles.maplibre.org/style.json';
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+            children: [
+              _LocationHeader(location: location),
+              const SizedBox(height: 22),
+              Text(
+                selectedPlace == null
+                    ? 'Closest destinations'
+                    : 'Selected destination',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 5),
+              Text(
+                'Distances are calculated from your current GPS coordinates.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 14),
+              if (ordered.isEmpty)
+                const _EmptyNearby()
+              else
+                ...ordered.take(selectedPlace == null ? 20 : 1).map(
+                      (place) => _NearbyPlaceCard(
+                        place: place,
+                        location: location,
+                      ),
+                    ),
+              if (selectedPlace != null && places.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                Text(
+                  'Other places near your location',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 12),
+                ...places
+                    .where((place) => place.id != selectedPlace!.id)
+                    .take(8)
+                    .map(
+                      (place) => _NearbyPlaceCard(
+                        place: place,
+                        location: location,
+                      ),
+                    ),
+              ],
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _LocationHeader extends StatelessWidget {
+  const _LocationHeader({required this.location});
+
+  final LocationData location;
 
   @override
   Widget build(BuildContext context) {
-    final location =
-        ref.watch(locationProvider);
-
-    final placesAsync =
-        ref.watch(popularPlacesProvider);
-
-    final latitude =
-        widget.selectedPlace?.latitude ??
-            location.value?.latitude ??
-            AppConstants.defaultLatitude;
-
-    final longitude =
-        widget.selectedPlace?.longitude ??
-            location.value?.longitude ??
-            AppConstants.defaultLongitude;
-
-    return Scaffold(
-      body: Stack(
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [AppColors.primaryDark, AppColors.primary],
+        ),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
         children: [
-          MapLibreMap(
-            styleString: _mapStyle,
-
-            initialCameraPosition:
-                CameraPosition(
-              target: LatLng(
-                latitude,
-                longitude,
-              ),
-              zoom:
-                  widget.selectedPlace !=
-                          null
-                      ? 14
-                      : 5.5,
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(15),
             ),
-
-            onMapCreated:
-                _onMapCreated,
-
-            onStyleLoadedCallback:
-                () async {
-              debugPrint(
-                  'STYLE LOADED');
-
-              _mapReady = true;
-
-              final places =
-                  placesAsync.value ??
-                      [];
-
-              if (widget
-                      .selectedPlace !=
-                  null) {
-                await _addSinglePlaceMarker(
-                  widget.selectedPlace!,
-                );
-              } else {
-                await _addMarkers(
-                  places,
-                );
-              }
-
-              if (mounted) {
-                setState(() {});
-              }
-            },
-
-            compassEnabled: true,
-            rotateGesturesEnabled:
-                true,
-            scrollGesturesEnabled:
-                true,
-            zoomGesturesEnabled:
-                true,
-
-            myLocationEnabled:
-                !kIsWeb,
-          ),
-
-          if (!_mapReady)
-            Container(
-              color: Theme.of(
-                      context)
-                  .scaffoldBackgroundColor,
-              child:
-                  const Center(
-                child:
-                    CircularProgressIndicator(),
-              ),
-            ),
-
-          SafeArea(
-            child: Padding(
-              padding:
-                  const EdgeInsets.all(
-                16,
-              ),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () {
-                      context.pop();
-                    },
-                    child: Container(
-                      width: 46,
-                      height: 46,
-                      decoration:
-                          BoxDecoration(
-                        color: Colors.white,
-                        borderRadius:
-                            BorderRadius
-                                .circular(
-                          14,
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons
-                            .arrow_back,
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(
-                    width: 12,
-                  ),
-
-                  Expanded(
-                    child:
-                        GestureDetector(
-                      onTap: () {
-                        context.push(
-                          AppRoutes
-                              .search,
-                        );
-                      },
-                      child:
-                          Container(
-                        height: 46,
-                        decoration:
-                            BoxDecoration(
-                          color:
-                              Colors
-                                  .white,
-                          borderRadius:
-                              BorderRadius.circular(
-                            14,
-                          ),
-                        ),
-                        child:
-                            const Row(
-                          children: [
-                            SizedBox(
-                                width:
-                                    16),
-                            Icon(Icons
-                                .search),
-                            SizedBox(
-                                width:
-                                    12),
-                            Text(
-                              'Search places...',
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+            child: const Icon(
+              Icons.gps_fixed_rounded,
+              color: Colors.white,
             ),
           ),
-
-          if (_selectedPlace !=
-              null)
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: 30,
-              child: _PlaceCard(
-                place:
-                    _selectedPlace!,
-              ),
-            ),
-
-          Positioned(
-            right: 16,
-            bottom: 130,
-            child:
-                FloatingActionButton(
-              heroTag: 'loc',
-              backgroundColor:
-                  Colors.white,
-              onPressed:
-                  _goToMyLocation,
-              child: const Icon(
-                Icons.my_location,
-                color: AppColors
-                    .primary,
-              ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Your live location',
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  location.name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'GPS accuracy ±${location.accuracyMeters.round()} m',
+                  style: const TextStyle(color: Colors.white70, fontSize: 11),
+                ),
+              ],
             ),
           ),
         ],
       ),
     );
   }
+}
 
-  void _onMapCreated(
-    MapLibreMapController
-        controller,
-  ) {
-    _controller = controller;
+class _NearbyPlaceCard extends StatelessWidget {
+  const _NearbyPlaceCard({
+    required this.place,
+    required this.location,
+  });
 
-    debugPrint(
-        'MAP CREATED');
+  final TourismPlace place;
+  final LocationData location;
 
-    controller.onSymbolTapped.add(
-      _onSymbolTapped,
+  @override
+  Widget build(BuildContext context) {
+    final distance = DistanceCalculator.calculate(
+      lat1: location.latitude,
+      lon1: location.longitude,
+      lat2: place.latitude,
+      lon2: place.longitude,
     );
-  }
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-  Future<void> _addMarkers(
-    List<TourismPlace> places,
-  ) async {
-    if (_controller == null) return;
-    if (_markersAdded) return;
-
-    debugPrint(
-      'Loaded places: ${places.length}',
-    );
-
-    for (final place
-        in places) {
-      if (place.latitude ==
-              0 ||
-          place.longitude ==
-              0) {
-        continue;
-      }
-
-      try {
-        final symbol =
-            await _controller!
-                .addSymbol(
-          SymbolOptions(
-            geometry: LatLng(
-              place.latitude,
-              place.longitude,
-            ),
-            iconImage:
-                "circle-15",
-            iconSize: 2.0,
-            iconColor:
-                "#1A6B4A",
-            textField:
-                place.name,
-            textSize: 12,
-            textOffset:
-                const Offset(
-              0,
-              1.5,
-            ),
-            textAnchor:
-                "top",
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: InkWell(
+        onTap: () => context.push(AppRoutes.placeDetail, extra: place),
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(13),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(13),
+                child: place.primaryImage.isEmpty
+                    ? _imageFallback()
+                    : Image.network(
+                        place.primaryImage,
+                        width: 88,
+                        height: 98,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _imageFallback(),
+                      ),
+              ),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      place.name,
+                      style: Theme.of(context).textTheme.titleMedium,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '${place.city}, ${place.state}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.near_me_outlined,
+                          size: 16,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          DistanceCalculator.format(distance),
+                          style: const TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 5),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.schedule_rounded,
+                          size: 15,
+                          color: isDark ? AppColors.grey400 : AppColors.grey600,
+                        ),
+                        const SizedBox(width: 5),
+                        Expanded(
+                          child: Text(
+                            place.timings?.trim().isNotEmpty == true
+                                ? place.timings!
+                                : 'Timings not available',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Navigate with Google Maps',
+                onPressed: () => _openDirections(context),
+                icon: const Icon(
+                  Icons.directions_rounded,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
           ),
-        );
-
-        _symbolPlaces[
-            symbol.id] = place;
-      } catch (e) {
-        debugPrint(
-          'Marker error: $e',
-        );
-      }
-    }
-
-    _markersAdded = true;
-
-    debugPrint(
-      'Markers added successfully',
-    );
-  }
-
-  Future<void>
-      _addSinglePlaceMarker(
-    TourismPlace place,
-  ) async {
-    if (_controller == null)
-      return;
-
-    try {
-      final symbol =
-          await _controller!
-              .addSymbol(
-        SymbolOptions(
-          geometry: LatLng(
-            place.latitude,
-            place.longitude,
-          ),
-          iconImage:
-              "circle-15",
-          iconSize: 2.5,
-          iconColor:
-              "#1A6B4A",
-          textField:
-              place.name,
-          textSize: 14,
-          textOffset:
-              const Offset(
-            0,
-            1.5,
-          ),
-          textAnchor: "top",
         ),
-      );
-
-      _symbolPlaces[
-          symbol.id] = place;
-
-      setState(() {
-        _selectedPlace =
-            place;
-      });
-
-      await _controller!
-          .animateCamera(
-        CameraUpdate
-            .newLatLngZoom(
-          LatLng(
-            place.latitude,
-            place.longitude,
-          ),
-          14,
-        ),
-      );
-    } catch (e) {
-      debugPrint(
-        e.toString(),
-      );
-    }
-  }
-
-  void _onSymbolTapped(
-    Symbol symbol,
-  ) async {
-    final place =
-        _symbolPlaces[
-            symbol.id];
-
-    if (place == null)
-      return;
-
-    setState(() {
-      _selectedPlace =
-          place;
-    });
-
-    await _controller
-        ?.animateCamera(
-      CameraUpdate
-          .newLatLngZoom(
-        LatLng(
-          place.latitude,
-          place.longitude,
-        ),
-        14,
       ),
     );
   }
 
-  Future<void>
-      _goToMyLocation() async {
-    final location =
-        ref
-            .read(
-              locationProvider,
-            )
-            .value;
+  Widget _imageFallback() => Container(
+        width: 88,
+        height: 98,
+        color: AppColors.primary.withValues(alpha: 0.08),
+        child: const Icon(Icons.place_outlined, color: AppColors.primary),
+      );
 
-    if (location == null)
-      return;
+  Future<void> _openDirections(BuildContext context) async {
+    final opened = await GoogleMapsLauncher.openDirections(
+      originLatitude: location.latitude,
+      originLongitude: location.longitude,
+      destinationLatitude: place.latitude,
+      destinationLongitude: place.longitude,
+    );
+    if (!opened && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open Google Maps.')),
+      );
+    }
+  }
+}
 
-    await _controller
-        ?.animateCamera(
-      CameraUpdate
-          .newLatLngZoom(
-        LatLng(
-          location.latitude,
-          location.longitude,
-        ),
-        12,
+class _LocationLoading extends StatelessWidget {
+  const _LocationLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(height: 16),
+          Text('Finding your current location...'),
+        ],
       ),
     );
   }
 }
 
-class _PlaceCard
-    extends StatelessWidget {
-  final TourismPlace place;
+class _LocationError extends ConsumerWidget {
+  const _LocationError({required this.error});
 
-  const _PlaceCard({
-    required this.place,
-  });
+  final Object error;
 
   @override
-  Widget build(
-      BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        context.push(
-          AppRoutes.placeDetail,
-          extra: place,
-        );
-      },
-      child: Material(
-        elevation: 8,
-        borderRadius:
-            BorderRadius.circular(
-          20,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final locationError = error is LocationException
+        ? error as LocationException
+        : const LocationException(LocationFailure.unavailable);
+
+    return ListView(
+      padding: const EdgeInsets.all(28),
+      children: [
+        const SizedBox(height: 100),
+        const Icon(
+          Icons.location_off_outlined,
+          size: 64,
+          color: AppColors.warning,
         ),
-        child: Container(
-          padding:
-              const EdgeInsets.all(
-            14,
+        const SizedBox(height: 20),
+        Text(
+          'Location needed',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.headlineMedium,
+        ),
+        const SizedBox(height: 10),
+        Text(
+          locationError.message,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodyLarge,
+        ),
+        const SizedBox(height: 24),
+        FilledButton.icon(
+          onPressed: () => ref.read(locationProvider.notifier).refresh(),
+          icon: const Icon(Icons.refresh_rounded),
+          label: const Text('Try again'),
+        ),
+        if (locationError.failure ==
+            LocationFailure.permissionDeniedForever) ...[
+          const SizedBox(height: 10),
+          OutlinedButton(
+            onPressed: () => ref.read(locationProvider.notifier).openSettings(),
+            child: const Text('Open app settings'),
           ),
-          decoration:
-              BoxDecoration(
-            color: Colors.white,
-            borderRadius:
-                BorderRadius
-                    .circular(
-              20,
+        ],
+        if (locationError.failure == LocationFailure.servicesDisabled) ...[
+          const SizedBox(height: 10),
+          OutlinedButton(
+            onPressed: () =>
+                ref.read(locationProvider.notifier).openLocationSettings(),
+            child: const Text('Open location settings'),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _EmptyNearby extends StatelessWidget {
+  const _EmptyNearby();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Card(
+      child: Padding(
+        padding: EdgeInsets.all(24),
+        child: Column(
+          children: [
+            Icon(Icons.explore_off_outlined, size: 42),
+            SizedBox(height: 10),
+            Text(
+              'No destination coordinates are available near your location.',
+              textAlign: TextAlign.center,
             ),
-          ),
-          child: Row(
-            children: [
-              ClipRRect(
-                borderRadius:
-                    BorderRadius
-                        .circular(
-                  14,
-                ),
-                child:
-                    Image.network(
-                  place
-                      .primaryImage,
-                  width: 90,
-                  height: 90,
-                  fit: BoxFit.cover,
-                  errorBuilder:
-                      (
-                    _,
-                    __,
-                    ___,
-                  ) {
-                    return Container(
-                      width:
-                          90,
-                      height:
-                          90,
-                      color: Colors
-                          .grey
-                          .shade200,
-                      child:
-                          const Icon(
-                        Icons
-                            .image,
-                      ),
-                    );
-                  },
-                ),
-              ),
-
-              const SizedBox(
-                width: 14,
-              ),
-
-              Expanded(
-                child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment
-                          .start,
-                  children: [
-                    Text(
-                      place.name,
-                      style:
-                          const TextStyle(
-                        fontWeight:
-                            FontWeight
-                                .bold,
-                        fontSize:
-                            17,
-                      ),
-                    ),
-                    const SizedBox(
-                      height: 4,
-                    ),
-                    Text(
-                      '${place.city}, ${place.state}',
-                    ),
-                    const SizedBox(
-                      height: 6,
-                    ),
-                    Text(
-                      '⭐ ${place.rating}',
-                    ),
-                  ],
-                ),
-              ),
-
-              const Icon(
-                Icons
-                    .arrow_forward_ios,
-              ),
-            ],
-          ),
+          ],
         ),
       ),
     );

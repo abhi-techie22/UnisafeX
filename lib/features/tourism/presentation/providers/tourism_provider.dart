@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:unisafex/core/constants/app_constants.dart';
+import 'package:unisafex/core/utils/distance_calculator.dart';
 import 'package:unisafex/features/tourism/domain/entities/tourism_place.dart';
 
 class TourismRepository {
@@ -278,9 +279,28 @@ class TourismRepository {
             'tourism_places',
           )
           .select()
-          .limit(50);
+          .limit(200);
 
-      return _placesFrom(response);
+      final places = _placesFrom(response)
+          .where((place) => place.latitude != 0 && place.longitude != 0)
+          .toList()
+        ..sort(
+          (a, b) => DistanceCalculator.calculate(
+            lat1: latitude,
+            lon1: longitude,
+            lat2: a.latitude,
+            lon2: a.longitude,
+          ).compareTo(
+            DistanceCalculator.calculate(
+              lat1: latitude,
+              lon1: longitude,
+              lat2: b.latitude,
+              lon2: b.longitude,
+            ),
+          ),
+        );
+
+      return places;
     } catch (e) {
       print(
         'Nearby error: $e',
@@ -459,6 +479,17 @@ class NearbyParams {
     required this.lng,
     this.radiusKm = 50,
   });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is NearbyParams &&
+          lat == other.lat &&
+          lng == other.lng &&
+          radiusKm == other.radiusKm;
+
+  @override
+  int get hashCode => Object.hash(lat, lng, radiusKm);
 }
 
 final nearbyPlacesProvider =

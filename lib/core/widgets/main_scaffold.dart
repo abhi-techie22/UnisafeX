@@ -20,7 +20,11 @@ class MainScaffold extends ConsumerWidget {
         label: 'Booking',
         icon: Icons.luggage_outlined,
         activeIcon: Icons.luggage),
-    _NavItem(label: 'Map', icon: Icons.map_outlined, activeIcon: Icons.map),
+    _NavItem(
+      label: 'Nearby',
+      icon: Icons.near_me_outlined,
+      activeIcon: Icons.near_me,
+    ),
     _NavItem(
         label: 'Saved',
         icon: Icons.bookmark_border_outlined,
