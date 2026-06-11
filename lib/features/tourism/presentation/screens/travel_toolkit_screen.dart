@@ -17,7 +17,7 @@ class TravelToolkitScreen extends StatelessWidget {
       ),
       (
         'Currency Helper',
-        'Quick USD, EUR, and GBP estimates in INR.',
+        'Live conversion across available world currencies.',
         Icons.currency_exchange,
         AppRoutes.currencyHelper
       ),
@@ -29,7 +29,7 @@ class TravelToolkitScreen extends StatelessWidget {
       ),
       (
         'AI Travel Assistant',
-        'Preview the next generation of trip guidance.',
+        'Ask about safety, fees, timings and itineraries.',
         Icons.auto_awesome,
         AppRoutes.aiAssistant
       ),
