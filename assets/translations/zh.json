@@ -309,7 +309,7 @@
   "faq_booking_question": "我现在可以预订酒店和航班吗？",
   "faq_booking_answer": "预订搜索表单可用，但实时库存和结账需要经过批准的合作伙伴 API 集成。",
   "mission_description": "UniSafeX 帮助国际旅客探索印度，一站式提供实用的目的地详细信息、安全指南、附近的发现和有用的旅行工具。",
-  "app_provides_description": "旅游发现、旅行计划、目的地安全评分、实时参考货币换算、本地短语、保存的地点、基于位置的距离和预订预览。",
+  "app_provides_description": "旅游发现、旅行计划、目的地安全评分、实时参考货币换算、本地短语、保存的地点和基于位置的距离。",
   "data_safety_description": "旅游信息存储在UniSafeX数据库中。距离是根据坐标计算的。安全评分和人工智能式答案仅供参考，不能保证人身安全或取代官方建议。",
   "emergency_reminder_description": "如果在印度遇到紧急情况，请拨打 112。旅游热线：1363。在访问之前，请务必通过官方渠道核实开放时间、费用和旅行条件。",
   "heritage_catalog": "遗产目录",

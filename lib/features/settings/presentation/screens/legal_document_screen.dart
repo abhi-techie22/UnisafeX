@@ -90,12 +90,6 @@ class LegalDocumentScreen extends StatelessWidget {
           'when immediate assistance is required.',
     ),
     (
-      'Booking',
-      'Hotel and flight partner displays are previews until approved provider '
-          'APIs and checkout services are activated. UniSafeX does not create '
-          'a reservation unless a confirmation is explicitly issued.',
-    ),
-    (
       'Acceptable use',
       'Do not misuse the service, attempt unauthorized access, or submit '
           'fraudulent information. Features may be updated or withdrawn.',

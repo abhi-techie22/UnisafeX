@@ -257,26 +257,11 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                   ),
                 _Section(
                   title: 'Continue Planning',
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _PlanningCard(
-                          icon: Icons.hotel_outlined,
-                          title: 'nearby_hotels'.tr(),
-                          subtitle: 'Find a stay near ${place.name}',
-                          onTap: () => _showHotelsPlaceholder(place.city),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _PlanningCard(
-                          icon: Icons.emergency_outlined,
-                          title: 'emergency_help'.tr(),
-                          subtitle: 'Essential India helplines',
-                          onTap: _showEmergencyHelp,
-                        ),
-                      ),
-                    ],
+                  child: _PlanningCard(
+                    icon: Icons.emergency_outlined,
+                    title: 'emergency_help'.tr(),
+                    subtitle: 'Essential India helplines',
+                    onTap: _showEmergencyHelp,
                   ),
                 ),
                 _Section(
@@ -413,32 +398,6 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Place details copied to share')),
-    );
-  }
-
-  void _showHotelsPlaceholder(String city) {
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.hotel_outlined,
-                size: 42, color: AppColors.primary),
-            const SizedBox(height: 14),
-            Text('Hotels near $city',
-                style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 8),
-            const Text(
-              'Curated nearby hotel results will appear here when the hotel '
-              'module is connected to the main travel flow.',
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
     );
   }
 

@@ -10,9 +10,6 @@ import 'package:unisafex/features/auth/presentation/screens/auth_selection_scree
 import 'package:unisafex/features/auth/presentation/screens/login_screen.dart';
 import 'package:unisafex/features/auth/presentation/screens/register_screen.dart';
 import 'package:unisafex/features/admin/presentation/admin_dashboard_screen.dart';
-import 'package:unisafex/features/booking/presentation/screens/flight_booking_screen.dart';
-import 'package:unisafex/features/booking/presentation/screens/hotel_booking_screen.dart';
-import 'package:unisafex/features/booking/presentation/screens/booking_hub_screen.dart';
 
 import 'package:unisafex/features/favorites/presentation/screens/favorites_screen.dart';
 import 'package:unisafex/features/home/presentation/screens/home_screen.dart';
@@ -161,15 +158,15 @@ GoRouter appRouter(
 
           GoRoute(
             path: AppRoutes.booking,
-            builder: (context, state) => const BookingHubScreen(),
+            redirect: (context, state) => AppRoutes.home,
           ),
           GoRoute(
             path: AppRoutes.hotelBooking,
-            builder: (context, state) => const HotelBookingScreen(),
+            redirect: (context, state) => AppRoutes.home,
           ),
           GoRoute(
             path: AppRoutes.flightBooking,
-            builder: (context, state) => const FlightBookingScreen(),
+            redirect: (context, state) => AppRoutes.home,
           ),
 
           /// MAP (UPDATED)

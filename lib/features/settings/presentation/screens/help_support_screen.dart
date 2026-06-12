@@ -88,10 +88,6 @@ class HelpSupportScreen extends StatelessWidget {
             question: 'faq_currency_question'.tr(),
             answer: 'faq_currency_answer'.tr(),
           ),
-          _Faq(
-            question: 'faq_booking_question'.tr(),
-            answer: 'faq_booking_answer'.tr(),
-          ),
         ],
       ),
     );

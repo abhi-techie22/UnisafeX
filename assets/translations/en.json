@@ -309,7 +309,7 @@
   "faq_booking_question": "Can I book hotels and flights now?",
   "faq_booking_answer": "Booking search forms are available, but live inventory and checkout require approved partner API integrations.",
   "mission_description": "UniSafeX helps international travelers explore India with practical destination details, safety guidance, nearby discovery and useful travel tools in one place.",
-  "app_provides_description": "Tourism discovery, travel planning, destination safety scores, live reference currency conversion, local phrases, saved places, location-based distances and booking previews.",
+  "app_provides_description": "Tourism discovery, travel planning, destination safety scores, live reference currency conversion, local phrases, saved places and location-based distances.",
   "data_safety_description": "Tourism information is stored in the UniSafeX database. Distances are calculated from coordinates. Safety scores and AI-style answers are guidance only and cannot guarantee personal safety or replace official advice.",
   "emergency_reminder_description": "For emergencies in India call 112. Tourist helpline: 1363. Always verify opening times, fees and travel conditions with official sources before visiting.",
   "heritage_catalog": "Heritage Catalogue",

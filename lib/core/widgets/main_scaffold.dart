@@ -18,10 +18,6 @@ class MainScaffold extends ConsumerWidget {
         icon: Icons.explore_outlined,
         activeIcon: Icons.explore),
     _NavItem(
-        label: 'booking',
-        icon: Icons.luggage_outlined,
-        activeIcon: Icons.luggage),
-    _NavItem(
       label: 'nearby',
       icon: Icons.near_me_outlined,
       activeIcon: Icons.near_me,
@@ -36,7 +32,6 @@ class MainScaffold extends ConsumerWidget {
 
   static const List<String> _routes = [
     AppRoutes.home,
-    AppRoutes.booking,
     AppRoutes.map,
     AppRoutes.favorites,
     AppRoutes.profile,
@@ -44,7 +39,6 @@ class MainScaffold extends ConsumerWidget {
 
   int _getActiveIndex(BuildContext context) {
     final location = GoRouterState.of(context).matchedLocation;
-    if (location.startsWith(AppRoutes.booking)) return 1;
     for (int i = 0; i < _routes.length; i++) {
       if (location == _routes[i]) return i;
     }
