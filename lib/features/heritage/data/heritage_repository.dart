@@ -7,14 +7,24 @@ class HeritageQuery {
   const HeritageQuery({
     this.search = '',
     this.state,
+    this.region,
+    this.district,
     this.type,
+    this.protectionStatus,
+    this.freeOnly = false,
+    this.featuredOnly = false,
     this.page = 0,
     this.includeInactive = false,
   });
 
   final String search;
   final String? state;
+  final String? region;
+  final String? district;
   final String? type;
+  final String? protectionStatus;
+  final bool freeOnly;
+  final bool featuredOnly;
   final int page;
   final bool includeInactive;
 
@@ -23,12 +33,28 @@ class HeritageQuery {
       other is HeritageQuery &&
       search == other.search &&
       state == other.state &&
+      region == other.region &&
+      district == other.district &&
       type == other.type &&
+      protectionStatus == other.protectionStatus &&
+      freeOnly == other.freeOnly &&
+      featuredOnly == other.featuredOnly &&
       page == other.page &&
       includeInactive == other.includeInactive;
 
   @override
-  int get hashCode => Object.hash(search, state, type, page, includeInactive);
+  int get hashCode => Object.hash(
+        search,
+        state,
+        region,
+        district,
+        type,
+        protectionStatus,
+        freeOnly,
+        featuredOnly,
+        page,
+        includeInactive,
+      );
 }
 
 class HeritageRepository {
@@ -50,8 +76,23 @@ class HeritageRepository {
     if (filters.state?.isNotEmpty == true) {
       query = query.eq('state_ut', filters.state!);
     }
+    if (filters.region?.isNotEmpty == true) {
+      query = query.eq('region', filters.region!);
+    }
+    if (filters.district?.isNotEmpty == true) {
+      query = query.ilike('district', '%${filters.district!.trim()}%');
+    }
     if (filters.type?.isNotEmpty == true) {
       query = query.eq('monument_type', filters.type!);
+    }
+    if (filters.protectionStatus?.isNotEmpty == true) {
+      query = query.eq('protection_status', filters.protectionStatus!);
+    }
+    if (filters.freeOnly) {
+      query = query.ilike('visitor_category', '%Free Entry%');
+    }
+    if (filters.featuredOnly) {
+      query = query.eq('featured', true);
     }
     final from = filters.page * pageSize;
     final rows = await query
@@ -64,20 +105,30 @@ class HeritageRepository {
   Future<Map<String, List<String>>> getFilterOptions() async {
     final rows = await _client
         .from('heritage_monuments')
-        .select('state_ut, monument_type')
+        .select('state_ut, region, monument_type, protection_status')
         .eq('is_active', true)
         .limit(4000);
     final states = <String>{};
+    final regions = <String>{};
     final types = <String>{};
+    final protectionStatuses = <String>{};
     for (final row in rows) {
       final state = row['state_ut'] as String?;
+      final region = row['region'] as String?;
       final type = row['monument_type'] as String?;
+      final protectionStatus = row['protection_status'] as String?;
       if (state?.isNotEmpty == true) states.add(state!);
+      if (region?.isNotEmpty == true) regions.add(region!);
       if (type?.isNotEmpty == true) types.add(type!);
+      if (protectionStatus?.isNotEmpty == true) {
+        protectionStatuses.add(protectionStatus!);
+      }
     }
     return {
       'states': states.toList()..sort(),
+      'regions': regions.toList()..sort(),
       'types': types.toList()..sort(),
+      'protectionStatuses': protectionStatuses.toList()..sort(),
     };
   }
 
@@ -104,6 +155,10 @@ class HeritageRepository {
     String? district,
     String? type,
     String? description,
+    String? imageUrl,
+    String? timings,
+    double? entryFeeIndian,
+    double? entryFeeForeigner,
     double? rating,
     bool featured = false,
     bool isActive = true,
@@ -115,6 +170,10 @@ class HeritageRepository {
       'district': _emptyToNull(district),
       'monument_type': _emptyToNull(type),
       'description': _emptyToNull(description),
+      'image_url': _emptyToNull(imageUrl),
+      'timings': _emptyToNull(timings),
+      'entry_fee_indian': entryFeeIndian,
+      'entry_fee_foreigner': entryFeeForeigner,
       'rating': rating,
       'featured': featured,
       'is_active': isActive,

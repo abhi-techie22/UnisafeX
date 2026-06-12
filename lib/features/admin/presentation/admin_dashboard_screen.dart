@@ -158,6 +158,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     final district = TextEditingController(text: monument?.district);
     final type = TextEditingController(text: monument?.monumentType);
     final description = TextEditingController(text: monument?.description);
+    final imageUrl = TextEditingController(text: monument?.imageUrl);
+    final timings = TextEditingController(text: monument?.timings);
+    final indianFee = TextEditingController(
+      text: monument?.entryFeeIndian?.toString(),
+    );
+    final foreignerFee = TextEditingController(
+      text: monument?.entryFeeForeigner?.toString(),
+    );
     var active = monument?.isActive ?? true;
     var featured = monument?.featured ?? false;
     final saved = await showModalBottomSheet<bool>(
@@ -205,6 +213,38 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   maxLines: 3,
                   decoration: InputDecoration(labelText: 'about'.tr()),
                 ),
+                TextField(
+                  controller: imageUrl,
+                  keyboardType: TextInputType.url,
+                  decoration: const InputDecoration(labelText: 'Image URL'),
+                ),
+                TextField(
+                  controller: timings,
+                  decoration: InputDecoration(labelText: 'timings'.tr()),
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: indianFee,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Indian fee',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextField(
+                        controller: foreignerFee,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Foreigner fee',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
                 SwitchListTile(
                   value: featured,
                   title: Text('featured_destinations'.tr()),
@@ -232,6 +272,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             district: district.text,
                             type: type.text,
                             description: description.text,
+                            imageUrl: imageUrl.text,
+                            timings: timings.text,
+                            entryFeeIndian: double.tryParse(indianFee.text),
+                            entryFeeForeigner:
+                                double.tryParse(foreignerFee.text),
                             featured: featured,
                             isActive: active,
                           );
@@ -252,6 +297,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     district.dispose();
     type.dispose();
     description.dispose();
+    imageUrl.dispose();
+    timings.dispose();
+    indianFee.dispose();
+    foreignerFee.dispose();
     if (saved == true) {
       ref.invalidate(heritageMonumentsProvider);
       ref.invalidate(heritageFilterOptionsProvider);

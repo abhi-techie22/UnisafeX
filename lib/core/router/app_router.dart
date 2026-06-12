@@ -17,6 +17,8 @@ import 'package:unisafex/features/booking/presentation/screens/booking_hub_scree
 import 'package:unisafex/features/favorites/presentation/screens/favorites_screen.dart';
 import 'package:unisafex/features/home/presentation/screens/home_screen.dart';
 import 'package:unisafex/features/heritage/presentation/heritage_catalog_screen.dart';
+import 'package:unisafex/features/heritage/presentation/heritage_detail_screen.dart';
+import 'package:unisafex/features/heritage/domain/heritage_monument.dart';
 
 import 'package:unisafex/features/map/presentation/screens/map_screen.dart';
 
@@ -294,6 +296,12 @@ GoRouter appRouter(
         builder: (context, state) => const HeritageCatalogScreen(),
       ),
       GoRoute(
+        path: AppRoutes.heritageDetail,
+        builder: (context, state) => HeritageDetailScreen(
+          monument: state.extra as HeritageMonument,
+        ),
+      ),
+      GoRoute(
         path: AppRoutes.admin,
         builder: (context, state) => const AdminDashboardScreen(),
       ),
@@ -356,6 +364,7 @@ class AppRoutes {
   static const String phraseBook = '/travel-toolkit/phrase-book';
   static const String aiAssistant = '/travel-toolkit/ai-assistant';
   static const String heritageCatalog = '/heritage-catalog';
+  static const String heritageDetail = '/heritage-detail';
   static const String admin = '/admin';
   static const String hotelBooking = '/booking/hotels';
   static const String flightBooking = '/booking/flights';

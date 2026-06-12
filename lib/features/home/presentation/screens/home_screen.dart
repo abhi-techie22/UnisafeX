@@ -35,7 +35,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final popular = ref.watch(popularPlacesProvider);
     final trending = ref.watch(trendingPlacesProvider);
     final mustVisit = ref.watch(mustVisitPlacesProvider);
-    final cityName = location.value?.name ?? 'India';
+    final cityName = location.asData?.value?.name ?? 'India';
     final greeting = _getGreeting();
 
     return Scaffold(
@@ -217,6 +217,78 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         color: Colors.white,
                       ),
                     ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(18),
+                onTap: () => context.push(AppRoutes.heritageCatalog),
+                child: Ink(
+                  height: 150,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(18),
+                    image: const DecorationImage(
+                      image: AssetImage(
+                        'assets/images/heritage_placeholder.jpg',
+                      ),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.black.withValues(alpha: 0.72),
+                          Colors.black.withValues(alpha: 0.16),
+                        ],
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text(
+                          'heritage_catalog'.tr(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 20,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'heritage_catalog_description'.tr(),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  height: 1.35,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const CircleAvatar(
+                              backgroundColor: Colors.white,
+                              child: Icon(
+                                Icons.arrow_forward_rounded,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

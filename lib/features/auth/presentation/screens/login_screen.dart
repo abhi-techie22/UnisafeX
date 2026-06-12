@@ -8,6 +8,7 @@ import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
 import 'package:unisafex/core/widgets/app_button.dart';
 import 'package:unisafex/features/auth/presentation/providers/auth_provider.dart';
+import 'package:unisafex/features/heritage/data/heritage_repository.dart';
 import 'package:unisafex/features/profile/presentation/providers/profile_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -42,6 +43,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             email: _emailController.text.trim(),
             password: _passwordController.text,
           );
+      final isAdmin = await ref.read(heritageRepositoryProvider).isAdmin();
+      if (isAdmin) {
+        ref.invalidate(isAdminProvider);
+        if (mounted) context.go(AppRoutes.admin);
+        return;
+      }
+
       final profile =
           await ref.read(profileRepositoryProvider).getProfile(user.id);
       ref.invalidate(profileNotifierProvider);
@@ -263,6 +271,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _isHandlingAuthCallback = true;
 
     try {
+      final isAdmin = await ref.read(heritageRepositoryProvider).isAdmin();
+      if (isAdmin) {
+        ref.invalidate(isAdminProvider);
+        if (mounted) context.go(AppRoutes.admin);
+        return;
+      }
+
       final profile =
           await ref.read(profileRepositoryProvider).getProfile(session.user.id);
       ref.invalidate(profileNotifierProvider);

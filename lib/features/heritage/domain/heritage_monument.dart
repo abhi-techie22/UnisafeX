@@ -13,6 +13,11 @@ class HeritageMonument {
     this.protectionStatus,
     this.visitorCategory,
     this.description,
+    this.address,
+    this.imageUrl,
+    this.timings,
+    this.entryFeeIndian,
+    this.entryFeeForeigner,
     this.rating,
     this.featured = false,
   });
@@ -29,6 +34,11 @@ class HeritageMonument {
   final String? protectionStatus;
   final String? visitorCategory;
   final String? description;
+  final String? address;
+  final String? imageUrl;
+  final String? timings;
+  final double? entryFeeIndian;
+  final double? entryFeeForeigner;
   final double? rating;
   final bool featured;
   final bool isActive;
@@ -47,6 +57,11 @@ class HeritageMonument {
       protectionStatus: json['protection_status'] as String?,
       visitorCategory: json['visitor_category'] as String?,
       description: json['description'] as String?,
+      address: json['address'] as String?,
+      imageUrl: json['image_url'] as String?,
+      timings: json['timings'] as String?,
+      entryFeeIndian: (json['entry_fee_indian'] as num?)?.toDouble(),
+      entryFeeForeigner: (json['entry_fee_foreigner'] as num?)?.toDouble(),
       rating: (json['rating'] as num?)?.toDouble(),
       featured: json['featured'] as bool? ?? false,
       isActive: json['is_active'] as bool? ?? true,
