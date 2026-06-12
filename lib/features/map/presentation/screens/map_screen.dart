@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
 import 'package:unisafex/core/utils/distance_calculator.dart';
-import 'package:unisafex/core/utils/google_maps_launcher.dart';
 import 'package:unisafex/features/home/presentation/providers/location_provider.dart';
 import 'package:unisafex/features/tourism/domain/entities/tourism_place.dart';
 import 'package:unisafex/features/tourism/presentation/providers/tourism_provider.dart';
@@ -476,10 +475,10 @@ class _NearbyPlaceCard extends StatelessWidget {
                 ),
               ),
               IconButton(
-                tooltip: 'open_google_maps'.tr(),
-                onPressed: () => _openDirections(context),
+                tooltip: 'view_on_map'.tr(),
+                onPressed: () => _openInAppMap(context),
                 icon: const Icon(
-                  Icons.directions_rounded,
+                  Icons.map_outlined,
                   color: AppColors.primary,
                 ),
               ),
@@ -497,18 +496,17 @@ class _NearbyPlaceCard extends StatelessWidget {
         child: const Icon(Icons.place_outlined, color: AppColors.primary),
       );
 
-  Future<void> _openDirections(BuildContext context) async {
-    final opened = await GoogleMapsLauncher.openDirections(
-      originLatitude: location.latitude,
-      originLongitude: location.longitude,
-      destinationLatitude: place.latitude,
-      destinationLongitude: place.longitude,
+  void _openInAppMap(BuildContext context) {
+    context.push(
+      AppRoutes.destinationMapLocation(
+        placeName: place.name,
+        latitude: place.latitude,
+        longitude: place.longitude,
+        address: place.address?.trim().isNotEmpty == true
+            ? place.address
+            : '${place.city}, ${place.state}',
+      ),
     );
-    if (!opened && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open Google Maps.')),
-      );
-    }
   }
 }
 

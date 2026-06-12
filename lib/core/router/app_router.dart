@@ -18,6 +18,7 @@ import 'package:unisafex/features/heritage/presentation/heritage_detail_screen.d
 import 'package:unisafex/features/heritage/domain/heritage_monument.dart';
 
 import 'package:unisafex/features/map/presentation/screens/map_screen.dart';
+import 'package:unisafex/features/maps/presentation/screens/in_app_map_screen.dart';
 
 import 'package:unisafex/features/onboarding/presentation/screens/onboarding_screen.dart';
 
@@ -229,6 +230,29 @@ GoRouter appRouter(
         },
       ),
 
+      /// In-app destination map
+      GoRoute(
+        path: AppRoutes.destinationMap,
+        builder: (context, state) {
+          final query = state.uri.queryParameters;
+          final latitude = double.tryParse(query['latitude'] ?? '');
+          final longitude = double.tryParse(query['longitude'] ?? '');
+
+          if (latitude == null || longitude == null) {
+            return const Scaffold(
+              body: Center(child: Text('Invalid map coordinates')),
+            );
+          }
+
+          return InAppMapScreen(
+            placeName: query['placeName'] ?? 'Destination',
+            latitude: latitude,
+            longitude: longitude,
+            address: query['address'],
+          );
+        },
+      ),
+
       /// Places List
       GoRoute(
         path: AppRoutes.placesList,
@@ -342,6 +366,7 @@ class AppRoutes {
   static const String booking = '/booking';
 
   static const String map = '/map';
+  static const String destinationMap = '/maps';
 
   static const String favorites = '/favorites';
 
@@ -368,4 +393,21 @@ class AppRoutes {
   static const String admin = '/admin';
   static const String hotelBooking = '/booking/hotels';
   static const String flightBooking = '/booking/flights';
+
+  static String destinationMapLocation({
+    required String placeName,
+    required double latitude,
+    required double longitude,
+    String? address,
+  }) {
+    return Uri(
+      path: destinationMap,
+      queryParameters: {
+        'placeName': placeName,
+        'latitude': latitude.toString(),
+        'longitude': longitude.toString(),
+        if (address?.trim().isNotEmpty == true) 'address': address!.trim(),
+      },
+    ).toString();
+  }
 }

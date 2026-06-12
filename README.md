@@ -14,7 +14,7 @@ A production-grade Flutter app built for international tourists visiting India. 
 | Backend | Supabase |
 | Database | Supabase PostgreSQL |
 | Auth | Supabase Auth |
-| Maps | MapLibre + OpenStreetMap |
+| Maps | Google Maps Flutter |
 | Localization | easy_localization |
 
 ---
@@ -107,7 +107,8 @@ lib/
 │   ├── profile/         # Profile completion + profile screen
 │   ├── home/            # Main home screen with sections
 │   ├── tourism/         # Place cards, detail screen, list
-│   ├── map/             # MapLibre in-app map
+│   ├── map/             # Nearby discovery and location flow
+│   ├── maps/            # Google Maps destination screen
 │   ├── search/          # Global search with categories
 │   ├── favorites/       # Saved places (authenticated)
 │   └── settings/        # Theme, language, notifications
@@ -168,7 +169,7 @@ Add translations in `assets/translations/<lang>.json`
 6. **Profile Completion** — 2-step travel profile form
 7. **Home** — Featured, Must Visit, Trending, Popular sections
 8. **Search** — Real-time search with category filters
-9. **Map** — MapLibre in-app map with place markers
+9. **Map** — In-app Google Maps destination view with markers and live distance
 10. **Favorites** — Saved places (auth required)
 11. **Profile** — Travel info, account management
 12. **Place Detail** — Full-detail screen with hero images
@@ -179,7 +180,10 @@ Add translations in `assets/translations/<lang>.json`
 
 ## 🗺️ Maps
 
-Uses MapLibre GL + OpenStreetMap tiles (no Google Maps, no API key required for basic usage).
+Uses `google_maps_flutter`. Enable billing, Maps SDK for Android, Maps SDK for
+iOS, and Maps JavaScript API, then replace the `YOUR_API_KEY` placeholders in
+the Android manifest, iOS app delegate, and web index. Use separate
+platform-restricted keys for production.
 
 For a premium map style, sign up at [MapTiler](https://www.maptiler.com/) (free tier available) and replace the style URL in `map_screen.dart`.
 

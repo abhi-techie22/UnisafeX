@@ -56,6 +56,19 @@ class AboutScreen extends StatelessWidget {
             title: 'emergency_reminder'.tr(),
             text: 'emergency_reminder_description'.tr(),
           ),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.description_outlined),
+              title: const Text('Legal notices'),
+              subtitle: const Text('Open-source and map attribution'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => showLicensePage(
+                context: context,
+                applicationName: 'UniSafeX',
+                applicationVersion: AppConstants.appVersion,
+              ),
+            ),
+          ),
         ],
       ),
     );

@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
 import 'package:unisafex/core/utils/distance_calculator.dart';
-import 'package:unisafex/core/utils/google_maps_launcher.dart';
 import 'package:unisafex/core/widgets/app_button.dart';
 import 'package:unisafex/features/auth/presentation/providers/auth_provider.dart';
 import 'package:unisafex/features/favorites/presentation/providers/favorites_provider.dart';
@@ -306,9 +306,9 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                 ),
               ),
               AppButton(
-                label: 'get_directions'.tr(),
-                onPressed: _openGoogleMaps,
-                icon: Icons.navigation,
+                label: 'view_on_map'.tr(),
+                onPressed: _openInAppMap,
+                icon: Icons.map_outlined,
               ),
             ],
           ),
@@ -317,19 +317,17 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
     );
   }
 
-  Future<void> _openGoogleMaps() async {
-    final location = ref.read(locationProvider).value;
-    final opened = await GoogleMapsLauncher.openDirections(
-      originLatitude: location?.latitude,
-      originLongitude: location?.longitude,
-      destinationLatitude: widget.place.latitude,
-      destinationLongitude: widget.place.longitude,
+  void _openInAppMap() {
+    context.push(
+      AppRoutes.destinationMapLocation(
+        placeName: widget.place.name,
+        latitude: widget.place.latitude,
+        longitude: widget.place.longitude,
+        address: widget.place.address?.trim().isNotEmpty == true
+            ? widget.place.address
+            : _locationLabel(widget.place),
+      ),
     );
-    if (!opened && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open Google Maps.')),
-      );
-    }
   }
 
   Widget _imageFallback() {
