@@ -327,5 +327,15 @@
   "locality": "地点",
   "district": "行政区",
   "published": "已发布",
-  "foreign_visitors": "外国游客"
+  "foreign_visitors": "外国游客",
+  "page": "页",
+  "of": "共",
+  "destinations": "个目的地",
+  "sacred_temples": "神圣寺庙",
+  "sacred_temples_subtitle": "探索印度各地受保护的寺庙",
+  "historic_forts": "历史堡垒",
+  "historic_forts_subtitle": "堡垒、城门和防御遗产",
+  "ancient_sites": "古代遗址",
+  "ancient_sites_subtitle": "废墟、土丘和考古目的地",
+  "real_distance_from": "距{}的实际距离"
 }

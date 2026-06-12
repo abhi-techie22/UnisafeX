@@ -327,5 +327,15 @@
   "locality": "इलाका",
   "district": "जिला",
   "published": "प्रकाशित",
-  "foreign_visitors": "विदेशी पर्यटक"
+  "foreign_visitors": "विदेशी पर्यटक",
+  "page": "पृष्ठ",
+  "of": "में से",
+  "destinations": "गंतव्य",
+  "sacred_temples": "पवित्र मंदिर",
+  "sacred_temples_subtitle": "भारत भर के संरक्षित मंदिर देखें",
+  "historic_forts": "ऐतिहासिक किले",
+  "historic_forts_subtitle": "किले, प्रवेश द्वार और रक्षात्मक विरासत",
+  "ancient_sites": "प्राचीन स्थल",
+  "ancient_sites_subtitle": "खंडहर, टीले और पुरातात्विक गंतव्य",
+  "real_distance_from": "{} से वास्तविक दूरी"
 }

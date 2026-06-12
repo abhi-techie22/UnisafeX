@@ -327,5 +327,15 @@
   "locality": "所在地",
   "district": "地区",
   "published": "公開済み",
-  "foreign_visitors": "外国人訪問者"
+  "foreign_visitors": "外国人訪問者",
+  "page": "ページ",
+  "of": "/",
+  "destinations": "目的地",
+  "sacred_temples": "神聖な寺院",
+  "sacred_temples_subtitle": "インド各地の保護寺院を探索",
+  "historic_forts": "歴史的な要塞",
+  "historic_forts_subtitle": "要塞、門、防衛遺産",
+  "ancient_sites": "古代遺跡",
+  "ancient_sites_subtitle": "遺跡、丘、考古学的観光地",
+  "real_distance_from": "{}からの実際の距離"
 }

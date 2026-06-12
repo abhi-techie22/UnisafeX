@@ -327,5 +327,15 @@
   "locality": "소재지",
   "district": "구역",
   "published": "게시됨",
-  "foreign_visitors": "외국인 방문객"
+  "foreign_visitors": "외국인 방문객",
+  "page": "페이지",
+  "of": "/",
+  "destinations": "목적지",
+  "sacred_temples": "신성한 사원",
+  "sacred_temples_subtitle": "인도 전역의 보호 사원 탐색",
+  "historic_forts": "역사적인 요새",
+  "historic_forts_subtitle": "요새, 관문 및 방어 유산",
+  "ancient_sites": "고대 유적지",
+  "ancient_sites_subtitle": "폐허, 고분 및 고고학 여행지",
+  "real_distance_from": "{}에서 실제 거리"
 }

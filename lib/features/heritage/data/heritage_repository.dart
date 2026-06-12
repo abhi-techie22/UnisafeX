@@ -64,7 +64,33 @@ class HeritageRepository {
   final SupabaseClient _client;
 
   Future<List<HeritageMonument>> getMonuments(HeritageQuery filters) async {
-    var query = _client.from('heritage_monuments').select();
+    var query = _applyFilters(
+      _client.from('heritage_monuments').select(),
+      filters,
+    );
+    final from = filters.page * pageSize;
+    final rows = await query
+        .order('featured', ascending: false)
+        .order('monument_name')
+        .range(from, from + pageSize - 1);
+    return (rows as List)
+        .map<HeritageMonument>(
+          (row) => HeritageMonument.fromJson(
+            Map<String, dynamic>.from(row as Map),
+          ),
+        )
+        .toList();
+  }
+
+  Future<int> getMonumentCount(HeritageQuery filters) async {
+    final query = _applyFilters(
+      _client.from('heritage_monuments').count(CountOption.exact),
+      filters,
+    );
+    return query;
+  }
+
+  dynamic _applyFilters(dynamic query, HeritageQuery filters) {
     if (!filters.includeInactive) query = query.eq('is_active', true);
     if (filters.search.trim().isNotEmpty) {
       final value = filters.search.trim().replaceAll(',', ' ');
@@ -94,12 +120,7 @@ class HeritageRepository {
     if (filters.featuredOnly) {
       query = query.eq('featured', true);
     }
-    final from = filters.page * pageSize;
-    final rows = await query
-        .order('featured', ascending: false)
-        .order('monument_name')
-        .range(from, from + pageSize - 1);
-    return rows.map(HeritageMonument.fromJson).toList();
+    return query;
   }
 
   Future<Map<String, List<String>>> getFilterOptions() async {
@@ -212,4 +233,26 @@ final foreignVisitorInsightsProvider = FutureProvider(
 final heritageMonumentsProvider =
     FutureProvider.family<List<HeritageMonument>, HeritageQuery>(
   (ref, query) => ref.read(heritageRepositoryProvider).getMonuments(query),
+);
+
+final heritageMonumentCountProvider = FutureProvider.family<int, HeritageQuery>(
+  (ref, query) => ref.read(heritageRepositoryProvider).getMonumentCount(query),
+);
+
+final heritageTempleHighlightsProvider = FutureProvider(
+  (ref) => ref.read(heritageRepositoryProvider).getMonuments(
+        const HeritageQuery(type: 'Temple'),
+      ),
+);
+
+final heritageFortHighlightsProvider = FutureProvider(
+  (ref) => ref.read(heritageRepositoryProvider).getMonuments(
+        const HeritageQuery(type: 'Fort/Fortress'),
+      ),
+);
+
+final heritageAncientHighlightsProvider = FutureProvider(
+  (ref) => ref.read(heritageRepositoryProvider).getMonuments(
+        const HeritageQuery(type: 'Ancient Ruins/Mound'),
+      ),
 );

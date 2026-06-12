@@ -327,5 +327,15 @@
   "locality": "Locality",
   "district": "District",
   "published": "Published",
-  "foreign_visitors": "foreign visitors"
+  "foreign_visitors": "foreign visitors",
+  "page": "Page",
+  "of": "of",
+  "destinations": "destinations",
+  "sacred_temples": "Sacred temples",
+  "sacred_temples_subtitle": "Explore protected temples across India",
+  "historic_forts": "Historic forts",
+  "historic_forts_subtitle": "Fortresses, gateways and defensive heritage",
+  "ancient_sites": "Ancient sites",
+  "ancient_sites_subtitle": "Ruins, mounds and archaeological destinations",
+  "real_distance_from": "Real distance from {}"
 }

@@ -293,7 +293,10 @@ GoRouter appRouter(
       ),
       GoRoute(
         path: AppRoutes.heritageCatalog,
-        builder: (context, state) => const HeritageCatalogScreen(),
+        builder: (context, state) => HeritageCatalogScreen(
+          initialType: state.uri.queryParameters['type'],
+          initialRegion: state.uri.queryParameters['region'],
+        ),
       ),
       GoRoute(
         path: AppRoutes.heritageDetail,

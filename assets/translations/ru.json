@@ -327,5 +327,15 @@
   "locality": "Местность",
   "district": "Район",
   "published": "Опубликовано",
-  "foreign_visitors": "иностранных посетителей"
+  "foreign_visitors": "иностранных посетителей",
+  "page": "Страница",
+  "of": "из",
+  "destinations": "направлений",
+  "sacred_temples": "Священные храмы",
+  "sacred_temples_subtitle": "Охраняемые храмы по всей Индии",
+  "historic_forts": "Исторические форты",
+  "historic_forts_subtitle": "Крепости, ворота и оборонительное наследие",
+  "ancient_sites": "Древние места",
+  "ancient_sites_subtitle": "Руины, курганы и археологические направления",
+  "real_distance_from": "Реальное расстояние от {}"
 }

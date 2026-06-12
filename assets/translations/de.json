@@ -327,5 +327,15 @@
   "locality": "Ort",
   "district": "Bezirk",
   "published": "Veröffentlicht",
-  "foreign_visitors": "ausländische Besucher"
+  "foreign_visitors": "ausländische Besucher",
+  "page": "Seite",
+  "of": "von",
+  "destinations": "Reiseziele",
+  "sacred_temples": "Heilige Tempel",
+  "sacred_temples_subtitle": "Geschützte Tempel in ganz Indien entdecken",
+  "historic_forts": "Historische Festungen",
+  "historic_forts_subtitle": "Festungen, Tore und Verteidigungserbe",
+  "ancient_sites": "Antike Stätten",
+  "ancient_sites_subtitle": "Ruinen, Hügel und archäologische Reiseziele",
+  "real_distance_from": "Tatsächliche Entfernung von {}"
 }

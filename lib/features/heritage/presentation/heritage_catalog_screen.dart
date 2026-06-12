@@ -8,7 +8,14 @@ import 'package:unisafex/features/heritage/data/heritage_repository.dart';
 import 'package:unisafex/features/heritage/domain/heritage_monument.dart';
 
 class HeritageCatalogScreen extends ConsumerStatefulWidget {
-  const HeritageCatalogScreen({super.key});
+  const HeritageCatalogScreen({
+    super.key,
+    this.initialType,
+    this.initialRegion,
+  });
+
+  final String? initialType;
+  final String? initialRegion;
 
   @override
   ConsumerState<HeritageCatalogScreen> createState() =>
@@ -18,9 +25,9 @@ class HeritageCatalogScreen extends ConsumerStatefulWidget {
 class _HeritageCatalogScreenState extends ConsumerState<HeritageCatalogScreen> {
   final _search = TextEditingController();
   String? _state;
-  String? _region;
+  late String? _region = widget.initialRegion;
   String? _district;
-  String? _type;
+  late String? _type = widget.initialType;
   String? _protectionStatus;
   bool _freeOnly = false;
   bool _featuredOnly = false;
@@ -55,6 +62,7 @@ class _HeritageCatalogScreenState extends ConsumerState<HeritageCatalogScreen> {
       page: _page,
     );
     final monuments = ref.watch(heritageMonumentsProvider(query));
+    final monumentCount = ref.watch(heritageMonumentCountProvider(query));
     final options = ref.watch(heritageFilterOptionsProvider);
     final visitorInsights = ref.watch(foreignVisitorInsightsProvider);
 
@@ -125,6 +133,7 @@ class _HeritageCatalogScreenState extends ConsumerState<HeritageCatalogScreen> {
                         }
                         return _PaginationControls(
                           page: _page,
+                          totalItems: monumentCount.value,
                           hasNext: items.length == HeritageRepository.pageSize,
                           onPrevious:
                               _page == 0 ? null : () => setState(() => _page--),
@@ -462,31 +471,51 @@ class _VisitorInsights extends StatelessWidget {
 class _PaginationControls extends StatelessWidget {
   const _PaginationControls({
     required this.page,
+    required this.totalItems,
     required this.hasNext,
     required this.onPrevious,
     required this.onNext,
   });
   final int page;
+  final int? totalItems;
   final bool hasNext;
   final VoidCallback? onPrevious;
   final VoidCallback? onNext;
 
   @override
-  Widget build(BuildContext context) => Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          IconButton.filledTonal(
-            onPressed: onPrevious,
-            icon: const Icon(Icons.chevron_left_rounded),
-          ),
+  Widget build(BuildContext context) {
+    final totalPages = totalItems == null
+        ? null
+        : (totalItems! / HeritageRepository.pageSize).ceil();
+    return Column(
+      children: [
+        if (totalPages != null)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18),
-            child: Text('${page + 1}'),
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              '${'page'.tr()} ${page + 1} ${'of'.tr()} $totalPages'
+              ' · ${NumberFormat.decimalPattern().format(totalItems)} '
+              '${'destinations'.tr()}',
+            ),
           ),
-          IconButton.filled(
-            onPressed: hasNext ? onNext : null,
-            icon: const Icon(Icons.chevron_right_rounded),
-          ),
-        ],
-      );
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton.filledTonal(
+              onPressed: onPrevious,
+              icon: const Icon(Icons.chevron_left_rounded),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              child: Text('${page + 1}'),
+            ),
+            IconButton.filled(
+              onPressed: hasNext ? onNext : null,
+              icon: const Icon(Icons.chevron_right_rounded),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 }

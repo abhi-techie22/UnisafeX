@@ -327,5 +327,15 @@
   "locality": "الموقع",
   "district": "المقاطعة",
   "published": "منشور",
-  "foreign_visitors": "زائر أجنبي"
+  "foreign_visitors": "زائر أجنبي",
+  "page": "صفحة",
+  "of": "من",
+  "destinations": "وجهات",
+  "sacred_temples": "المعابد المقدسة",
+  "sacred_temples_subtitle": "استكشف المعابد المحمية في أنحاء الهند",
+  "historic_forts": "الحصون التاريخية",
+  "historic_forts_subtitle": "حصون وبوابات وتراث دفاعي",
+  "ancient_sites": "المواقع القديمة",
+  "ancient_sites_subtitle": "أطلال وتلال ووجهات أثرية",
+  "real_distance_from": "المسافة الفعلية من {}"
 }
