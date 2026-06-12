@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
@@ -8,7 +9,7 @@ class HelpSupportScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Help & Support')),
+      appBar: AppBar(title: Text('help_support'.tr())),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
         children: [
@@ -20,36 +21,36 @@ class HelpSupportScreen extends StatelessWidget {
               ),
               borderRadius: BorderRadius.circular(22),
             ),
-            child: const Column(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.support_agent_rounded,
+                const Icon(Icons.support_agent_rounded,
                     color: Colors.white, size: 34),
-                SizedBox(height: 18),
+                const SizedBox(height: 18),
                 Text(
-                  'How can we help?',
-                  style: TextStyle(
+                  'help_question'.tr(),
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 22,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                SizedBox(height: 6),
+                const SizedBox(height: 6),
                 Text(
-                  'Find answers, contact support, or access India’s emergency '
-                  'and tourist helplines.',
-                  style: TextStyle(color: Colors.white70, height: 1.45),
+                  'help_description'.tr(),
+                  style: const TextStyle(color: Colors.white70, height: 1.45),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 22),
-          Text('Quick help', style: Theme.of(context).textTheme.titleLarge),
+          Text('quick_help'.tr(),
+              style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 10),
           _SupportAction(
             icon: Icons.bug_report_outlined,
-            title: 'Report a problem',
-            subtitle: 'Open the UniSafeX GitHub issue tracker',
+            title: 'report_problem'.tr(),
+            subtitle: 'report_problem_subtitle'.tr(),
             onTap: () => _launch(
               context,
               Uri.parse(
@@ -59,45 +60,37 @@ class HelpSupportScreen extends StatelessWidget {
           ),
           _SupportAction(
             icon: Icons.phone_in_talk_outlined,
-            title: 'Tourist helpline',
-            subtitle: 'Call 1363 within India',
+            title: 'tourist_helpline'.tr(),
+            subtitle: 'tourist_helpline_subtitle'.tr(),
             onTap: () => _launch(context, Uri(scheme: 'tel', path: '1363')),
           ),
           _SupportAction(
             icon: Icons.emergency_outlined,
-            title: 'Emergency assistance',
-            subtitle: 'Call India emergency number 112',
+            title: 'emergency_assistance'.tr(),
+            subtitle: 'emergency_assistance_subtitle'.tr(),
             onTap: () => _launch(context, Uri(scheme: 'tel', path: '112')),
           ),
           const SizedBox(height: 20),
           Text(
-            'Frequently asked questions',
+            'frequently_asked_questions'.tr(),
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 8),
-          const _Faq(
-            question: 'Why is my profile not saving?',
-            answer:
-                'Confirm your email and sign in first. Profile updates require '
-                'an active Supabase session. Keep the app open until the saved '
-                'confirmation appears.',
+          _Faq(
+            question: 'faq_profile_question'.tr(),
+            answer: 'faq_profile_answer'.tr(),
           ),
-          const _Faq(
-            question: 'How are nearby distances calculated?',
-            answer:
-                'UniSafeX calculates straight-line distance from your live GPS '
-                'or chosen starting location to each destination coordinate.',
+          _Faq(
+            question: 'faq_distance_question'.tr(),
+            answer: 'faq_distance_answer'.tr(),
           ),
-          const _Faq(
-            question: 'Are currency rates exact?',
-            answer: 'Rates are reference values. Your bank, card or exchange '
-                'counter may apply a different rate and additional fees.',
+          _Faq(
+            question: 'faq_currency_question'.tr(),
+            answer: 'faq_currency_answer'.tr(),
           ),
-          const _Faq(
-            question: 'Can I book hotels and flights now?',
-            answer:
-                'Booking search forms are available, but live inventory and '
-                'checkout require approved partner API integrations.',
+          _Faq(
+            question: 'faq_booking_question'.tr(),
+            answer: 'faq_booking_answer'.tr(),
           ),
         ],
       ),
@@ -108,7 +101,7 @@ class HelpSupportScreen extends StatelessWidget {
     final opened = await launchUrl(uri);
     if (!opened && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('This action is not available here.')),
+        SnackBar(content: Text('action_unavailable'.tr())),
       );
     }
   }

@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:unisafex/core/constants/app_constants.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
@@ -8,7 +9,7 @@ class AboutScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('About UniSafeX')),
+      appBar: AppBar(title: Text('about_unisafex'.tr())),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(22, 12, 22, 36),
         children: [
@@ -39,30 +40,21 @@ class AboutScreen extends StatelessWidget {
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 24),
-          const _AboutSection(
-            title: 'Our mission',
-            text: 'UniSafeX helps international travelers explore India with '
-                'practical destination details, safety guidance, nearby '
-                'discovery and useful travel tools in one place.',
+          _AboutSection(
+            title: 'our_mission'.tr(),
+            text: 'mission_description'.tr(),
           ),
-          const _AboutSection(
-            title: 'What the app provides',
-            text: 'Tourism discovery, travel planning, destination safety '
-                'scores, live reference currency conversion, local phrases, '
-                'saved places, location-based distances and booking previews.',
+          _AboutSection(
+            title: 'app_provides'.tr(),
+            text: 'app_provides_description'.tr(),
           ),
-          const _AboutSection(
-            title: 'Data and safety',
-            text: 'Tourism information is stored in the UniSafeX database. '
-                'Distances are calculated from coordinates. Safety scores and '
-                'AI-style answers are guidance only and cannot guarantee '
-                'personal safety or replace official advice.',
+          _AboutSection(
+            title: 'data_safety'.tr(),
+            text: 'data_safety_description'.tr(),
           ),
-          const _AboutSection(
-            title: 'Emergency reminder',
-            text: 'For emergencies in India call 112. Tourist helpline: 1363. '
-                'Always verify opening times, fees and travel conditions with '
-                'official sources before visiting.',
+          _AboutSection(
+            title: 'emergency_reminder'.tr(),
+            text: 'emergency_reminder_description'.tr(),
           ),
         ],
       ),

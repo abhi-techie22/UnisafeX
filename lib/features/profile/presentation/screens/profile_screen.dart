@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -19,11 +20,11 @@ class ProfileScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profile'),
+        title: Text('profile'.tr()),
         automaticallyImplyLeading: false,
         actions: [
           IconButton(
-            tooltip: 'Settings',
+            tooltip: 'settings'.tr(),
             onPressed: () => context.push(AppRoutes.settings),
             icon: const Icon(Icons.settings_outlined),
           ),
@@ -46,54 +47,54 @@ class ProfileScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
               _ActionCard(
-                title: 'Your account',
+                title: 'your_account'.tr(),
                 actions: [
                   _ProfileAction(
                     icon: Icons.badge_outlined,
-                    label: 'My Identity',
-                    subtitle: 'View your private saved details',
+                    label: 'my_identity'.tr(),
+                    subtitle: 'view_private_details'.tr(),
                     onTap: () => context.push(AppRoutes.identityDetails),
                   ),
                   _ProfileAction(
                     icon: Icons.bookmark_outline_rounded,
-                    label: 'Saved places',
-                    subtitle: 'View your travel shortlist',
+                    label: 'saved_places'.tr(),
+                    subtitle: 'view_travel_shortlist'.tr(),
                     onTap: () => context.go(AppRoutes.favorites),
                   ),
                   _ProfileAction(
                     icon: Icons.settings_outlined,
-                    label: 'Settings',
-                    subtitle: 'Language, theme and preferences',
+                    label: 'settings'.tr(),
+                    subtitle: 'settings_subtitle'.tr(),
                     onTap: () => context.push(AppRoutes.settings),
                   ),
                 ],
               ),
               const SizedBox(height: 16),
               _ActionCard(
-                title: 'Information & support',
+                title: 'information_support'.tr(),
                 actions: [
                   _ProfileAction(
                     icon: Icons.help_outline_rounded,
-                    label: 'Help & Support',
-                    subtitle: 'FAQs, emergency help and contact',
+                    label: 'help_support'.tr(),
+                    subtitle: 'help_subtitle'.tr(),
                     onTap: () => context.push(AppRoutes.helpSupport),
                   ),
                   _ProfileAction(
                     icon: Icons.privacy_tip_outlined,
-                    label: 'Privacy Policy',
-                    subtitle: 'How UniSafeX handles your data',
+                    label: 'privacy_policy'.tr(),
+                    subtitle: 'privacy_subtitle'.tr(),
                     onTap: () => context.push(AppRoutes.privacyPolicy),
                   ),
                   _ProfileAction(
                     icon: Icons.description_outlined,
-                    label: 'Terms of Service',
-                    subtitle: 'Rules and safety limitations',
+                    label: 'terms_of_service'.tr(),
+                    subtitle: 'terms_subtitle'.tr(),
                     onTap: () => context.push(AppRoutes.termsOfService),
                   ),
                   _ProfileAction(
                     icon: Icons.info_outline_rounded,
-                    label: 'About UniSafeX',
-                    subtitle: 'Mission, features and app version',
+                    label: 'about_unisafex'.tr(),
+                    subtitle: 'about_subtitle'.tr(),
                     onTap: () => context.push(AppRoutes.about),
                   ),
                 ],
@@ -102,9 +103,9 @@ class ProfileScreen extends ConsumerWidget {
               OutlinedButton.icon(
                 onPressed: () => _confirmSignOut(context, ref),
                 icon: const Icon(Icons.logout_rounded),
-                label: const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 13),
-                  child: Text('Sign out'),
+                label: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  child: Text('sign_out'.tr()),
                 ),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.error,
@@ -122,14 +123,12 @@ class ProfileScreen extends ConsumerWidget {
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Sign out?'),
-        content: const Text(
-          'Your saved profile will remain available when you sign in again.',
-        ),
+        title: Text('sign_out_question'.tr()),
+        content: Text('sign_out_message'.tr()),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
+            child: Text('cancel'.tr()),
           ),
           FilledButton(
             onPressed: () async {
@@ -138,7 +137,7 @@ class ProfileScreen extends ConsumerWidget {
               if (context.mounted) context.go(AppRoutes.authSelection);
             },
             style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Sign out'),
+            child: Text('sign_out'.tr()),
           ),
         ],
       ),
@@ -194,7 +193,7 @@ class _IdentityCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    profile?.displayName ?? 'Traveler',
+                    profile?.displayName ?? 'traveler'.tr(),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.titleLarge,
@@ -212,8 +211,8 @@ class _IdentityCard extends StatelessWidget {
                     ),
                     child: Text(
                       profile?.isProfileComplete == true
-                          ? 'Identity ready'
-                          : 'Identity needs details',
+                          ? 'identity_ready'.tr()
+                          : 'identity_needs_details'.tr(),
                       style: TextStyle(
                         color: profile?.isProfileComplete == true
                             ? AppColors.success
@@ -226,14 +225,14 @@ class _IdentityCard extends StatelessWidget {
                 ],
               ),
             ),
-            const Column(
+            Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.lock_outline_rounded, color: AppColors.primary),
                 SizedBox(height: 5),
                 Text(
-                  'View',
-                  style: TextStyle(
+                  'view'.tr(),
+                  style: const TextStyle(
                     color: AppColors.primary,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
@@ -325,7 +324,7 @@ class _GuestProfile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
+      appBar: AppBar(title: Text('profile'.tr())),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
@@ -336,18 +335,18 @@ class _GuestProfile extends StatelessWidget {
                   size: 64, color: AppColors.primary),
               const SizedBox(height: 18),
               Text(
-                'Your travel profile',
+                'travel_profile'.tr(),
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               const SizedBox(height: 10),
-              const Text(
-                'Sign in to save your details, places and travel preferences.',
+              Text(
+                'travel_profile_guest'.tr(),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 22),
               FilledButton(
                 onPressed: () => context.go(AppRoutes.authSelection),
-                child: const Text('Sign in or create account'),
+                child: Text('sign_in_or_create'.tr()),
               ),
             ],
           ),
@@ -374,14 +373,14 @@ class _ProfileError extends StatelessWidget {
             const Icon(Icons.error_outline_rounded,
                 size: 52, color: AppColors.error),
             const SizedBox(height: 14),
-            const Text('Could not load your profile'),
+            Text('profile_load_error'.tr()),
             const SizedBox(height: 8),
             Text('$error', textAlign: TextAlign.center),
             const SizedBox(height: 18),
             FilledButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Try again'),
+              label: Text('try_again'.tr()),
             ),
           ],
         ),

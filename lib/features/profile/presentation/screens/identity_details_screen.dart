@@ -1,7 +1,7 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
 import 'package:unisafex/features/auth/presentation/providers/auth_provider.dart';
@@ -19,7 +19,7 @@ class IdentityDetailsScreen extends ConsumerWidget {
 
     if (isGuest) {
       return Scaffold(
-        appBar: AppBar(title: const Text('My Identity')),
+        appBar: AppBar(title: Text('my_identity'.tr())),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(32),
@@ -33,19 +33,19 @@ class IdentityDetailsScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 18),
                 Text(
-                  'Your identity is private',
+                  'identity_private'.tr(),
                   style: Theme.of(context).textTheme.headlineSmall,
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 10),
-                const Text(
-                  'Sign in to view or edit your saved travel identity.',
+                Text(
+                  'identity_sign_in'.tr(),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 22),
                 FilledButton(
                   onPressed: () => context.go(AppRoutes.authSelection),
-                  child: const Text('Sign in'),
+                  child: Text('sign_in'.tr()),
                 ),
               ],
             ),
@@ -55,7 +55,7 @@ class IdentityDetailsScreen extends ConsumerWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('My Identity')),
+      appBar: AppBar(title: Text('my_identity'.tr())),
       body: profileState.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text('Unable to load: $error')),
@@ -75,42 +75,42 @@ class IdentityDetailsScreen extends ConsumerWidget {
                 children: [
                   _IdentityRow(
                     icon: Icons.person_outline_rounded,
-                    label: 'Full name',
+                    label: 'full_name'.tr(),
                     value: profile?.fullName,
                   ),
                   _IdentityRow(
                     icon: Icons.email_outlined,
-                    label: 'Email',
+                    label: 'email'.tr(),
                     value: email,
                   ),
                   _IdentityRow(
                     icon: Icons.wc_outlined,
-                    label: 'Gender',
+                    label: 'gender'.tr(),
                     value: profile?.gender,
                   ),
                   _IdentityRow(
                     icon: Icons.public_rounded,
-                    label: 'Nationality',
+                    label: 'nationality'.tr(),
                     value: profile?.nationality ?? profile?.country,
                   ),
                   _IdentityRow(
                     icon: Icons.location_on_outlined,
-                    label: 'Current location',
+                    label: 'current_location'.tr(),
                     value: profile?.currentLocation,
                   ),
                   _IdentityRow(
                     icon: Icons.badge_outlined,
-                    label: 'Passport country',
+                    label: 'passport_country'.tr(),
                     value: profile?.passportCountry,
                   ),
                   _IdentityRow(
                     icon: Icons.document_scanner_outlined,
-                    label: 'Visa type',
+                    label: 'visa_type'.tr(),
                     value: profile?.visaType,
                   ),
                   _IdentityRow(
                     icon: Icons.event_outlined,
-                    label: 'Visa expiry',
+                    label: 'visa_expiry'.tr(),
                     value: profile?.visaExpiry == null
                         ? null
                         : DateFormat('dd MMM yyyy')
@@ -118,7 +118,7 @@ class IdentityDetailsScreen extends ConsumerWidget {
                   ),
                   _IdentityRow(
                     icon: Icons.luggage_outlined,
-                    label: 'Travel purpose',
+                    label: 'travel_purpose'.tr(),
                     value: profile?.travelPurpose,
                     showDivider: false,
                   ),
@@ -132,17 +132,14 @@ class IdentityDetailsScreen extends ConsumerWidget {
                 color: AppColors.info.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: const Row(
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.lock_outline_rounded,
+                  const Icon(Icons.lock_outline_rounded,
                       size: 20, color: AppColors.info),
-                  SizedBox(width: 9),
+                  const SizedBox(width: 9),
                   Expanded(
-                    child: Text(
-                      'These details are private to your signed-in UniSafeX '
-                      'account and are not shown on the main Profile screen.',
-                    ),
+                    child: Text('private_identity_notice'.tr()),
                   ),
                 ],
               ),
@@ -151,9 +148,9 @@ class IdentityDetailsScreen extends ConsumerWidget {
             FilledButton.icon(
               onPressed: () => context.push(AppRoutes.profileCompletion),
               icon: const Icon(Icons.edit_outlined),
-              label: const Padding(
-                padding: EdgeInsets.symmetric(vertical: 14),
-                child: Text('Edit identity details'),
+              label: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                child: Text('edit_identity'.tr()),
               ),
             ),
           ],
@@ -206,13 +203,13 @@ class _PrivateIdentityHeader extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Private identity',
-                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                Text(
+                  'private_identity'.tr(),
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  profile?.displayName ?? 'Traveler',
+                  profile?.displayName ?? 'traveler'.tr(),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 19,
@@ -267,7 +264,9 @@ class _IdentityRow extends StatelessWidget {
                     Text(label, style: Theme.of(context).textTheme.bodySmall),
                     const SizedBox(height: 3),
                     Text(
-                      value?.trim().isNotEmpty == true ? value! : 'Not added',
+                      value?.trim().isNotEmpty == true
+                          ? value!
+                          : 'not_added'.tr(),
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ],

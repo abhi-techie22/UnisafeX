@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -88,7 +89,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           icon: const Icon(Icons.arrow_back_ios_rounded),
           onPressed: () => context.pop(),
         ),
-        title: const Text('Sign In'),
+        title: Text('sign_in'.tr()),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -100,14 +101,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const SizedBox(height: 16),
 
               Text(
-                'Welcome back',
+                'welcome_back'.tr(),
                 style: Theme.of(context).textTheme.headlineLarge,
               ).animate().fadeIn(duration: 400.ms),
 
               const SizedBox(height: 8),
 
               Text(
-                'Sign in to continue your Indian adventure',
+                'trusted_companion'.tr(),
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: isDark ? AppColors.grey400 : AppColors.grey600,
                     ),
@@ -116,7 +117,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const SizedBox(height: 40),
 
               // Email
-              _buildLabel('Email address'),
+              _buildLabel('email_address'.tr()),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _emailController,
@@ -128,8 +129,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   prefixIcon: Icon(Icons.email_outlined, size: 20),
                 ),
                 validator: (v) {
-                  if (v == null || v.isEmpty) return 'Please enter your email';
-                  if (!v.contains('@')) return 'Please enter a valid email';
+                  if (v == null || v.isEmpty) return 'required_field'.tr();
+                  if (!v.contains('@')) return 'invalid_email'.tr();
                   return null;
                 },
               ).animate().slideY(
@@ -142,7 +143,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const SizedBox(height: 20),
 
               // Password
-              _buildLabel('Password'),
+              _buildLabel('password'.tr()),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _passwordController,
@@ -165,10 +166,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 validator: (v) {
                   if (v == null || v.isEmpty) {
-                    return 'Please enter your password';
+                    return 'required_field'.tr();
                   }
                   if (v.length < 6) {
-                    return 'Password must be at least 6 characters';
+                    return 'min_password'.tr();
                   }
                   return null;
                 },
@@ -189,11 +190,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   children: [
                     TextButton(
                       onPressed: () => _showResendConfirmation(context),
-                      child: const Text('Resend confirmation'),
+                      child: Text('resend_confirmation'.tr()),
                     ),
                     TextButton(
                       onPressed: () => _showForgotPassword(context),
-                      child: const Text('Forgot password?'),
+                      child: Text('forgot_password'.tr()),
                     ),
                   ],
                 ),
@@ -203,7 +204,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
               // Login button
               AppButton(
-                label: 'Sign In',
+                label: 'sign_in'.tr(),
                 onPressed: _login,
                 isLoading: _isLoading,
                 isFullWidth: true,
@@ -222,7 +223,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    "Don't have an account? ",
+                    '${'no_account'.tr()} ',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: isDark ? AppColors.grey400 : AppColors.grey600,
                         ),
@@ -234,9 +235,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                    child: const Text(
-                      'Create Account',
-                      style: TextStyle(fontWeight: FontWeight.w600),
+                    child: Text(
+                      'create_account'.tr(),
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],
@@ -283,15 +284,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         TextEditingController(text: _emailController.text.trim());
     _showEmailActionSheet(
       context: context,
-      title: 'Resend Confirmation',
-      description:
-          'Enter the email used during registration. Supabase may limit '
-          'built-in email delivery to two messages per hour.',
-      buttonLabel: 'Resend Email',
+      title: 'resend_confirmation_title'.tr(),
+      description: 'confirmation_sent'.tr(),
+      buttonLabel: 'resend_confirmation'.tr(),
       controller: controller,
       action: (email) =>
           ref.read(authNotifierProvider.notifier).resendConfirmation(email),
-      successMessage: 'Confirmation email requested. Check spam as well.',
+      successMessage: 'confirmation_sent'.tr(),
     );
   }
 
@@ -299,13 +298,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final controller = TextEditingController();
     _showEmailActionSheet(
       context: context,
-      title: 'Reset Password',
-      description: 'We\'ll send a reset link to your email.',
-      buttonLabel: 'Send Reset Link',
+      title: 'reset_password'.tr(),
+      description: 'send_reset_link'.tr(),
+      buttonLabel: 'send_reset_link'.tr(),
       controller: controller,
       action: (email) =>
           ref.read(authNotifierProvider.notifier).resetPassword(email),
-      successMessage: 'Reset link sent!',
+      successMessage: 'send_reset_link'.tr(),
     );
   }
 

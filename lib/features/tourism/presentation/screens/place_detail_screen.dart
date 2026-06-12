@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -95,7 +96,7 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                 ),
               ),
               IconButton(
-                tooltip: 'Share',
+                tooltip: 'share'.tr(),
                 icon: const Icon(Icons.ios_share_rounded, color: Colors.white),
                 onPressed: _sharePlace,
               ),
@@ -181,20 +182,20 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                 _SafetyScoreCard(score: safetyScore),
                 const SizedBox(height: 28),
                 _Section(
-                  title: 'Visitor Information',
+                  title: 'visitor_information'.tr(),
                   child: _InfoCard(
                     isDark: isDark,
                     children: [
                       _InfoRow(
                         icon: Icons.location_on_outlined,
-                        label: 'Address',
+                        label: 'address'.tr(),
                         value: place.address?.isNotEmpty == true
                             ? place.address!
                             : _locationLabel(place),
                       ),
                       _InfoRow(
                         icon: Icons.schedule,
-                        label: 'Timings',
+                        label: 'timings'.tr(),
                         value: place.timings?.isNotEmpty == true
                             ? place.timings!
                             : 'Not specified',
@@ -212,20 +213,20 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                       if (place.bestSeason?.isNotEmpty == true)
                         _InfoRow(
                           icon: Icons.wb_sunny_outlined,
-                          label: 'Best season',
+                          label: 'best_season'.tr(),
                           value: place.bestSeason!,
                         ),
                       if (place.visitDurationMinutes != null)
                         _InfoRow(
                           icon: Icons.timelapse,
-                          label: 'Suggested duration',
+                          label: 'suggested_duration'.tr(),
                           value: _formatDuration(place.visitDurationMinutes!),
                         ),
                     ],
                   ),
                 ),
                 _Section(
-                  title: 'About',
+                  title: 'about'.tr(),
                   child: Text(
                     place.description,
                     style: const TextStyle(height: 1.6),
@@ -233,7 +234,7 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                 ),
                 if (place.bestMonths.isNotEmpty)
                   _Section(
-                    title: 'Best Months',
+                    title: 'best_months'.tr(),
                     child: Wrap(
                       spacing: 8,
                       runSpacing: 8,
@@ -244,13 +245,13 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                   ),
                 if (place.safetyGuidelines.isNotEmpty)
                   _BulletSection(
-                    title: 'Safety Guidelines',
+                    title: 'safety_guidelines'.tr(),
                     icon: Icons.health_and_safety_outlined,
                     items: place.safetyGuidelines,
                   ),
                 if (place.touristTips.isNotEmpty)
                   _BulletSection(
-                    title: 'Traveler Tips',
+                    title: 'traveler_tips'.tr(),
                     icon: Icons.lightbulb_outline,
                     items: place.touristTips,
                   ),
@@ -261,7 +262,7 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                       Expanded(
                         child: _PlanningCard(
                           icon: Icons.hotel_outlined,
-                          title: 'Nearby hotels',
+                          title: 'nearby_hotels'.tr(),
                           subtitle: 'Find a stay near ${place.name}',
                           onTap: () => _showHotelsPlaceholder(place.city),
                         ),
@@ -270,7 +271,7 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                       Expanded(
                         child: _PlanningCard(
                           icon: Icons.emergency_outlined,
-                          title: 'Emergency help',
+                          title: 'emergency_help'.tr(),
                           subtitle: 'Essential India helplines',
                           onTap: _showEmergencyHelp,
                         ),
@@ -320,7 +321,7 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                 ),
               ),
               AppButton(
-                label: 'Get Directions',
+                label: 'get_directions'.tr(),
                 onPressed: _openGoogleMaps,
                 icon: Icons.navigation,
               ),

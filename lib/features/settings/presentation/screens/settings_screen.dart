@@ -230,10 +230,13 @@ class SettingsScreen extends ConsumerWidget {
                           ? const Icon(Icons.check_rounded,
                               color: AppColors.primary)
                           : null,
-                      onTap: () {
-                        ref
+                      onTap: () async {
+                        final locale = Locale(lang['code']!);
+                        await sheetContext.setLocale(locale);
+                        await ref
                             .read(localeProvider.notifier)
-                            .setLocale(Locale(lang['code']!));
+                            .setLocale(locale);
+                        if (!sheetContext.mounted) return;
                         Navigator.pop(sheetContext);
                       },
                     );

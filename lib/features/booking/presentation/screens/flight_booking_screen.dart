@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:unisafex/features/booking/domain/booking_partner.dart';
 import 'package:unisafex/features/booking/presentation/widgets/booking_form_widgets.dart';
@@ -68,24 +69,30 @@ class _FlightBookingScreenState extends State<FlightBookingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Flight booking')),
+      appBar: AppBar(title: Text('flight_booking'.tr())),
       body: SafeArea(
         child: Form(
           key: _formKey,
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
             children: [
-              const BookingHero(
+              BookingHero(
                 icon: Icons.flight_takeoff_rounded,
-                title: 'Search flights',
-                subtitle: 'Compare routes to India and domestic connections.',
-                colors: [Color(0xFF193A62), Color(0xFF2E6AA5)],
+                title: 'search_flights'.tr(),
+                subtitle: 'flight_search_subtitle'.tr(),
+                colors: const [Color(0xFF193A62), Color(0xFF2E6AA5)],
               ),
               const SizedBox(height: 18),
               SegmentedButton<bool>(
-                segments: const [
-                  ButtonSegment(value: true, label: Text('Round trip')),
-                  ButtonSegment(value: false, label: Text('One way')),
+                segments: [
+                  ButtonSegment(
+                    value: true,
+                    label: Text('round_trip'.tr()),
+                  ),
+                  ButtonSegment(
+                    value: false,
+                    label: Text('one_way'.tr()),
+                  ),
                 ],
                 selected: {_roundTrip},
                 onSelectionChanged: (value) =>
@@ -94,40 +101,40 @@ class _FlightBookingScreenState extends State<FlightBookingScreen> {
               const SizedBox(height: 18),
               TextFormField(
                 controller: _originController,
-                decoration: const InputDecoration(
-                  labelText: 'From',
-                  hintText: 'City or airport',
-                  prefixIcon: Icon(Icons.flight_takeoff_rounded),
+                decoration: InputDecoration(
+                  labelText: 'from'.tr(),
+                  hintText: 'city_airport'.tr(),
+                  prefixIcon: const Icon(Icons.flight_takeoff_rounded),
                 ),
                 validator: _requiredLocation,
               ),
               const SizedBox(height: 14),
               TextFormField(
                 controller: _destinationController,
-                decoration: const InputDecoration(
-                  labelText: 'To',
-                  hintText: 'City or airport',
-                  prefixIcon: Icon(Icons.flight_land_rounded),
+                decoration: InputDecoration(
+                  labelText: 'to'.tr(),
+                  hintText: 'city_airport'.tr(),
+                  prefixIcon: const Icon(Icons.flight_land_rounded),
                 ),
                 validator: _requiredLocation,
               ),
               const SizedBox(height: 14),
               BookingDateField(
-                label: 'Departure',
+                label: 'departure'.tr(),
                 value: _departure,
                 onTap: _pickDeparture,
               ),
               if (_roundTrip) ...[
                 const SizedBox(height: 14),
                 BookingDateField(
-                  label: 'Return',
+                  label: 'return_date'.tr(),
                   value: _returnDate,
                   onTap: _pickReturn,
                 ),
               ],
               const SizedBox(height: 14),
               BookingCounter(
-                label: 'Travellers',
+                label: 'travellers'.tr(),
                 value: _travellers,
                 icon: Icons.people_outline_rounded,
                 onDecrease: () => setState(
@@ -150,7 +157,9 @@ class _FlightBookingScreenState extends State<FlightBookingScreen> {
                 icon: const Icon(Icons.travel_explore_rounded),
                 label: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  child: Text('Search with ${_selectedPartner.name}'),
+                  child: Text(
+                    'search_with'.tr(args: [_selectedPartner.name]),
+                  ),
                 ),
               ),
             ],
@@ -161,5 +170,5 @@ class _FlightBookingScreenState extends State<FlightBookingScreen> {
   }
 
   String? _requiredLocation(String? value) =>
-      value == null || value.trim().isEmpty ? 'Enter a city or airport' : null;
+      value == null || value.trim().isEmpty ? 'enter_city_airport'.tr() : null;
 }

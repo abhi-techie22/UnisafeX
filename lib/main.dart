@@ -51,12 +51,8 @@ class UniSafeXApp extends ConsumerWidget {
     final router = ref.watch(appRouterProvider);
     final locale = ref.watch(localeProvider);
 
-    print('🌍 Riverpod locale: ${locale.languageCode}');
-    print('🌍 EasyLocalization locale: ${context.locale.languageCode}');
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (context.mounted && context.locale != locale) {
-        print('🔄 Syncing to: ${locale.languageCode}');
         context.setLocale(locale);
       }
     });

@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -20,10 +21,10 @@ class MapScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Nearby places'),
+        title: Text('nearby_places'.tr()),
         actions: [
           IconButton(
-            tooltip: 'Refresh location',
+            tooltip: 'use_my_location'.tr(),
             onPressed: () => ref.read(locationProvider.notifier).refresh(),
             icon: const Icon(Icons.my_location_rounded),
           ),
@@ -87,7 +88,7 @@ class _NearbyContent extends ConsumerWidget {
         error: (error, _) => ListView(
           children: [
             const SizedBox(height: 180),
-            Center(child: Text('Unable to load nearby places: $error')),
+            Center(child: Text('${'unable_to_load'.tr()}: $error')),
           ],
         ),
         data: (places) {
@@ -475,7 +476,7 @@ class _NearbyPlaceCard extends StatelessWidget {
                 ),
               ),
               IconButton(
-                tooltip: 'Navigate with Google Maps',
+                tooltip: 'open_google_maps'.tr(),
                 onPressed: () => _openDirections(context),
                 icon: const Icon(
                   Icons.directions_rounded,
@@ -565,13 +566,13 @@ class _LocationError extends ConsumerWidget {
         FilledButton.icon(
           onPressed: () => ref.read(locationProvider.notifier).refresh(),
           icon: const Icon(Icons.refresh_rounded),
-          label: const Text('Try again'),
+          label: Text('try_again'.tr()),
         ),
         const SizedBox(height: 10),
         OutlinedButton.icon(
           onPressed: () => _chooseLocation(context, ref),
           icon: const Icon(Icons.edit_location_alt_outlined),
-          label: const Text('Choose location manually'),
+          label: Text('choose_location'.tr()),
         ),
         if (locationError.failure ==
             LocationFailure.permissionDeniedForever) ...[

@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -23,12 +24,14 @@ class FavoritesScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: Text(user == null ? 'Saved Offline' : 'Saved Places'),
+        title: Text(
+          user == null ? 'saved_offline'.tr() : 'saved_places'.tr(),
+        ),
         actions: [
           if (user == null)
             TextButton(
               onPressed: () => context.go(AppRoutes.authSelection),
-              child: const Text('Sign in'),
+              child: Text('sign_in'.tr()),
             )
           else
             IconButton(
@@ -88,8 +91,9 @@ class FavoritesScreen extends ConsumerWidget {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) =>
-            Center(child: Text('Unable to load saved places: $error')),
+        error: (error, _) => Center(
+          child: Text('saved_load_error'.tr(args: ['$error'])),
+        ),
       ),
     );
   }
@@ -120,21 +124,21 @@ class _EmptySavedState extends StatelessWidget {
             ),
             const SizedBox(height: 22),
             Text(
-              isOffline ? 'No offline places yet' : 'No saved places yet',
+              isOffline ? 'saved_offline_empty'.tr() : 'no_saved_places'.tr(),
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 10),
             Text(
               isOffline
-                  ? 'Save a destination from its details page for quick local access.'
-                  : 'Tap the bookmark on a destination to keep it here.',
+                  ? 'saved_offline_description'.tr()
+                  : 'saved_online_description'.tr(),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
             FilledButton.icon(
               onPressed: () => context.go(AppRoutes.home),
               icon: const Icon(Icons.explore_outlined),
-              label: const Text('Explore places'),
+              label: Text('explore_places'.tr()),
             ),
           ],
         ),

@@ -1,9 +1,9 @@
 import 'package:country_picker/country_picker.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:unisafex/core/constants/app_constants.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
@@ -128,8 +128,8 @@ class _ProfileCompletionScreenState
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Profile saved successfully'),
+          SnackBar(
+            content: Text('profile_saved'.tr()),
             backgroundColor: AppColors.success,
           ),
         );
@@ -139,7 +139,7 @@ class _ProfileCompletionScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error saving profile: $e'),
+            content: Text('profile_save_error'.tr(args: ['$e'])),
             backgroundColor: AppColors.error,
           ),
         );
@@ -187,20 +187,18 @@ class _ProfileCompletionScreenState
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    'Sign in required',
+                    'sign_in_required'.tr(),
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Confirm your email, then sign in before completing your '
-                    'profile. Profile data cannot be saved without an active '
-                    'Supabase session.',
+                    'sign_in_before_profile'.tr(),
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyLarge,
                   ),
                   const SizedBox(height: 28),
                   AppButton(
-                    label: 'Go to Sign In',
+                    label: 'go_to_sign_in'.tr(),
                     onPressed: () => context.go(AppRoutes.login),
                     isFullWidth: true,
                   ),
@@ -240,8 +238,8 @@ class _ProfileCompletionScreenState
                     children: [
                       Text(
                         _existingProfile == null
-                            ? 'Complete Profile'
-                            : 'Edit Profile',
+                            ? 'complete_profile'.tr()
+                            : 'edit_identity'.tr(),
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
                       Text(
@@ -252,7 +250,7 @@ class _ProfileCompletionScreenState
                   ),
                   const Spacer(),
                   IconButton(
-                    tooltip: 'Close',
+                    tooltip: 'close'.tr(),
                     onPressed: () => context.pop(),
                     icon: const Icon(Icons.close_rounded),
                   ),
@@ -308,7 +306,7 @@ class _ProfileCompletionScreenState
                     Expanded(
                       flex: 1,
                       child: AppOutlinedButton(
-                        label: 'Back',
+                        label: 'back'.tr(),
                         onPressed: () => setState(() => _currentStep--),
                         icon: Icons.arrow_back_rounded,
                       ),
@@ -317,7 +315,7 @@ class _ProfileCompletionScreenState
                   Expanded(
                     flex: 2,
                     child: AppButton(
-                      label: _currentStep == 0 ? 'Continue' : 'Save Profile',
+                      label: _currentStep == 0 ? 'continue'.tr() : 'save'.tr(),
                       onPressed: _currentStep == 0 ? _nextStep : _save,
                       isLoading: _isLoading,
                       isFullWidth: true,
@@ -348,35 +346,35 @@ class _ProfileCompletionScreenState
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Personal Info',
+          'personal_info'.tr(),
           style: Theme.of(context).textTheme.headlineMedium,
         ).animate().fadeIn(),
         const SizedBox(height: 6),
         Text(
-          'Tell us about yourself',
+          'profile_intro'.tr(),
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: isDark ? AppColors.grey400 : AppColors.grey600,
               ),
         ).animate().fadeIn(delay: 100.ms),
         const SizedBox(height: 32),
-        _buildLabel('Full Name *'),
+        _buildLabel('${'full_name'.tr()} *'),
         const SizedBox(height: 8),
         TextFormField(
           controller: _nameController,
           textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(
-            hintText: 'John Smith',
-            prefixIcon: Icon(Icons.person_outline, size: 20),
+          decoration: InputDecoration(
+            hintText: 'name_example'.tr(),
+            prefixIcon: const Icon(Icons.person_outline, size: 20),
           ),
           validator: (v) =>
-              v == null || v.isEmpty ? 'Please enter your name' : null,
+              v == null || v.isEmpty ? 'required_field'.tr() : null,
         ),
         const SizedBox(height: 20),
-        _buildLabel('Gender'),
+        _buildLabel('gender'.tr()),
         const SizedBox(height: 8),
         _buildDropdown(
           value: _selectedGender,
-          hint: 'Select gender',
+          hint: 'select_gender'.tr(),
           items: AppConstants.genderOptions,
           onChanged: (v) => setState(() => _selectedGender = v),
           prefixIcon: Icons.wc_outlined,

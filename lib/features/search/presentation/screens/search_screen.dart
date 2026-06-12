@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -66,22 +67,22 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     ref.read(_searchQueryProvider.notifier).state = v;
                   },
                   decoration: InputDecoration(
-                    hintText: 'Search places, cities, monuments...',
+                    hintText: 'search_places_hint'.tr(),
                     prefixIcon: const Icon(Icons.search_rounded, size: 20),
                     suffixIcon: query.isNotEmpty
                         ? IconButton(
                             icon: const Icon(Icons.close_rounded, size: 18),
                             onPressed: () {
                               _controller.clear();
-                              ref.read(_searchQueryProvider.notifier).state = '';
+                              ref.read(_searchQueryProvider.notifier).state =
+                                  '';
                             },
                           )
                         : null,
                     contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16, vertical: 12),
                     filled: true,
-                    fillColor:
-                        isDark ? AppColors.grey800 : AppColors.grey100,
+                    fillColor: isDark ? AppColors.grey800 : AppColors.grey100,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
                       borderSide: BorderSide.none,
@@ -96,7 +97,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   ref.read(_searchQueryProvider.notifier).state = '';
                   context.go(AppRoutes.home);
                 },
-                child: const Text('Cancel'),
+                child: Text('cancel'.tr()),
               ),
             ],
           ),
@@ -110,7 +111,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
               child: Text(
-                'Browse by Category',
+                'browse_by_category'.tr(),
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             ),
@@ -174,8 +175,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                                         width: 52,
                                         height: 52,
                                         fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) =>
-                                            Container(
+                                        errorBuilder: (_, __, ___) => Container(
                                           width: 52,
                                           height: 52,
                                           color: AppColors.primary
@@ -197,16 +197,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                                     ),
                                     subtitle: Text(
                                       '${place.city}, ${place.state} · ${place.category}',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall,
+                                      style:
+                                          Theme.of(context).textTheme.bodySmall,
                                     ),
                                     trailing: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         const Icon(Icons.star_rounded,
-                                            size: 13,
-                                            color: AppColors.accent),
+                                            size: 13, color: AppColors.accent),
                                         const SizedBox(width: 3),
                                         Text(
                                           place.rating.toStringAsFixed(1),
@@ -220,9 +218,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                                 ),
                               );
                             },
-                          )
-                        .animate()
-                        .fadeIn(duration: 300.ms),
+                          ).animate().fadeIn(duration: 300.ms),
                     loading: () => ListView.separated(
                       padding: const EdgeInsets.all(16),
                       itemCount: 6,
@@ -234,7 +230,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       ),
                     ),
                     error: (e, _) => Center(
-                      child: Text('Something went wrong'),
+                      child: Text('error_occurred'.tr()),
                     ),
                   ),
           ),
@@ -257,7 +253,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Popular Searches', style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            'popular_searches'.tr(),
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,
@@ -269,12 +268,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   ref.read(_searchQueryProvider.notifier).state = s;
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                   decoration: BoxDecoration(
                     color: isDark ? AppColors.grey800 : AppColors.grey100,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                      color:
+                          isDark ? AppColors.borderDark : AppColors.borderLight,
                     ),
                   ),
                   child: Row(
@@ -303,12 +304,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.search_off_rounded, size: 56, color: AppColors.grey400),
+          const Icon(Icons.search_off_rounded,
+              size: 56, color: AppColors.grey400),
           const SizedBox(height: 16),
-          Text('No results for "$query"',
+          Text('no_results_for'.tr(args: [query]),
               style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
-          Text('Try a different search term',
+          Text('try_different_search'.tr(),
               style: Theme.of(context).textTheme.bodyMedium),
         ],
       ),

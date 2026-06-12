@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -13,24 +14,24 @@ class MainScaffold extends ConsumerWidget {
 
   static const List<_NavItem> _navItems = [
     _NavItem(
-        label: 'Explore',
+        label: 'explore',
         icon: Icons.explore_outlined,
         activeIcon: Icons.explore),
     _NavItem(
-        label: 'Booking',
+        label: 'booking',
         icon: Icons.luggage_outlined,
         activeIcon: Icons.luggage),
     _NavItem(
-      label: 'Nearby',
+      label: 'nearby',
       icon: Icons.near_me_outlined,
       activeIcon: Icons.near_me,
     ),
     _NavItem(
-        label: 'Saved',
+        label: 'saved',
         icon: Icons.bookmark_border_outlined,
         activeIcon: Icons.bookmark),
     _NavItem(
-        label: 'Profile', icon: Icons.person_outline, activeIcon: Icons.person),
+        label: 'profile', icon: Icons.person_outline, activeIcon: Icons.person),
   ];
 
   static const List<String> _routes = [
@@ -109,7 +110,7 @@ class MainScaffold extends ConsumerWidget {
                                       ? AppColors.grey600
                                       : AppColors.grey400),
                             ),
-                            child: Text(item.label),
+                            child: Text(item.label.tr()),
                           ),
                         ],
                       ),

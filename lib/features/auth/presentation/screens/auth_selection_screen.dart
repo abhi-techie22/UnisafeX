@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -69,7 +70,7 @@ class _AuthSelectionScreenState extends ConsumerState<AuthSelectionScreen> {
 
   String _authErrorMessage(Object error) {
     if (error is AuthException) return error.message;
-    return 'Sign in failed. Please try again.';
+    return 'sign_in_failed'.tr();
   }
 
   @override
@@ -155,9 +156,9 @@ class _AuthSelectionScreenState extends ConsumerState<AuthSelectionScreen> {
                         ],
                       ).animate().fadeIn(duration: 400.ms),
                       const SizedBox(height: 48),
-                      const Text(
-                        'Welcome to\nIncredible India',
-                        style: TextStyle(
+                      Text(
+                        'welcome_india'.tr(),
+                        style: const TextStyle(
                           fontSize: 40,
                           fontWeight: FontWeight.w800,
                           color: AppColors.white,
@@ -175,7 +176,7 @@ class _AuthSelectionScreenState extends ConsumerState<AuthSelectionScreen> {
                           .fadeIn(duration: 400.ms, delay: 100.ms),
                       const SizedBox(height: 14),
                       Text(
-                        'Your safe and trusted companion for exploring the wonders of India.',
+                        'trusted_companion'.tr(),
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w400,
@@ -212,14 +213,14 @@ class _AuthSelectionScreenState extends ConsumerState<AuthSelectionScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Get Started',
+                        'get_started'.tr(),
                         style: Theme.of(context).textTheme.headlineMedium,
                       ),
 
                       const SizedBox(height: 8),
 
                       Text(
-                        'Sign in to unlock the full experience',
+                        'unlock_experience'.tr(),
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: isDark
                                   ? AppColors.grey400
@@ -231,7 +232,7 @@ class _AuthSelectionScreenState extends ConsumerState<AuthSelectionScreen> {
 
                       // Email Login
                       AppButton(
-                        label: 'Continue with Email',
+                        label: 'continue_email'.tr(),
                         onPressed: () => context.push(AppRoutes.login),
                         icon: Icons.email_outlined,
                         isFullWidth: true,
@@ -241,8 +242,8 @@ class _AuthSelectionScreenState extends ConsumerState<AuthSelectionScreen> {
 
                       AppOutlinedButton(
                         label: _isGoogleLoading
-                            ? 'Opening Google...'
-                            : 'Continue with Google',
+                            ? 'opening_google'.tr()
+                            : 'continue_google'.tr(),
                         onPressed: _isGoogleLoading ? null : _signInWithGoogle,
                         icon: FontAwesomeIcons.google,
                         isFullWidth: true,
@@ -252,7 +253,7 @@ class _AuthSelectionScreenState extends ConsumerState<AuthSelectionScreen> {
 
                       // Register
                       AppOutlinedButton(
-                        label: 'Create Account',
+                        label: 'create_account'.tr(),
                         onPressed: () => context.push(AppRoutes.register),
                         icon: Icons.person_add_alt_1_outlined,
                         isFullWidth: true,
@@ -271,7 +272,7 @@ class _AuthSelectionScreenState extends ConsumerState<AuthSelectionScreen> {
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             child: Text(
-                              'or',
+                              'or'.tr(),
                               style: TextStyle(
                                 color: isDark
                                     ? AppColors.grey600
@@ -313,7 +314,7 @@ class _AuthSelectionScreenState extends ConsumerState<AuthSelectionScreen> {
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                'Explore as Guest',
+                                'explore_as_guest'.tr(),
                                 style: TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w500,
@@ -332,7 +333,7 @@ class _AuthSelectionScreenState extends ConsumerState<AuthSelectionScreen> {
                       // Terms
                       Center(
                         child: Text(
-                          'By continuing, you agree to our Terms of Service\nand Privacy Policy',
+                          'terms_agreement'.tr(),
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 12,

@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:unisafex/core/router/app_router.dart';
@@ -10,33 +11,33 @@ class TravelToolkitScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final tools = [
       (
-        'Smart Trip Planner',
-        'Build a practical multi-day city itinerary.',
+        'smart_trip_planner'.tr(),
+        'trip_planner_description'.tr(),
         Icons.route_rounded,
         AppRoutes.tripPlanner
       ),
       (
-        'Currency Helper',
-        'Live conversion across available world currencies.',
+        'currency_helper'.tr(),
+        'currency_description'.tr(),
         Icons.currency_exchange,
         AppRoutes.currencyHelper
       ),
       (
-        'Local Phrase Book',
-        'Essential English to Hindi travel phrases.',
+        'local_phrase_book'.tr(),
+        'phrase_book_description'.tr(),
         Icons.translate_rounded,
         AppRoutes.phraseBook
       ),
       (
-        'AI Travel Assistant',
-        'Ask about safety, fees, timings and itineraries.',
+        'ai_travel_assistant'.tr(),
+        'ai_description'.tr(),
         Icons.auto_awesome,
         AppRoutes.aiAssistant
       ),
     ];
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Travel Toolkit')),
+      appBar: AppBar(title: Text('travel_toolkit'.tr())),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
         children: [
@@ -46,24 +47,23 @@ class TravelToolkitScreen extends StatelessWidget {
               color: AppColors.primary,
               borderRadius: BorderRadius.circular(24),
             ),
-            child: const Column(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.travel_explore, color: Colors.white, size: 34),
-                SizedBox(height: 14),
+                const Icon(Icons.travel_explore, color: Colors.white, size: 34),
+                const SizedBox(height: 14),
                 Text(
-                  'Everything you need for India',
-                  style: TextStyle(
+                  'toolkit_hero_title'.tr(),
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 22,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 Text(
-                  'Plan confidently, understand local essentials, and keep '
-                  'important travel tools close at hand.',
-                  style: TextStyle(color: Colors.white70, height: 1.5),
+                  'toolkit_hero_description'.tr(),
+                  style: const TextStyle(color: Colors.white70, height: 1.5),
                 ),
               ],
             ),

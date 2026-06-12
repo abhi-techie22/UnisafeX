@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
 import 'package:unisafex/features/booking/domain/booking_partner.dart';
@@ -67,48 +68,47 @@ class _HotelBookingScreenState extends State<HotelBookingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Hotel booking')),
+      appBar: AppBar(title: Text('hotel_booking'.tr())),
       body: SafeArea(
         child: Form(
           key: _formKey,
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
             children: [
-              const BookingHero(
+              BookingHero(
                 icon: Icons.hotel_rounded,
-                title: 'Find your stay in India',
-                subtitle:
-                    'Search hotels with your dates and guest preferences.',
-                colors: [Color(0xFF173F35), AppColors.primary],
+                title: 'find_stay'.tr(),
+                subtitle: 'hotel_search_subtitle'.tr(),
+                colors: const [Color(0xFF173F35), AppColors.primary],
               ),
               const SizedBox(height: 22),
               TextFormField(
                 controller: _destinationController,
                 textInputAction: TextInputAction.done,
-                decoration: const InputDecoration(
-                  labelText: 'City or destination',
-                  hintText: 'For example: Jaipur',
-                  prefixIcon: Icon(Icons.location_on_outlined),
+                decoration: InputDecoration(
+                  labelText: 'city_destination'.tr(),
+                  hintText: 'destination_example'.tr(),
+                  prefixIcon: const Icon(Icons.location_on_outlined),
                 ),
                 validator: (value) => value == null || value.trim().isEmpty
-                    ? 'Enter a destination'
+                    ? 'enter_destination'.tr()
                     : null,
               ),
               const SizedBox(height: 14),
               BookingDateField(
-                label: 'Check-in',
+                label: 'check_in'.tr(),
                 value: _checkIn,
                 onTap: _pickCheckIn,
               ),
               const SizedBox(height: 14),
               BookingDateField(
-                label: 'Check-out',
+                label: 'check_out'.tr(),
                 value: _checkOut,
                 onTap: _pickCheckOut,
               ),
               const SizedBox(height: 14),
               BookingCounter(
-                label: 'Guests',
+                label: 'guests'.tr(),
                 value: _guests,
                 icon: Icons.people_outline_rounded,
                 onDecrease: () =>
@@ -118,7 +118,7 @@ class _HotelBookingScreenState extends State<HotelBookingScreen> {
               ),
               const SizedBox(height: 12),
               BookingCounter(
-                label: 'Rooms',
+                label: 'rooms'.tr(),
                 value: _rooms,
                 icon: Icons.bed_outlined,
                 onDecrease: () =>
@@ -139,7 +139,9 @@ class _HotelBookingScreenState extends State<HotelBookingScreen> {
                 icon: const Icon(Icons.search_rounded),
                 label: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  child: Text('Search with ${_selectedPartner.name}'),
+                  child: Text(
+                    'search_with'.tr(args: [_selectedPartner.name]),
+                  ),
                 ),
               ),
             ],

@@ -1,5 +1,5 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
 import 'package:unisafex/features/tourism/data/services/currency_service.dart';
 import 'package:unisafex/features/tourism/domain/entities/currency_info.dart';
@@ -91,10 +91,10 @@ class _CurrencyHelperScreenState extends State<CurrencyHelperScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Currency Converter'),
+        title: Text('currency_helper'.tr()),
         actions: [
           IconButton(
-            tooltip: 'Refresh rates',
+            tooltip: 'refresh_rates'.tr(),
             onPressed: _loading ? null : _load,
             icon: const Icon(Icons.refresh_rounded),
           ),
@@ -146,7 +146,7 @@ class _CurrencyHelperScreenState extends State<CurrencyHelperScreen> {
           ),
           const SizedBox(height: 14),
           _CurrencyField(
-            label: 'From',
+            label: 'from'.tr(),
             currency: _currency(_from),
             onTap: _currencies.isEmpty
                 ? null
@@ -157,13 +157,13 @@ class _CurrencyHelperScreenState extends State<CurrencyHelperScreen> {
           ),
           Center(
             child: IconButton.filledTonal(
-              tooltip: 'Swap currencies',
+              tooltip: 'swap_currencies'.tr(),
               onPressed: _loading ? null : _swap,
               icon: const Icon(Icons.swap_vert_rounded),
             ),
           ),
           _CurrencyField(
-            label: 'To',
+            label: 'to'.tr(),
             currency: _currency(_to),
             onTap: _currencies.isEmpty
                 ? null
@@ -345,9 +345,9 @@ class _CurrencyPickerState extends State<_CurrencyPicker> {
             child: TextField(
               autofocus: true,
               onChanged: (value) => setState(() => _query = value),
-              decoration: const InputDecoration(
-                hintText: 'Search code or currency',
-                prefixIcon: Icon(Icons.search_rounded),
+              decoration: InputDecoration(
+                hintText: 'search_currency'.tr(),
+                prefixIcon: const Icon(Icons.search_rounded),
               ),
             ),
           ),

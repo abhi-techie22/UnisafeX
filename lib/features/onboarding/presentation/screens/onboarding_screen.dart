@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
@@ -20,41 +21,36 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   final List<OnboardingData> _pages = [
     OnboardingData(
-      title: 'Explore India\nSafely',
-      subtitle:
-          'Discover the most breathtaking destinations across India with verified safety information tailored for international travelers.',
+      title: 'onboarding_1_title',
+      subtitle: 'onboarding_1_subtitle',
       icon: Icons.explore_rounded,
       color: const Color(0xFF1A6B4A),
       accent: const Color(0xFF2D8A62),
     ),
     OnboardingData(
-      title: 'Verified Tourism\nInformation',
-      subtitle:
-          'Every destination is curated and verified. Get accurate entry fees, timings, and essential visitor guidelines.',
+      title: 'onboarding_2_title',
+      subtitle: 'onboarding_2_subtitle',
       icon: Icons.verified_rounded,
       color: const Color(0xFF1E40AF),
       accent: const Color(0xFF3B82F6),
     ),
     OnboardingData(
-      title: 'Smart Travel\nRecommendations',
-      subtitle:
-          'Personalized suggestions based on your interests, location, and travel preferences for the perfect Indian journey.',
+      title: 'onboarding_3_title',
+      subtitle: 'onboarding_3_subtitle',
       icon: Icons.auto_awesome_rounded,
       color: const Color(0xFF7C3AED),
       accent: const Color(0xFF8B5CF6),
     ),
     OnboardingData(
-      title: 'In-App Maps\n& Navigation',
-      subtitle:
-          'Use live GPS distances to discover nearby places, then navigate with Google Maps.',
+      title: 'onboarding_4_title',
+      subtitle: 'onboarding_4_subtitle',
       icon: Icons.map_rounded,
       color: const Color(0xFFB45309),
       accent: const Color(0xFFF59E0B),
     ),
     OnboardingData(
-      title: 'Personalized\nExperience',
-      subtitle:
-          'Create your traveler profile, save favorite places, and get recommendations that match your unique travel style.',
+      title: 'onboarding_5_title',
+      subtitle: 'onboarding_5_subtitle',
       icon: Icons.person_rounded,
       color: const Color(0xFF047857),
       accent: const Color(0xFF10B981),
@@ -94,7 +90,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   child: TextButton(
                     onPressed: _completeOnboarding,
                     child: Text(
-                      'Skip',
+                      'skip'.tr(),
                       style: TextStyle(
                         color: AppColors.white.withOpacity(0.8),
                         fontSize: 15,
@@ -162,8 +158,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         ),
                         child: Text(
                           _currentPage < _pages.length - 1
-                              ? 'Continue'
-                              : 'Get Started',
+                              ? 'continue'.tr()
+                              : 'get_started'.tr(),
                           style: const TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w700,
@@ -225,7 +221,7 @@ class _OnboardingPage extends StatelessWidget {
           const SizedBox(height: 48),
 
           Text(
-            data.title,
+            data.title.tr(),
             style: const TextStyle(
               fontSize: 40,
               fontWeight: FontWeight.w800,
@@ -243,7 +239,7 @@ class _OnboardingPage extends StatelessWidget {
           const SizedBox(height: 20),
 
           Text(
-            data.subtitle,
+            data.subtitle.tr(),
             style: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w400,

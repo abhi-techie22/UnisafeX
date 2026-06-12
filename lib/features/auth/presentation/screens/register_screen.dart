@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -49,16 +50,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           context: context,
           barrierDismissible: false,
           builder: (dialogContext) => AlertDialog(
-            title: const Text('Confirm your email'),
+            title: Text('confirm_email'.tr()),
             content: Text(
-              'We sent a confirmation link to '
-              '${_emailController.text.trim()}. Open it, then sign in to '
-              'complete your profile.',
+              'confirm_email_message'.tr(args: [_emailController.text.trim()]),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(dialogContext).pop(),
-                child: const Text('Continue to Sign In'),
+                child: Text('continue_sign_in'.tr()),
               ),
             ],
           ),
@@ -95,7 +94,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           icon: const Icon(Icons.arrow_back_ios_rounded),
           onPressed: () => context.pop(),
         ),
-        title: const Text('Create Account'),
+        title: Text('create_account'.tr()),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -106,18 +105,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             children: [
               const SizedBox(height: 16),
               Text(
-                'Join UniSafeX',
+                'join_unisafex'.tr(),
                 style: Theme.of(context).textTheme.headlineLarge,
               ).animate().fadeIn(duration: 400.ms),
               const SizedBox(height: 8),
               Text(
-                'Create your account to unlock the full experience',
+                'unlock_experience'.tr(),
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: isDark ? AppColors.grey400 : AppColors.grey600,
                     ),
               ).animate().fadeIn(duration: 400.ms, delay: 100.ms),
               const SizedBox(height: 40),
-              _buildLabel('Email address'),
+              _buildLabel('email_address'.tr()),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _emailController,
@@ -129,8 +128,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   prefixIcon: Icon(Icons.email_outlined, size: 20),
                 ),
                 validator: (v) {
-                  if (v == null || v.isEmpty) return 'Please enter your email';
-                  if (!v.contains('@')) return 'Please enter a valid email';
+                  if (v == null || v.isEmpty) return 'required_field'.tr();
+                  if (!v.contains('@')) return 'invalid_email'.tr();
                   return null;
                 },
               ).animate().slideY(
@@ -140,14 +139,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     curve: Curves.easeOutCubic,
                   ),
               const SizedBox(height: 20),
-              _buildLabel('Password'),
+              _buildLabel('password'.tr()),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _passwordController,
                 obscureText: _obscurePassword,
                 textInputAction: TextInputAction.next,
                 decoration: InputDecoration(
-                  hintText: 'Min. 8 characters',
+                  hintText: 'min_password'.tr(),
                   prefixIcon: const Icon(Icons.lock_outline, size: 20),
                   suffixIcon: IconButton(
                     icon: Icon(
@@ -161,9 +160,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   ),
                 ),
                 validator: (v) {
-                  if (v == null || v.isEmpty) return 'Please enter a password';
+                  if (v == null || v.isEmpty) return 'required_field'.tr();
                   if (v.length < 8) {
-                    return 'Password must be at least 8 characters';
+                    return 'min_password'.tr();
                   }
                   return null;
                 },
@@ -174,7 +173,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     curve: Curves.easeOutCubic,
                   ),
               const SizedBox(height: 20),
-              _buildLabel('Confirm password'),
+              _buildLabel('confirm_password'.tr()),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _confirmController,
@@ -182,7 +181,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 textInputAction: TextInputAction.done,
                 onFieldSubmitted: (_) => _register(),
                 decoration: InputDecoration(
-                  hintText: 'Repeat password',
+                  hintText: 'repeat_password'.tr(),
                   prefixIcon: const Icon(Icons.lock_outline, size: 20),
                   suffixIcon: IconButton(
                     icon: Icon(
@@ -197,10 +196,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ),
                 validator: (v) {
                   if (v == null || v.isEmpty) {
-                    return 'Please confirm your password';
+                    return 'required_field'.tr();
                   }
                   if (v != _passwordController.text) {
-                    return 'Passwords do not match';
+                    return 'passwords_mismatch'.tr();
                   }
                   return null;
                 },
@@ -212,7 +211,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   ),
               const SizedBox(height: 40),
               AppButton(
-                label: 'Create Account',
+                label: 'create_account'.tr(),
                 onPressed: _register,
                 isLoading: _isLoading,
                 isFullWidth: true,
@@ -228,7 +227,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    'Already have an account? ',
+                    '${'already_account'.tr()} ',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: isDark ? AppColors.grey400 : AppColors.grey600,
                         ),
@@ -240,9 +239,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                    child: const Text(
-                      'Sign In',
-                      style: TextStyle(fontWeight: FontWeight.w600),
+                    child: Text(
+                      'sign_in'.tr(),
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],

@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -24,7 +25,7 @@ class _TripPlannerScreenState extends ConsumerState<TripPlannerScreen> {
   Widget build(BuildContext context) {
     final places = ref.watch(popularPlacesProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Smart Trip Planner')),
+      appBar: AppBar(title: Text('smart_trip_planner'.tr())),
       body: places.when(
         data: (items) {
           final cityCounts = <String, Set<String>>{};
@@ -56,18 +57,18 @@ class _TripPlannerScreenState extends ConsumerState<TripPlannerScreen> {
                 onChanged: (value) => setState(() => _city = value),
               ),
               const SizedBox(height: 18),
-              Text('Number of days',
+              Text('number_of_days'.tr(),
                   style: Theme.of(context).textTheme.titleMedium),
               Slider(
                 value: _days.toDouble(),
                 min: 1,
                 max: 5,
                 divisions: 4,
-                label: '$_days days',
+                label: 'days_count'.tr(args: ['$_days']),
                 onChanged: (value) => setState(() => _days = value.round()),
               ),
               const SizedBox(height: 8),
-              Text('Travel style',
+              Text('travel_style'.tr(),
                   style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 10),
               SegmentedButton<TravelStyle>(
@@ -97,7 +98,7 @@ class _TripPlannerScreenState extends ConsumerState<TripPlannerScreen> {
                           );
                         }),
                 icon: const Icon(Icons.auto_awesome),
-                label: const Text('Generate itinerary'),
+                label: Text('generate_itinerary'.tr()),
               ),
               if (_plan != null) ...[
                 const SizedBox(height: 28),
@@ -116,7 +117,7 @@ class _TripPlannerScreenState extends ConsumerState<TripPlannerScreen> {
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) =>
-            Center(child: Text('Unable to load places: $error')),
+            Center(child: Text('${'unable_to_load'.tr()}: $error')),
       ),
     );
   }
@@ -180,14 +181,14 @@ class _DayCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Day ${day.day}',
+          Text('day_number'.tr(args: ['${day.day}']),
               style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 10),
           if (day.stops.isEmpty)
-            const Card(
+            Card(
               child: Padding(
-                padding: EdgeInsets.all(18),
-                child: Text('No more places available for this city.'),
+                padding: const EdgeInsets.all(18),
+                child: Text('no_places_city'.tr()),
               ),
             ),
           ...day.stops.map(

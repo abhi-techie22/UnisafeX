@@ -1,5 +1,5 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
 import 'package:unisafex/features/booking/domain/booking_partner.dart';
 
@@ -272,7 +272,7 @@ void showPartnerPendingMessage(
               width: double.infinity,
               child: FilledButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Got it'),
+                child: Text('got_it'.tr()),
               ),
             ),
           ],

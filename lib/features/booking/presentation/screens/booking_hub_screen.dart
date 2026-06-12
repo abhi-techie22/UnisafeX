@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:unisafex/core/router/app_router.dart';
@@ -10,7 +11,7 @@ class BookingHubScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Booking'),
+        title: Text('booking'.tr()),
         automaticallyImplyLeading: false,
       ),
       body: ListView(
@@ -26,63 +27,63 @@ class BookingHubScreen extends StatelessWidget {
               ),
               borderRadius: BorderRadius.circular(24),
             ),
-            child: const Column(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.luggage_rounded, color: Colors.white, size: 34),
-                SizedBox(height: 26),
+                const Icon(Icons.luggage_rounded,
+                    color: Colors.white, size: 34),
+                const SizedBox(height: 26),
                 Text(
-                  'Your journey, one app',
-                  style: TextStyle(
+                  'booking_hero_title'.tr(),
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 24,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                SizedBox(height: 7),
+                const SizedBox(height: 7),
                 Text(
-                  'Choose your dates and preferred booking partner. '
-                  'Live availability will appear here after integration.',
-                  style: TextStyle(color: Colors.white70, height: 1.45),
+                  'booking_hero_subtitle'.tr(),
+                  style: const TextStyle(color: Colors.white70, height: 1.45),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 24),
           Text(
-            'Hotels',
+            'hotels'.tr(),
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: 5),
           Text(
-            'Priority booking experience for stays across India',
+            'hotels_priority_subtitle'.tr(),
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 12),
           _BookingTypeCard(
-            title: 'Find hotels',
-            subtitle: 'Select Booking.com, Agoda, Expedia or Trip.com',
+            title: 'find_hotels'.tr(),
+            subtitle: 'find_hotels_subtitle'.tr(),
             icon: Icons.hotel_rounded,
-            badge: 'PRIORITY',
+            badge: 'priority'.tr().toUpperCase(),
             colors: const [Color(0xFF173F35), AppColors.primary],
             onTap: () => context.push(AppRoutes.hotelBooking),
           ),
           const SizedBox(height: 24),
           Text(
-            'Flights',
+            'flights'.tr(),
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: 5),
           Text(
-            'Compare international and domestic travel partners',
+            'flights_compare_subtitle'.tr(),
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 12),
           _BookingTypeCard(
-            title: 'Search flights',
-            subtitle: 'Select Skyscanner, KAYAK, Expedia or Trip.com',
+            title: 'search_flights'.tr(),
+            subtitle: 'search_flights_subtitle'.tr(),
             icon: Icons.flight_takeoff_rounded,
-            badge: 'COMING NEXT',
+            badge: 'coming_next'.tr().toUpperCase(),
             colors: const [Color(0xFF193A62), Color(0xFF2E6AA5)],
             onTap: () => context.push(AppRoutes.flightBooking),
           ),
@@ -93,16 +94,13 @@ class BookingHubScreen extends StatelessWidget {
               color: AppColors.accent.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Row(
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.lock_outline_rounded, color: AppColors.accent),
-                SizedBox(width: 12),
+                const Icon(Icons.lock_outline_rounded, color: AppColors.accent),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    'UniSafeX will keep search, traveler details and booking '
-                    'management inside the app when partner APIs are active.',
-                  ),
+                  child: Text('booking_inside_app'.tr()),
                 ),
               ],
             ),
