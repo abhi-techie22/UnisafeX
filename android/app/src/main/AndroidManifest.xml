@@ -51,13 +51,10 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
-        <!--
-          TODO: Replace YOUR_API_KEY with an Android-restricted Google Maps
-          Platform key after enabling Maps SDK for Android and billing.
-        -->
+        <!-- Loaded from the ignored android/local.properties file. -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="YOUR_API_KEY" />
+            android:value="${MAPS_API_KEY}" />
     </application>
     <queries>
         <intent>

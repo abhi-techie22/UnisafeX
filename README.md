@@ -181,11 +181,21 @@ Add translations in `assets/translations/<lang>.json`
 ## 🗺️ Maps
 
 Uses `google_maps_flutter`. Enable billing, Maps SDK for Android, Maps SDK for
-iOS, and Maps JavaScript API, then replace the `YOUR_API_KEY` placeholders in
-the Android manifest, iOS app delegate, and web index. Use separate
-platform-restricted keys for production.
+iOS, and Maps JavaScript API. Use separate platform-restricted keys:
 
-For a premium map style, sign up at [MapTiler](https://www.maptiler.com/) (free tier available) and replace the style URL in `map_screen.dart`.
+```properties
+# android/local.properties
+MAPS_API_KEY=YOUR_RESTRICTED_ANDROID_KEY
+```
+
+```bash
+cp ios/Flutter/GoogleMapsSecrets.xcconfig.example \
+  ios/Flutter/GoogleMapsSecrets.xcconfig
+cp web/google_maps_config.js.example web/google_maps_config.js
+```
+
+Replace the placeholder inside each copied file. The real iOS and Web files,
+plus Android's `local.properties`, are ignored by Git.
 
 ---
 

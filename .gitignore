@@ -33,6 +33,10 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Local Google Maps credentials. Keep real keys out of Git.
+/ios/Flutter/GoogleMapsSecrets.xcconfig
+/web/google_maps_config.js
+
 # Symbolication related
 app.*.symbols
 
