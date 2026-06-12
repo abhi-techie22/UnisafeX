@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 
 class UserProfile extends Equatable {
   final String userId;
+  final String? email;
   final String? fullName;
   final String? gender;
   final String? nationality;
@@ -19,6 +20,7 @@ class UserProfile extends Equatable {
 
   const UserProfile({
     required this.userId,
+    this.email,
     this.fullName,
     this.gender,
     this.nationality,
@@ -38,6 +40,7 @@ class UserProfile extends Equatable {
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(
       userId: json['user_id'] as String,
+      email: json['email'] as String?,
       fullName: json['full_name'] as String?,
       gender: json['gender'] as String?,
       nationality: json['nationality'] as String?,
@@ -64,6 +67,7 @@ class UserProfile extends Equatable {
   Map<String, dynamic> toJson() {
     return {
       'user_id': userId,
+      'email': email,
       'full_name': fullName,
       'gender': gender,
       'nationality': nationality,
@@ -80,6 +84,7 @@ class UserProfile extends Equatable {
   }
 
   UserProfile copyWith({
+    String? email,
     String? fullName,
     String? gender,
     String? nationality,
@@ -95,6 +100,7 @@ class UserProfile extends Equatable {
   }) {
     return UserProfile(
       userId: userId,
+      email: email ?? this.email,
       fullName: fullName ?? this.fullName,
       gender: gender ?? this.gender,
       nationality: nationality ?? this.nationality,
@@ -124,6 +130,7 @@ class UserProfile extends Equatable {
   @override
   List<Object?> get props => [
         userId,
+        email,
         fullName,
         gender,
         nationality,

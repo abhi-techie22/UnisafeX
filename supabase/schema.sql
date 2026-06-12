@@ -13,6 +13,7 @@ create extension if not exists "postgis";  -- for geo queries (optional)
 create table if not exists public.profiles (
   id            uuid primary key default uuid_generate_v4(),
   user_id       uuid not null unique references auth.users(id) on delete cascade,
+  email         text,
   full_name     text,
   gender        text,
   nationality   text,
@@ -28,6 +29,9 @@ create table if not exists public.profiles (
   created_at    timestamptz default now(),
   updated_at    timestamptz default now()
 );
+
+create index if not exists profiles_email_idx
+  on public.profiles (lower(email));
 
 -- ============================================================
 -- TABLE: tourism_places
@@ -178,9 +182,10 @@ security definer
 set search_path = ''
 as $$
 begin
-  insert into public.profiles (user_id)
-  values (new.id)
-  on conflict (user_id) do nothing;
+  insert into public.profiles (user_id, email)
+  values (new.id, new.email)
+  on conflict (user_id) do update
+    set email = excluded.email;
   return new;
 end;
 $$;
@@ -190,6 +195,14 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
+
+drop trigger if exists on_auth_user_email_updated on auth.users;
+
+create trigger on_auth_user_email_updated
+  after update of email on auth.users
+  for each row
+  when (old.email is distinct from new.email)
+  execute function public.handle_new_user();
 
 -- ============================================================
 -- STORAGE BUCKETS

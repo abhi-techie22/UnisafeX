@@ -7,8 +7,6 @@ import 'package:unisafex/core/constants/app_constants.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
 import 'package:unisafex/features/home/presentation/providers/location_provider.dart';
-import 'package:unisafex/features/heritage/data/heritage_repository.dart';
-import 'package:unisafex/features/heritage/domain/heritage_monument.dart';
 import 'package:unisafex/features/profile/presentation/providers/profile_provider.dart';
 import 'package:unisafex/features/tourism/domain/entities/tourism_place.dart';
 import 'package:unisafex/features/tourism/presentation/providers/tourism_provider.dart';
@@ -37,9 +35,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final popular = ref.watch(popularPlacesProvider);
     final trending = ref.watch(trendingPlacesProvider);
     final mustVisit = ref.watch(mustVisitPlacesProvider);
-    final heritageTemples = ref.watch(heritageTempleHighlightsProvider);
-    final heritageForts = ref.watch(heritageFortHighlightsProvider);
-    final ancientSites = ref.watch(heritageAncientHighlightsProvider);
     final cityName = location.asData?.value?.name ?? 'India';
     final locationData = location.asData?.value;
     final nearby = locationData == null
@@ -237,118 +232,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                 ),
               ),
-            ),
-          ),
-
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(18),
-                onTap: () => context.push(AppRoutes.heritageCatalog),
-                child: Ink(
-                  height: 150,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(18),
-                    image: const DecorationImage(
-                      image: AssetImage(
-                        'assets/images/heritage_placeholder.jpg',
-                      ),
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(18),
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.black.withValues(alpha: 0.72),
-                          Colors.black.withValues(alpha: 0.16),
-                        ],
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Text(
-                          'heritage_catalog'.tr(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 20,
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                'heritage_catalog_description'.tr(),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  height: 1.35,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  'see_all'.tr(),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                const SizedBox(height: 5),
-                                const CircleAvatar(
-                                  radius: 16,
-                                  backgroundColor: Colors.white,
-                                  child: Icon(
-                                    Icons.arrow_forward_rounded,
-                                    color: AppColors.primary,
-                                    size: 18,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          SliverToBoxAdapter(
-            child: _HeritageHighlightsSection(
-              title: 'sacred_temples'.tr(),
-              subtitle: 'sacred_temples_subtitle'.tr(),
-              places: heritageTemples,
-              type: 'Temple',
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: _HeritageHighlightsSection(
-              title: 'historic_forts'.tr(),
-              subtitle: 'historic_forts_subtitle'.tr(),
-              places: heritageForts,
-              type: 'Fort/Fortress',
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: _HeritageHighlightsSection(
-              title: 'ancient_sites'.tr(),
-              subtitle: 'ancient_sites_subtitle'.tr(),
-              places: ancientSites,
-              type: 'Ancient Ruins/Mound',
             ),
           ),
 
@@ -585,6 +468,67 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ),
 
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+              child: Card(
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: () => context.push(AppRoutes.heritageCatalog),
+                  child: Row(
+                    children: [
+                      Image.asset(
+                        'assets/images/heritage_placeholder.jpg',
+                        width: 112,
+                        height: 118,
+                        fit: BoxFit.cover,
+                      ),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'heritage_catalog'.tr(),
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'heritage_catalog_description'.tr(),
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                              const SizedBox(height: 9),
+                              Row(
+                                children: [
+                                  Text(
+                                    'see_all'.tr(),
+                                    style: const TextStyle(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Icon(
+                                    Icons.arrow_forward_rounded,
+                                    size: 18,
+                                    color: AppColors.primary,
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
           const SliverToBoxAdapter(child: SizedBox(height: 24)),
         ],
       ),
@@ -764,123 +708,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
     );
   }
-}
-
-class _HeritageHighlightsSection extends StatelessWidget {
-  const _HeritageHighlightsSection({
-    required this.title,
-    required this.subtitle,
-    required this.places,
-    required this.type,
-  });
-
-  final String title;
-  final String subtitle;
-  final AsyncValue<List<HeritageMonument>> places;
-  final String type;
-
-  @override
-  Widget build(BuildContext context) {
-    return places.when(
-      loading: () => const SizedBox(
-        height: 210,
-        child: Center(child: CircularProgressIndicator()),
-      ),
-      error: (_, __) => const SizedBox.shrink(),
-      data: (items) {
-        if (items.isEmpty) return const SizedBox.shrink();
-        final destination = Uri(
-          path: AppRoutes.heritageCatalog,
-          queryParameters: {'type': type},
-        ).toString();
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SectionHeader(
-              title: title,
-              subtitle: subtitle,
-              onSeeAll: () => context.push(destination),
-            ),
-            SizedBox(
-              height: 214,
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                scrollDirection: Axis.horizontal,
-                itemCount: items.take(8).length,
-                separatorBuilder: (_, __) => const SizedBox(width: 12),
-                itemBuilder: (_, index) {
-                  final monument = items[index];
-                  return _HeritageHomeCard(
-                    monument: monument,
-                    onTap: () => context.push(
-                      AppRoutes.heritageDetail,
-                      extra: monument,
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _HeritageHomeCard extends StatelessWidget {
-  const _HeritageHomeCard({
-    required this.monument,
-    required this.onTap,
-  });
-
-  final HeritageMonument monument;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 180,
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.borderLight),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Image.asset(
-                'assets/images/heritage_placeholder.jpg',
-                width: 180,
-                height: 120,
-                fit: BoxFit.cover,
-              ),
-              Padding(
-                padding: const EdgeInsets.all(10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      monument.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      monument.locality ?? monument.district ?? monument.state,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
 }
 
 class _AvatarShimmer extends StatelessWidget {

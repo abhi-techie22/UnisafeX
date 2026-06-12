@@ -107,6 +107,7 @@ class _ProfileCompletionScreenState
     try {
       final profile = UserProfile(
         userId: user.id,
+        email: user.email,
         fullName: _nameController.text.trim(),
         gender: _selectedGender,
         nationality: _selectedCountry?.name ?? _existingProfile?.nationality,

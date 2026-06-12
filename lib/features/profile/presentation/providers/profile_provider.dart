@@ -22,6 +22,7 @@ class ProfileRepository {
   Future<UserProfile> upsertProfile(UserProfile profile) async {
     _requireMatchingAuthenticatedUser(profile.userId);
     final data = profile.toJson();
+    data['email'] = _client.auth.currentUser?.email;
 
     final savedRows = await _client
         .from('profiles')
