@@ -7,6 +7,7 @@ import 'package:unisafex/core/theme/app_theme.dart';
 import 'package:unisafex/features/auth/presentation/providers/auth_provider.dart';
 import 'package:unisafex/features/profile/domain/entities/user_profile.dart';
 import 'package:unisafex/features/profile/presentation/providers/profile_provider.dart';
+import 'package:unisafex/features/heritage/data/heritage_repository.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -15,6 +16,7 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isGuest = ref.watch(isGuestProvider);
     final profileState = ref.watch(profileNotifierProvider);
+    final isAdmin = ref.watch(isAdminProvider).value ?? false;
 
     if (isGuest) return const _GuestProfile();
 
@@ -67,6 +69,13 @@ class ProfileScreen extends ConsumerWidget {
                     subtitle: 'settings_subtitle'.tr(),
                     onTap: () => context.push(AppRoutes.settings),
                   ),
+                  if (isAdmin)
+                    _ProfileAction(
+                      icon: Icons.admin_panel_settings_outlined,
+                      label: 'admin_console'.tr(),
+                      subtitle: 'admin_live_updates'.tr(),
+                      onTap: () => context.push(AppRoutes.admin),
+                    ),
                 ],
               ),
               const SizedBox(height: 16),
@@ -228,8 +237,11 @@ class _IdentityCard extends StatelessWidget {
             Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.lock_outline_rounded, color: AppColors.primary),
-                SizedBox(height: 5),
+                const Icon(
+                  Icons.lock_outline_rounded,
+                  color: AppColors.primary,
+                ),
+                const SizedBox(height: 5),
                 Text(
                   'view'.tr(),
                   style: const TextStyle(

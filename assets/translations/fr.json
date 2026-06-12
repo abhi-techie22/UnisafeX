@@ -311,5 +311,21 @@
   "mission_description": "UniSafeX aide les voyageurs internationaux à explorer l'Inde avec des détails pratiques sur la destination, des conseils de sécurité, des découvertes à proximité et des outils de voyage utiles en un seul endroit.",
   "app_provides_description": "Découverte touristique, planification de voyage, scores de sécurité des destinations, conversion de devises de référence en direct, expressions locales, lieux enregistrés, distances basées sur la localisation et aperçus de réservation.",
   "data_safety_description": "Les informations touristiques sont stockées dans la base de données UniSafeX. Les distances sont calculées à partir des coordonnées. Les scores de sécurité et les réponses de type IA ne sont donnés qu’à titre indicatif et ne peuvent garantir la sécurité personnelle ni remplacer les conseils officiels.",
-  "emergency_reminder_description": "En cas d'urgence en Inde, appelez le 112. Ligne d'assistance touristique : 1363. Vérifiez toujours les heures d'ouverture, les tarifs et les conditions de voyage auprès de sources officielles avant de vous rendre."
+  "emergency_reminder_description": "En cas d'urgence en Inde, appelez le 112. Ligne d'assistance touristique : 1363. Vérifiez toujours les heures d'ouverture, les tarifs et les conditions de voyage auprès de sources officielles avant de vous rendre.",
+  "heritage_catalog": "Catalogue du patrimoine",
+  "heritage_catalog_description": "Explorez 3 698 monuments indiens protégés avec des filtres par État et catégorie.",
+  "state": "État",
+  "region": "Région",
+  "asi_circle": "Cercle ASI",
+  "protection_status": "Statut de protection",
+  "admin_console": "Console administrateur",
+  "admin_access_denied": "Seul l’administrateur UniSafeX vérifié peut accéder à cette page.",
+  "admin_live_updates": "Les modifications publiées depuis Supabase apparaissent sans mise à jour Play Store.",
+  "add_monument": "Ajouter un monument",
+  "edit_monument": "Modifier le monument",
+  "name": "Nom",
+  "locality": "Localité",
+  "district": "District",
+  "published": "Publié",
+  "foreign_visitors": "visiteurs étrangers"
 }

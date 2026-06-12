@@ -34,6 +34,12 @@ class TravelToolkitScreen extends StatelessWidget {
         Icons.auto_awesome,
         AppRoutes.aiAssistant
       ),
+      (
+        'heritage_catalog'.tr(),
+        'heritage_catalog_description'.tr(),
+        Icons.account_balance_rounded,
+        AppRoutes.heritageCatalog
+      ),
     ];
 
     return Scaffold(

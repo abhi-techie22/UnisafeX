@@ -311,5 +311,21 @@
   "mission_description": "UniSafeX는 국제 여행객들이 한 곳에서 실용적인 목적지 세부 정보, 안전 안내, 주변 검색 및 유용한 여행 도구를 통해 인도를 탐험할 수 있도록 도와줍니다.",
   "app_provides_description": "관광 검색, 여행 계획, 목적지 안전 점수, 실시간 참조 통화 변환, 현지 문구, 저장된 장소, 위치 기반 거리 및 예약 미리보기.",
   "data_safety_description": "관광 정보는 UniSafeX 데이터베이스에 저장됩니다. 거리는 좌표를 기준으로 계산됩니다. 안전 점수와 AI 스타일 답변은 안내일 뿐 개인의 안전을 보장하거나 공식 조언을 대체할 수 없습니다.",
-  "emergency_reminder_description": "인도에서 긴급 상황 발생 시 112로 전화하세요. 관광 상담 서비스: 1363. 방문하기 전에 항상 공식 출처를 통해 개장 시간, 수수료, 여행 조건을 확인하세요."
+  "emergency_reminder_description": "인도에서 긴급 상황 발생 시 112로 전화하세요. 관광 상담 서비스: 1363. 방문하기 전에 항상 공식 출처를 통해 개장 시간, 수수료, 여행 조건을 확인하세요.",
+  "heritage_catalog": "문화유산 목록",
+  "heritage_catalog_description": "주 및 카테고리 필터로 인도의 중앙 보호 기념물 3,698곳을 둘러보세요.",
+  "state": "주",
+  "region": "지역",
+  "asi_circle": "ASI 관할",
+  "protection_status": "보호 상태",
+  "admin_console": "관리자 콘솔",
+  "admin_access_denied": "인증된 UniSafeX 관리자만 이 페이지에 접근할 수 있습니다.",
+  "admin_live_updates": "Supabase 변경 사항은 Play 스토어 업데이트 없이 앱에 표시됩니다.",
+  "add_monument": "기념물 추가",
+  "edit_monument": "기념물 편집",
+  "name": "이름",
+  "locality": "소재지",
+  "district": "구역",
+  "published": "게시됨",
+  "foreign_visitors": "외국인 방문객"
 }

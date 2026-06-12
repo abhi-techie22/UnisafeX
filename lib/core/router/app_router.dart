@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,12 +9,14 @@ import 'package:unisafex/core/widgets/main_scaffold.dart';
 import 'package:unisafex/features/auth/presentation/screens/auth_selection_screen.dart';
 import 'package:unisafex/features/auth/presentation/screens/login_screen.dart';
 import 'package:unisafex/features/auth/presentation/screens/register_screen.dart';
+import 'package:unisafex/features/admin/presentation/admin_dashboard_screen.dart';
 import 'package:unisafex/features/booking/presentation/screens/flight_booking_screen.dart';
 import 'package:unisafex/features/booking/presentation/screens/hotel_booking_screen.dart';
 import 'package:unisafex/features/booking/presentation/screens/booking_hub_screen.dart';
 
 import 'package:unisafex/features/favorites/presentation/screens/favorites_screen.dart';
 import 'package:unisafex/features/home/presentation/screens/home_screen.dart';
+import 'package:unisafex/features/heritage/presentation/heritage_catalog_screen.dart';
 
 import 'package:unisafex/features/map/presentation/screens/map_screen.dart';
 
@@ -288,6 +289,14 @@ GoRouter appRouter(
         path: AppRoutes.aiAssistant,
         builder: (context, state) => const AiTravelAssistantScreen(),
       ),
+      GoRoute(
+        path: AppRoutes.heritageCatalog,
+        builder: (context, state) => const HeritageCatalogScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.admin,
+        builder: (context, state) => const AdminDashboardScreen(),
+      ),
     ],
     errorBuilder: (
       context,
@@ -346,6 +355,8 @@ class AppRoutes {
   static const String currencyHelper = '/travel-toolkit/currency';
   static const String phraseBook = '/travel-toolkit/phrase-book';
   static const String aiAssistant = '/travel-toolkit/ai-assistant';
+  static const String heritageCatalog = '/heritage-catalog';
+  static const String admin = '/admin';
   static const String hotelBooking = '/booking/hotels';
   static const String flightBooking = '/booking/flights';
 }

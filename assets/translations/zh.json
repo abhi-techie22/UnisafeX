@@ -311,5 +311,21 @@
   "mission_description": "UniSafeX 帮助国际旅客探索印度，一站式提供实用的目的地详细信息、安全指南、附近的发现和有用的旅行工具。",
   "app_provides_description": "旅游发现、旅行计划、目的地安全评分、实时参考货币换算、本地短语、保存的地点、基于位置的距离和预订预览。",
   "data_safety_description": "旅游信息存储在UniSafeX数据库中。距离是根据坐标计算的。安全评分和人工智能式答案仅供参考，不能保证人身安全或取代官方建议。",
-  "emergency_reminder_description": "如果在印度遇到紧急情况，请拨打 112。旅游热线：1363。在访问之前，请务必通过官方渠道核实开放时间、费用和旅行条件。"
+  "emergency_reminder_description": "如果在印度遇到紧急情况，请拨打 112。旅游热线：1363。在访问之前，请务必通过官方渠道核实开放时间、费用和旅行条件。",
+  "heritage_catalog": "遗产目录",
+  "heritage_catalog_description": "按邦和类别筛选，探索印度 3,698 处中央保护古迹。",
+  "state": "邦",
+  "region": "地区",
+  "asi_circle": "ASI 管辖区",
+  "protection_status": "保护状态",
+  "admin_console": "管理控制台",
+  "admin_access_denied": "只有经过验证的 UniSafeX 管理员才能访问此页面。",
+  "admin_live_updates": "Supabase 中发布的更改无需 Play 商店更新即可显示。",
+  "add_monument": "添加古迹",
+  "edit_monument": "编辑古迹",
+  "name": "名称",
+  "locality": "地点",
+  "district": "行政区",
+  "published": "已发布",
+  "foreign_visitors": "外国游客"
 }

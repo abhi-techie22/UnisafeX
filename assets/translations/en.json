@@ -311,5 +311,21 @@
   "mission_description": "UniSafeX helps international travelers explore India with practical destination details, safety guidance, nearby discovery and useful travel tools in one place.",
   "app_provides_description": "Tourism discovery, travel planning, destination safety scores, live reference currency conversion, local phrases, saved places, location-based distances and booking previews.",
   "data_safety_description": "Tourism information is stored in the UniSafeX database. Distances are calculated from coordinates. Safety scores and AI-style answers are guidance only and cannot guarantee personal safety or replace official advice.",
-  "emergency_reminder_description": "For emergencies in India call 112. Tourist helpline: 1363. Always verify opening times, fees and travel conditions with official sources before visiting."
+  "emergency_reminder_description": "For emergencies in India call 112. Tourist helpline: 1363. Always verify opening times, fees and travel conditions with official sources before visiting.",
+  "heritage_catalog": "Heritage Catalogue",
+  "heritage_catalog_description": "Explore 3,698 centrally protected Indian monuments with state and category filters.",
+  "state": "State",
+  "region": "Region",
+  "asi_circle": "ASI circle",
+  "protection_status": "Protection status",
+  "admin_console": "Admin Console",
+  "admin_access_denied": "Only the verified UniSafeX administrator can access this page.",
+  "admin_live_updates": "Changes are published from Supabase and appear in the app without a Play Store update.",
+  "add_monument": "Add monument",
+  "edit_monument": "Edit monument",
+  "name": "Name",
+  "locality": "Locality",
+  "district": "District",
+  "published": "Published",
+  "foreign_visitors": "foreign visitors"
 }

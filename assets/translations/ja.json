@@ -311,5 +311,21 @@
   "mission_description": "UniSafeX は、実用的な目的地の詳細、安全に関するガイダンス、近くの発見、便利な旅行ツールを 1 か所にまとめて提供することで、海外旅行者がインドを探索するのに役立ちます。",
   "app_provides_description": "観光の発見、旅行計画、目的地の安全性スコア、ライブ参照通貨換算、ローカルフレーズ、保存された場所、位置ベースの距離、予約プレビュー。",
   "data_safety_description": "観光情報は UniSafeX データベースに保存されます。距離は座標から計算されます。安全スコアと AI スタイルの回答は単なるガイダンスであり、個人の安全を保証したり、公式アドバイスに代わるものではありません。",
-  "emergency_reminder_description": "インドでの緊急事態の場合は、112 にお電話ください。観光ヘルプライン: 1363。訪問前に、営業時間、料金、旅行条件を必ず公式情報源で確認してください。"
+  "emergency_reminder_description": "インドでの緊急事態の場合は、112 にお電話ください。観光ヘルプライン: 1363。訪問前に、営業時間、料金、旅行条件を必ず公式情報源で確認してください。",
+  "heritage_catalog": "遺産カタログ",
+  "heritage_catalog_description": "州とカテゴリで絞り込み、インドの中央保護記念物3,698件を探索します。",
+  "state": "州",
+  "region": "地域",
+  "asi_circle": "ASI管区",
+  "protection_status": "保護状況",
+  "admin_console": "管理コンソール",
+  "admin_access_denied": "認証済みのUniSafeX管理者のみアクセスできます。",
+  "admin_live_updates": "Supabaseの変更はPlayストア更新なしでアプリに反映されます。",
+  "add_monument": "記念物を追加",
+  "edit_monument": "記念物を編集",
+  "name": "名前",
+  "locality": "所在地",
+  "district": "地区",
+  "published": "公開済み",
+  "foreign_visitors": "外国人訪問者"
 }
