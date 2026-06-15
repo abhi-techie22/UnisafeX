@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -5,6 +7,8 @@ import 'package:unisafex/core/theme/app_theme.dart';
 import 'package:unisafex/core/utils/distance_calculator.dart';
 import 'package:unisafex/core/utils/google_maps_launcher.dart';
 import 'package:unisafex/features/home/presentation/providers/location_provider.dart';
+import 'package:unisafex/features/maps/data/map_route_repository.dart';
+import 'package:unisafex/features/maps/domain/map_route.dart';
 
 class InAppMapScreen extends ConsumerStatefulWidget {
   const InAppMapScreen({
@@ -26,6 +30,9 @@ class InAppMapScreen extends ConsumerStatefulWidget {
 
 class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
   GoogleMapController? _mapController;
+  AsyncValue<MapRoute?> _routeState = const AsyncValue.data(null);
+  RouteTravelMode _travelMode = RouteTravelMode.driving;
+  String? _lastOriginKey;
 
   LatLng get _destination => LatLng(widget.latitude, widget.longitude);
 
@@ -41,6 +48,101 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
         CameraPosition(target: _destination, zoom: 15.5),
       ),
     );
+  }
+
+  Future<void> _loadRoute(LocationData location) async {
+    final originKey =
+        '${location.latitude},${location.longitude},${_travelMode.name}';
+    if (_routeState.isLoading || originKey == _lastOriginKey) return;
+
+    _lastOriginKey = originKey;
+    setState(() => _routeState = const AsyncValue.loading());
+    try {
+      final route = await ref.read(mapRouteRepositoryProvider).computeRoute(
+            originLatitude: location.latitude,
+            originLongitude: location.longitude,
+            destinationLatitude: widget.latitude,
+            destinationLongitude: widget.longitude,
+            travelMode: _travelMode,
+          );
+      if (!mounted) return;
+      setState(() => _routeState = AsyncValue.data(route));
+      await _fitRoute(route.points);
+    } catch (error, stackTrace) {
+      if (!mounted) return;
+      setState(() => _routeState = AsyncValue.error(error, stackTrace));
+    }
+  }
+
+  Future<void> _fitRoute(List<LatLng> points) async {
+    final controller = _mapController;
+    if (controller == null || points.isEmpty) return;
+
+    var minLatitude = points.first.latitude;
+    var maxLatitude = points.first.latitude;
+    var minLongitude = points.first.longitude;
+    var maxLongitude = points.first.longitude;
+    for (final point in points.skip(1)) {
+      minLatitude = point.latitude < minLatitude ? point.latitude : minLatitude;
+      maxLatitude = point.latitude > maxLatitude ? point.latitude : maxLatitude;
+      minLongitude =
+          point.longitude < minLongitude ? point.longitude : minLongitude;
+      maxLongitude =
+          point.longitude > maxLongitude ? point.longitude : maxLongitude;
+    }
+
+    await controller.animateCamera(
+      CameraUpdate.newLatLngBounds(
+        LatLngBounds(
+          southwest: LatLng(minLatitude, minLongitude),
+          northeast: LatLng(maxLatitude, maxLongitude),
+        ),
+        72,
+      ),
+    );
+  }
+
+  Future<void> _changeTravelMode(
+    RouteTravelMode mode,
+    LocationData? location,
+  ) async {
+    if (mode == _travelMode) return;
+    setState(() {
+      _travelMode = mode;
+      _lastOriginKey = null;
+    });
+    if (location != null) await _loadRoute(location);
+  }
+
+  Future<void> _showStartLocationPicker() async {
+    final query = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => const _MapLocationPickerSheet(),
+    );
+    if (query == null || !mounted) return;
+
+    final found =
+        await ref.read(locationProvider.notifier).selectLocation(query);
+    if (!mounted) return;
+
+    if (!found) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Location not found. Try a city, landmark, hotel, or full address.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final location = ref.read(locationProvider).asData?.value;
+    if (location != null) {
+      _lastOriginKey = null;
+      await _loadRoute(location);
+    }
   }
 
   Future<void> _showCurrentLocation() async {
@@ -61,6 +163,8 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
         15,
       ),
     );
+    _lastOriginKey = null;
+    await _loadRoute(location);
   }
 
   Future<void> _openExternalMaps() async {
@@ -83,7 +187,7 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
     final locationState = ref.watch(locationProvider);
     final location = locationState.asData?.value;
     final hasLiveLocation = location?.source == LocationSource.gps;
-    final distance = location == null
+    final straightLineDistance = location == null
         ? null
         : DistanceCalculator.calculate(
             lat1: location.latitude,
@@ -91,6 +195,14 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
             lat2: widget.latitude,
             lon2: widget.longitude,
           );
+    final route = _routeState.asData?.value;
+
+    ref.listen(locationProvider, (previous, next) {
+      final nextLocation = next.asData?.value;
+      if (nextLocation != null) {
+        unawaited(_loadRoute(nextLocation));
+      }
+    });
 
     return Scaffold(
       appBar: AppBar(title: Text(widget.placeName)),
@@ -106,7 +218,7 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
             zoomControlsEnabled: true,
             myLocationEnabled: hasLiveLocation,
             myLocationButtonEnabled: false,
-            markers: {
+            markers: <Marker>{
               Marker(
                 markerId: const MarkerId('destination'),
                 position: _destination,
@@ -115,8 +227,38 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
                   snippet: widget.address,
                 ),
               ),
+              if (location != null)
+                Marker(
+                  markerId: const MarkerId('origin'),
+                  position: LatLng(location.latitude, location.longitude),
+                  icon: BitmapDescriptor.defaultMarkerWithHue(
+                    BitmapDescriptor.hueAzure,
+                  ),
+                  infoWindow: InfoWindow(
+                    title: location.source == LocationSource.gps
+                        ? 'Your current location'
+                        : location.name,
+                  ),
+                ),
             },
-            onMapCreated: (controller) => _mapController = controller,
+            polylines: route == null
+                ? const <Polyline>{}
+                : {
+                    Polyline(
+                      polylineId: const PolylineId('active-route'),
+                      points: route.points,
+                      color: AppColors.primary,
+                      width: 6,
+                      startCap: Cap.roundCap,
+                      endCap: Cap.roundCap,
+                    ),
+                  },
+            onMapCreated: (controller) {
+              _mapController = controller;
+              if (location != null) {
+                unawaited(_loadRoute(location));
+              }
+            },
           ),
           Positioned(
             right: 16,
@@ -149,10 +291,28 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
                 address: widget.address,
                 latitude: widget.latitude,
                 longitude: widget.longitude,
-                distance: distance,
+                straightLineDistance: straightLineDistance,
+                routeState: _routeState,
+                travelMode: _travelMode,
+                origin: location,
+                locationError: locationState.hasError
+                    ? locationState.error.toString()
+                    : null,
+                onTravelModeChanged: (mode) =>
+                    _changeTravelMode(mode, location),
                 onCenter: _centerDestination,
                 onCurrentLocation:
                     locationState.isLoading ? null : _showCurrentLocation,
+                onChangeStartLocation: _showStartLocationPicker,
+                onRetryRoute: location == null
+                    ? null
+                    : () {
+                        _lastOriginKey = null;
+                        _loadRoute(location);
+                      },
+                onDirections: route?.steps.isNotEmpty == true
+                    ? () => _showDirections(route!)
+                    : null,
                 onExternalMaps: _openExternalMaps,
               ),
             ),
@@ -160,6 +320,92 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
         ],
       ),
     );
+  }
+
+  void _showDirections(MapRoute route) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.68,
+        maxChildSize: 0.92,
+        minChildSize: 0.4,
+        builder: (context, controller) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+              child: Row(
+                children: [
+                  const Icon(Icons.route_rounded, color: AppColors.primary),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '${route.formattedDistance} · '
+                      '${route.formattedDuration}',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: ListView.separated(
+                controller: controller,
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+                itemCount: route.steps.length,
+                separatorBuilder: (_, __) => const Divider(height: 24),
+                itemBuilder: (context, index) {
+                  final step = route.steps[index];
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CircleAvatar(
+                        radius: 15,
+                        backgroundColor:
+                            AppColors.primary.withValues(alpha: 0.1),
+                        foregroundColor: AppColors.primary,
+                        child: Text(
+                          '${index + 1}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(step.instruction),
+                            if (step.distanceMeters > 0) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                _formatStepDistance(step.distanceMeters),
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatStepDistance(int meters) {
+    if (meters < 1000) return '$meters m';
+    return '${(meters / 1000).toStringAsFixed(1)} km';
   }
 }
 
@@ -195,9 +441,17 @@ class _DestinationCard extends StatelessWidget {
     required this.address,
     required this.latitude,
     required this.longitude,
-    required this.distance,
+    required this.straightLineDistance,
+    required this.routeState,
+    required this.travelMode,
+    required this.origin,
+    required this.locationError,
+    required this.onTravelModeChanged,
     required this.onCenter,
     required this.onCurrentLocation,
+    required this.onChangeStartLocation,
+    required this.onRetryRoute,
+    required this.onDirections,
     required this.onExternalMaps,
   });
 
@@ -205,9 +459,17 @@ class _DestinationCard extends StatelessWidget {
   final String? address;
   final double latitude;
   final double longitude;
-  final double? distance;
+  final double? straightLineDistance;
+  final AsyncValue<MapRoute?> routeState;
+  final RouteTravelMode travelMode;
+  final LocationData? origin;
+  final String? locationError;
+  final ValueChanged<RouteTravelMode> onTravelModeChanged;
   final VoidCallback onCenter;
   final VoidCallback? onCurrentLocation;
+  final VoidCallback onChangeStartLocation;
+  final VoidCallback? onRetryRoute;
+  final VoidCallback? onDirections;
   final VoidCallback onExternalMaps;
 
   @override
@@ -216,6 +478,7 @@ class _DestinationCard extends StatelessWidget {
     final displayAddress = address?.trim().isNotEmpty == true
         ? address!.trim()
         : 'Address not available';
+    final route = routeState.asData?.value;
 
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 620),
@@ -269,6 +532,25 @@ class _DestinationCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 14),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: RouteTravelMode.values
+                      .map(
+                        (mode) => Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(
+                            selected: travelMode == mode,
+                            onSelected: (_) => onTravelModeChanged(mode),
+                            avatar: Icon(_travelModeIcon(mode), size: 17),
+                            label: Text(mode.label),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
+              const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -278,21 +560,77 @@ class _DestinationCard extends StatelessWidget {
                     label:
                         '${latitude.toStringAsFixed(5)}, ${longitude.toStringAsFixed(5)}',
                   ),
-                  if (distance != null)
+                  if (route != null) ...[
                     _InfoChip(
                       icon: Icons.near_me_outlined,
-                      label: DistanceCalculator.format(distance!),
+                      label: route.formattedDistance,
+                    ),
+                    _InfoChip(
+                      icon: Icons.schedule_rounded,
+                      label: route.formattedDuration,
+                    ),
+                  ] else if (straightLineDistance != null)
+                    _InfoChip(
+                      icon: Icons.straighten_rounded,
+                      label:
+                          '${DistanceCalculator.format(straightLineDistance!)} direct',
                     ),
                 ],
               ),
+              const SizedBox(height: 10),
+              _RouteOriginBanner(
+                origin: origin,
+                locationError: locationError,
+                onChangeStartLocation: onChangeStartLocation,
+              ),
+              if (routeState.isLoading) ...[
+                const SizedBox(height: 12),
+                const LinearProgressIndicator(),
+                const SizedBox(height: 5),
+                Text(
+                  'Calculating live route...',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+              if (routeState.hasError) ...[
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.info_outline_rounded,
+                      size: 18,
+                      color: AppColors.warning,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        routeState.error.toString(),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: onRetryRoute,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 16),
               Row(
                 children: [
                   Expanded(
                     child: FilledButton.icon(
-                      onPressed: onCenter,
-                      icon: const Icon(Icons.center_focus_strong_rounded),
-                      label: const Text('Center map'),
+                      onPressed: onDirections ?? onCenter,
+                      icon: Icon(
+                        onDirections == null
+                            ? Icons.center_focus_strong_rounded
+                            : Icons.directions_rounded,
+                      ),
+                      label: Text(
+                        onDirections == null ? 'Center map' : 'Directions',
+                      ),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -300,6 +638,12 @@ class _DestinationCard extends StatelessWidget {
                     tooltip: 'Show current location',
                     onPressed: onCurrentLocation,
                     icon: const Icon(Icons.my_location_rounded),
+                  ),
+                  const SizedBox(width: 10),
+                  IconButton.filledTonal(
+                    tooltip: 'Choose start location',
+                    onPressed: onChangeStartLocation,
+                    icon: const Icon(Icons.edit_location_alt_rounded),
                   ),
                 ],
               ),
@@ -317,6 +661,15 @@ class _DestinationCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  IconData _travelModeIcon(RouteTravelMode mode) {
+    return switch (mode) {
+      RouteTravelMode.driving => Icons.directions_car_rounded,
+      RouteTravelMode.walking => Icons.directions_walk_rounded,
+      RouteTravelMode.bicycling => Icons.directions_bike_rounded,
+      RouteTravelMode.transit => Icons.directions_transit_rounded,
+    };
   }
 }
 
@@ -340,6 +693,159 @@ class _InfoChip extends StatelessWidget {
           Icon(icon, size: 16, color: AppColors.primary),
           const SizedBox(width: 6),
           Text(label, style: Theme.of(context).textTheme.bodySmall),
+        ],
+      ),
+    );
+  }
+}
+
+class _RouteOriginBanner extends StatelessWidget {
+  const _RouteOriginBanner({
+    required this.origin,
+    required this.locationError,
+    required this.onChangeStartLocation,
+  });
+
+  final LocationData? origin;
+  final String? locationError;
+  final VoidCallback onChangeStartLocation;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasOrigin = origin != null;
+    final text = hasOrigin
+        ? origin!.source == LocationSource.gps
+            ? 'Route starts from your live GPS location.'
+            : 'Route starts from ${origin!.name}.'
+        : locationError ??
+            'Choose a starting city, hotel, or landmark to calculate route time.';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: hasOrigin
+            ? AppColors.success.withValues(alpha: 0.08)
+            : AppColors.warning.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: hasOrigin
+              ? AppColors.success.withValues(alpha: 0.18)
+              : AppColors.warning.withValues(alpha: 0.22),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            hasOrigin
+                ? Icons.trip_origin_rounded
+                : Icons.edit_location_alt_rounded,
+            size: 18,
+            color: hasOrigin ? AppColors.success : AppColors.warning,
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              text,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+          TextButton(
+            onPressed: onChangeStartLocation,
+            child: Text(hasOrigin ? 'Change' : 'Choose start'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MapLocationPickerSheet extends StatefulWidget {
+  const _MapLocationPickerSheet();
+
+  @override
+  State<_MapLocationPickerSheet> createState() => _MapLocationPickerSheetState();
+}
+
+class _MapLocationPickerSheetState extends State<_MapLocationPickerSheet> {
+  final _controller = TextEditingController();
+
+  static const _suggestions = [
+    'New Delhi',
+    'Mumbai',
+    'Jaipur',
+    'Agra',
+    'Goa',
+    'Varanasi',
+    'Bengaluru',
+    'Kochi',
+  ];
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit([String? value]) {
+    final query = (value ?? _controller.text).trim();
+    if (query.isNotEmpty) Navigator.pop(context, query);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        0,
+        20,
+        20 + MediaQuery.viewInsetsOf(context).bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Choose start location',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Enter where the tourist is starting from. Route time and distance '
+            'will update from this location.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _controller,
+            autofocus: true,
+            textInputAction: TextInputAction.search,
+            decoration: InputDecoration(
+              hintText: 'City, hotel, landmark, or full address',
+              prefixIcon: const Icon(Icons.search_rounded),
+              suffixIcon: IconButton(
+                tooltip: 'Use this location',
+                onPressed: _submit,
+                icon: const Icon(Icons.arrow_forward_rounded),
+              ),
+            ),
+            onSubmitted: _submit,
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _suggestions
+                .map(
+                  (city) => ActionChip(
+                    label: Text(city),
+                    onPressed: () => _submit(city),
+                  ),
+                )
+                .toList(),
+          ),
+          const SizedBox(height: 8),
         ],
       ),
     );
