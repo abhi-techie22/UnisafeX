@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
+import 'package:unisafex/features/auth/presentation/providers/auth_provider.dart';
 import 'package:unisafex/features/guide/domain/guide_request.dart';
 import 'package:unisafex/features/guide/presentation/providers/guide_request_provider.dart';
 import 'package:unisafex/features/tourism/domain/entities/tourism_filters.dart';
@@ -29,6 +33,7 @@ class _GuideRequestScreenState extends ConsumerState<GuideRequestScreen> {
   @override
   Widget build(BuildContext context) {
     final requests = ref.watch(guideRequestsProvider);
+    final user = ref.watch(currentUserProvider);
     final delhiPlaces = ref.watch(
       explorerPlacesProvider(
         const TourismFilters(city: 'Delhi', popularOnly: false),
@@ -52,6 +57,12 @@ class _GuideRequestScreenState extends ConsumerState<GuideRequestScreen> {
                 'Request a verified local guide for Delhi destinations. Our team will complete confirmation within 7 days.',
           ),
           const SizedBox(height: 18),
+          if (user == null) ...[
+            _SignInRequiredCard(
+              onSignIn: () => context.go(AppRoutes.login),
+            ),
+            const SizedBox(height: 18),
+          ],
           delhiPlaces.when(
             data: (places) => _RequestForm(
               places: _prioritizedDelhiPlaces(places),
@@ -59,6 +70,7 @@ class _GuideRequestScreenState extends ConsumerState<GuideRequestScreen> {
               travelers: _travelers,
               noteController: _noteController,
               submitting: _submitting,
+              enabled: user != null,
               onPlaceChanged: (place) => setState(() => _selectedPlace = place),
               onTravelersChanged: (value) => setState(() => _travelers = value),
               onSubmit: _submitRequest,
@@ -80,7 +92,9 @@ class _GuideRequestScreenState extends ConsumerState<GuideRequestScreen> {
             requests: requests,
             onRebook: _rebook,
             onDelete: (request) async {
-              await ref.read(guideRequestsProvider.notifier).remove(request.id);
+              await ref
+                  .read(guideRequestsProvider.notifier)
+                  .removeLocal(request.id);
             },
           ),
         ],
@@ -103,6 +117,14 @@ class _GuideRequestScreenState extends ConsumerState<GuideRequestScreen> {
   }
 
   Future<void> _submitRequest() async {
+    if (ref.read(currentUserProvider) == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please sign in to request a guide.')),
+      );
+      context.go(AppRoutes.login);
+      return;
+    }
+
     final place = _selectedPlace;
     if (place == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -117,7 +139,9 @@ class _GuideRequestScreenState extends ConsumerState<GuideRequestScreen> {
         title: const Text('Confirm guide request'),
         content: Text(
           'Request a guide for ${place.name}, ${place.city}?\n\n'
-          'Our team will review and complete confirmation within 7 days.',
+          'Our team will review and complete confirmation within 7 days.\n\n'
+          'Support: WhatsApp ${GuideRequestDefaults.adminWhatsapp} · '
+          '${GuideRequestDefaults.adminEmail}',
         ),
         actions: [
           TextButton(
@@ -134,23 +158,41 @@ class _GuideRequestScreenState extends ConsumerState<GuideRequestScreen> {
     if (confirm != true) return;
 
     setState(() => _submitting = true);
-    await Future<void>.delayed(const Duration(milliseconds: 900));
-    final request =
-        await ref.read(guideRequestsProvider.notifier).createRequest(
-              placeId: place.id,
-              placeName: place.name,
-              city: place.city,
-              travelers: _travelers,
-              contactNote: _noteController.text.trim(),
-            );
-    _noteController.clear();
-    if (!mounted) return;
-    setState(() {
-      _submitting = false;
-      _selectedPlace = null;
-      _travelers = 1;
-    });
-    _showConfirmation(request);
+    try {
+      await Future<void>.delayed(const Duration(milliseconds: 450));
+      final request =
+          await ref.read(guideRequestsProvider.notifier).createRequest(
+                placeId: place.id,
+                placeName: place.name,
+                city: place.city,
+                travelers: _travelers,
+                contactNote: _noteController.text.trim(),
+              );
+      _noteController.clear();
+      if (!mounted) return;
+      setState(() {
+        _selectedPlace = null;
+        _travelers = 1;
+      });
+      _showConfirmation(request);
+    } on AuthException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message)),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Guide request could not be saved. Please make sure the '
+            'guide_requests SQL is applied in Supabase. $error',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 
   void _rebook(GuideRequest request) {
@@ -193,7 +235,9 @@ class _GuideRequestScreenState extends ConsumerState<GuideRequestScreen> {
             const SizedBox(height: 8),
             Text(
               '${request.placeName} guide request is now under review. '
-              'Confirmation target: ${_formatDate(request.expectedBy)}.',
+              'Confirmation target: ${_formatDate(request.expectedBy)}.\n\n'
+              'Admin contact: WhatsApp ${GuideRequestDefaults.adminWhatsapp} '
+              'or ${GuideRequestDefaults.adminEmail}.',
             ),
             const SizedBox(height: 18),
             LinearProgressIndicator(
@@ -317,12 +361,61 @@ class _AvailabilityCard extends StatelessWidget {
   }
 }
 
+class _SignInRequiredCard extends StatelessWidget {
+  final VoidCallback onSignIn;
+
+  const _SignInRequiredCard({required this.onSignIn});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const CircleAvatar(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              child: Icon(Icons.lock_person_rounded),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Sign in to request a guide',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 5),
+                  const Text(
+                    'This lets UniSafeX attach your email to the request so '
+                    'our team can confirm the guide within 7 days.',
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    onPressed: onSignIn,
+                    icon: const Icon(Icons.login_rounded),
+                    label: const Text('Sign in'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _RequestForm extends StatelessWidget {
   final List<TourismPlace> places;
   final TourismPlace? selectedPlace;
   final int travelers;
   final TextEditingController noteController;
   final bool submitting;
+  final bool enabled;
   final ValueChanged<TourismPlace?> onPlaceChanged;
   final ValueChanged<int> onTravelersChanged;
   final VoidCallback onSubmit;
@@ -333,6 +426,7 @@ class _RequestForm extends StatelessWidget {
     required this.travelers,
     required this.noteController,
     required this.submitting,
+    required this.enabled,
     required this.onPlaceChanged,
     required this.onTravelersChanged,
     required this.onSubmit,
@@ -373,7 +467,7 @@ class _RequestForm extends StatelessWidget {
                     ),
                   )
                   .toList(),
-              onChanged: submitting ? null : onPlaceChanged,
+              onChanged: submitting || !enabled ? null : onPlaceChanged,
             ),
             const SizedBox(height: 14),
             Row(
@@ -385,7 +479,7 @@ class _RequestForm extends StatelessWidget {
                   ),
                 ),
                 IconButton.filledTonal(
-                  onPressed: travelers <= 1 || submitting
+                  onPressed: travelers <= 1 || submitting || !enabled
                       ? null
                       : () => onTravelersChanged(travelers - 1),
                   icon: const Icon(Icons.remove_rounded),
@@ -398,7 +492,7 @@ class _RequestForm extends StatelessWidget {
                   ),
                 ),
                 IconButton.filledTonal(
-                  onPressed: travelers >= 8 || submitting
+                  onPressed: travelers >= 8 || submitting || !enabled
                       ? null
                       : () => onTravelersChanged(travelers + 1),
                   icon: const Icon(Icons.add_rounded),
@@ -408,7 +502,7 @@ class _RequestForm extends StatelessWidget {
             const SizedBox(height: 14),
             TextField(
               controller: noteController,
-              enabled: !submitting,
+              enabled: !submitting && enabled,
               maxLines: 3,
               decoration: const InputDecoration(
                 labelText: 'Notes for our team',
@@ -419,7 +513,10 @@ class _RequestForm extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                onPressed: submitting || places.isEmpty || selectedPlace == null
+                onPressed: submitting ||
+                        !enabled ||
+                        places.isEmpty ||
+                        selectedPlace == null
                     ? null
                     : onSubmit,
                 icon: submitting
@@ -567,11 +664,15 @@ class _StatusPill extends StatelessWidget {
       GuideRequestStatus.pending => 'Pending',
       GuideRequestStatus.processing => 'Processing',
       GuideRequestStatus.confirmed => 'Confirmed',
+      GuideRequestStatus.rejected => 'Rejected',
+      GuideRequestStatus.completed => 'Completed',
     };
     final color = switch (status) {
       GuideRequestStatus.pending => AppColors.warning,
       GuideRequestStatus.processing => AppColors.primary,
       GuideRequestStatus.confirmed => AppColors.success,
+      GuideRequestStatus.rejected => AppColors.error,
+      GuideRequestStatus.completed => AppColors.success,
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
