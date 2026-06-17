@@ -33,6 +33,7 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
   AsyncValue<MapRoute?> _routeState = const AsyncValue.data(null);
   RouteTravelMode _travelMode = RouteTravelMode.driving;
   String? _lastOriginKey;
+  bool _isCardCollapsed = false;
 
   LatLng get _destination => LatLng(widget.latitude, widget.longitude);
 
@@ -64,7 +65,7 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
             destinationLatitude: widget.latitude,
             destinationLongitude: widget.longitude,
             travelMode: _travelMode,
-      );
+          );
       if (!mounted) return;
       setState(() => _routeState = AsyncValue.data(route));
       await _focusDestinationRoute();
@@ -198,10 +199,10 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
             zoomControlsEnabled: true,
             myLocationEnabled: hasLiveLocation,
             myLocationButtonEnabled: false,
-            padding: const EdgeInsets.only(
+            padding: EdgeInsets.only(
               top: 18,
               right: 18,
-              bottom: 320,
+              bottom: _isCardCollapsed ? 110 : 320,
             ),
             markers: <Marker>{
               Marker(
@@ -285,6 +286,7 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
             child: SafeArea(
               minimum: const EdgeInsets.fromLTRB(16, 16, 16, 18),
               child: _DestinationCard(
+                isCollapsed: _isCardCollapsed,
                 placeName: widget.placeName,
                 address: widget.address,
                 latitude: widget.latitude,
@@ -312,6 +314,9 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
                     ? () => _showDirections(route!)
                     : null,
                 onExternalMaps: _openExternalMaps,
+                onToggleCollapsed: () {
+                  setState(() => _isCardCollapsed = !_isCardCollapsed);
+                },
               ),
             ),
           ),
@@ -435,6 +440,7 @@ class _MapControlButton extends StatelessWidget {
 
 class _DestinationCard extends StatelessWidget {
   const _DestinationCard({
+    required this.isCollapsed,
     required this.placeName,
     required this.address,
     required this.latitude,
@@ -451,8 +457,10 @@ class _DestinationCard extends StatelessWidget {
     required this.onRetryRoute,
     required this.onDirections,
     required this.onExternalMaps,
+    required this.onToggleCollapsed,
   });
 
+  final bool isCollapsed;
   final String placeName;
   final String? address;
   final double latitude;
@@ -469,6 +477,7 @@ class _DestinationCard extends StatelessWidget {
   final VoidCallback? onRetryRoute;
   final VoidCallback? onDirections;
   final VoidCallback onExternalMaps;
+  final VoidCallback onToggleCollapsed;
 
   @override
   Widget build(BuildContext context) {
@@ -480,183 +489,209 @@ class _DestinationCard extends StatelessWidget {
 
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 620),
-      child: Material(
-        color: isDark ? AppColors.cardDark : AppColors.cardLight,
-        elevation: 12,
-        shadowColor: Colors.black.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(24),
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: const Icon(
-                      Icons.location_on_rounded,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          placeName,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleLarge,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 220),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        child: isCollapsed
+            ? _CollapsedDestinationCard(
+                key: const ValueKey('collapsed-map-card'),
+                placeName: placeName,
+                route: route,
+                straightLineDistance: straightLineDistance,
+                routeState: routeState,
+                onExpand: onToggleCollapsed,
+                onDirections: onDirections,
+                onCenter: onCenter,
+              )
+            : Material(
+                key: const ValueKey('expanded-map-card'),
+                color: isDark ? AppColors.cardDark : AppColors.cardLight,
+                elevation: 12,
+                shadowColor: Colors.black.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(24),
+                child: Padding(
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Icon(
+                              Icons.location_on_rounded,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  placeName,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.titleLarge,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  displayAddress,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton.filledTonal(
+                            tooltip: 'Minimize details',
+                            onPressed: onToggleCollapsed,
+                            icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: RouteTravelMode.values
+                              .map(
+                                (mode) => Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: ChoiceChip(
+                                    selected: travelMode == mode,
+                                    onSelected: (_) =>
+                                        onTravelModeChanged(mode),
+                                    avatar:
+                                        Icon(_travelModeIcon(mode), size: 17),
+                                    label: Text(mode.label),
+                                  ),
+                                ),
+                              )
+                              .toList(),
                         ),
-                        const SizedBox(height: 4),
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _InfoChip(
+                            icon: Icons.pin_drop_outlined,
+                            label:
+                                '${latitude.toStringAsFixed(5)}, ${longitude.toStringAsFixed(5)}',
+                          ),
+                          if (route != null) ...[
+                            _InfoChip(
+                              icon: Icons.near_me_outlined,
+                              label: route.formattedDistance,
+                            ),
+                            _InfoChip(
+                              icon: Icons.schedule_rounded,
+                              label: route.formattedDuration,
+                            ),
+                          ] else if (straightLineDistance != null)
+                            _InfoChip(
+                              icon: Icons.straighten_rounded,
+                              label:
+                                  '${DistanceCalculator.format(straightLineDistance!)} direct',
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      _RouteOriginBanner(
+                        origin: origin,
+                        locationError: locationError,
+                        onChangeStartLocation: onChangeStartLocation,
+                      ),
+                      if (routeState.isLoading) ...[
+                        const SizedBox(height: 12),
+                        const LinearProgressIndicator(),
+                        const SizedBox(height: 5),
                         Text(
-                          displayAddress,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                          'Calculating live route...',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: RouteTravelMode.values
-                      .map(
-                        (mode) => Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: ChoiceChip(
-                            selected: travelMode == mode,
-                            onSelected: (_) => onTravelModeChanged(mode),
-                            avatar: Icon(_travelModeIcon(mode), size: 17),
-                            label: Text(mode.label),
-                          ),
+                      if (routeState.hasError) ...[
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.info_outline_rounded,
+                              size: 18,
+                              color: AppColors.warning,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                routeState.error.toString(),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: onRetryRoute,
+                              child: const Text('Retry'),
+                            ),
+                          ],
                         ),
-                      )
-                      .toList(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _InfoChip(
-                    icon: Icons.pin_drop_outlined,
-                    label:
-                        '${latitude.toStringAsFixed(5)}, ${longitude.toStringAsFixed(5)}',
-                  ),
-                  if (route != null) ...[
-                    _InfoChip(
-                      icon: Icons.near_me_outlined,
-                      label: route.formattedDistance,
-                    ),
-                    _InfoChip(
-                      icon: Icons.schedule_rounded,
-                      label: route.formattedDuration,
-                    ),
-                  ] else if (straightLineDistance != null)
-                    _InfoChip(
-                      icon: Icons.straighten_rounded,
-                      label:
-                          '${DistanceCalculator.format(straightLineDistance!)} direct',
-                    ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              _RouteOriginBanner(
-                origin: origin,
-                locationError: locationError,
-                onChangeStartLocation: onChangeStartLocation,
-              ),
-              if (routeState.isLoading) ...[
-                const SizedBox(height: 12),
-                const LinearProgressIndicator(),
-                const SizedBox(height: 5),
-                Text(
-                  'Calculating live route...',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-              if (routeState.hasError) ...[
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.info_outline_rounded,
-                      size: 18,
-                      color: AppColors.warning,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        routeState.error.toString(),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall,
+                      ],
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: FilledButton.icon(
+                              onPressed: onDirections ?? onCenter,
+                              icon: Icon(
+                                onDirections == null
+                                    ? Icons.center_focus_strong_rounded
+                                    : Icons.directions_rounded,
+                              ),
+                              label: Text(
+                                onDirections == null
+                                    ? 'Center map'
+                                    : 'Directions',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          IconButton.filledTonal(
+                            tooltip: 'Show current location',
+                            onPressed: onCurrentLocation,
+                            icon: const Icon(Icons.my_location_rounded),
+                          ),
+                          const SizedBox(width: 10),
+                          IconButton.filledTonal(
+                            tooltip: 'Choose start location',
+                            onPressed: onChangeStartLocation,
+                            icon: const Icon(Icons.edit_location_alt_rounded),
+                          ),
+                        ],
                       ),
-                    ),
-                    TextButton(
-                      onPressed: onRetryRoute,
-                      child: const Text('Retry'),
-                    ),
-                  ],
-                ),
-              ],
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: onDirections ?? onCenter,
-                      icon: Icon(
-                        onDirections == null
-                            ? Icons.center_focus_strong_rounded
-                            : Icons.directions_rounded,
+                      const SizedBox(height: 4),
+                      Align(
+                        alignment: Alignment.center,
+                        child: TextButton.icon(
+                          onPressed: onExternalMaps,
+                          icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                          label: const Text('Open external Google Maps'),
+                        ),
                       ),
-                      label: Text(
-                        onDirections == null ? 'Center map' : 'Directions',
-                      ),
-                    ),
+                    ],
                   ),
-                  const SizedBox(width: 10),
-                  IconButton.filledTonal(
-                    tooltip: 'Show current location',
-                    onPressed: onCurrentLocation,
-                    icon: const Icon(Icons.my_location_rounded),
-                  ),
-                  const SizedBox(width: 10),
-                  IconButton.filledTonal(
-                    tooltip: 'Choose start location',
-                    onPressed: onChangeStartLocation,
-                    icon: const Icon(Icons.edit_location_alt_rounded),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Align(
-                alignment: Alignment.center,
-                child: TextButton.icon(
-                  onPressed: onExternalMaps,
-                  icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                  label: const Text('Open external Google Maps'),
                 ),
               ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -668,6 +703,118 @@ class _DestinationCard extends StatelessWidget {
       RouteTravelMode.bicycling => Icons.directions_bike_rounded,
       RouteTravelMode.transit => Icons.directions_transit_rounded,
     };
+  }
+}
+
+class _CollapsedDestinationCard extends StatelessWidget {
+  const _CollapsedDestinationCard({
+    super.key,
+    required this.placeName,
+    required this.route,
+    required this.straightLineDistance,
+    required this.routeState,
+    required this.onExpand,
+    required this.onDirections,
+    required this.onCenter,
+  });
+
+  final String placeName;
+  final MapRoute? route;
+  final double? straightLineDistance;
+  final AsyncValue<MapRoute?> routeState;
+  final VoidCallback onExpand;
+  final VoidCallback? onDirections;
+  final VoidCallback onCenter;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final subtitle = _subtitle();
+
+    return Material(
+      color: isDark ? AppColors.cardDark : AppColors.cardLight,
+      elevation: 12,
+      shadowColor: Colors.black.withValues(alpha: 0.2),
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        onTap: onExpand,
+        borderRadius: BorderRadius.circular(22),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: const Icon(
+                  Icons.location_on_rounded,
+                  color: AppColors.primary,
+                  size: 21,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      placeName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              if (onDirections != null) ...[
+                IconButton.filled(
+                  tooltip: 'Directions',
+                  onPressed: onDirections,
+                  icon: const Icon(Icons.directions_rounded),
+                ),
+                const SizedBox(width: 6),
+              ] else
+                IconButton.filledTonal(
+                  tooltip: 'Center map',
+                  onPressed: onCenter,
+                  icon: const Icon(Icons.center_focus_strong_rounded),
+                ),
+              IconButton(
+                tooltip: 'Expand details',
+                onPressed: onExpand,
+                icon: const Icon(Icons.keyboard_arrow_up_rounded),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _subtitle() {
+    if (routeState.isLoading) return 'Calculating live route...';
+    if (route != null) {
+      return '${route!.formattedDistance} · ${route!.formattedDuration}';
+    }
+    if (straightLineDistance != null) {
+      return '${DistanceCalculator.format(straightLineDistance!)} direct';
+    }
+    if (routeState.hasError) return routeState.error.toString();
+    return 'Tap to view map details';
   }
 }
 
@@ -763,7 +910,8 @@ class _MapLocationPickerSheet extends StatefulWidget {
   const _MapLocationPickerSheet();
 
   @override
-  State<_MapLocationPickerSheet> createState() => _MapLocationPickerSheetState();
+  State<_MapLocationPickerSheet> createState() =>
+      _MapLocationPickerSheetState();
 }
 
 class _MapLocationPickerSheetState extends State<_MapLocationPickerSheet> {
