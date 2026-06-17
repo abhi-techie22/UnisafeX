@@ -32,7 +32,7 @@ class _PlacesListScreenState extends ConsumerState<PlacesListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final placesAsync = ref.watch(popularPlacesProvider);
+    final placesAsync = ref.watch(explorerPlacesProvider(_filters));
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
@@ -151,7 +151,9 @@ class _PlacesListScreenState extends ConsumerState<PlacesListScreen> {
   }
 
   Future<void> _showFilters(BuildContext context) async {
-    final places = ref.read(popularPlacesProvider).value ?? [];
+    final places = ref.read(explorerPlacesProvider(_filters)).value ??
+        ref.read(explorerPlacesProvider(const TourismFilters())).value ??
+        [];
     final result = await showModalBottomSheet<TourismFilters>(
       context: context,
       isScrollControlled: true,

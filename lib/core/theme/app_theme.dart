@@ -42,6 +42,7 @@ class AppColors {
 
   // Category Colors
   static const Color historical = Color(0xFFB45309);
+  static const Color archaeological = Color(0xFF92400E);
   static const Color nature = Color(0xFF16A34A);
   static const Color spiritual = Color(0xFF7C3AED);
   static const Color adventure = Color(0xFFDC2626);

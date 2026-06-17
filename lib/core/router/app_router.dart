@@ -13,10 +13,6 @@ import 'package:unisafex/features/admin/presentation/admin_dashboard_screen.dart
 
 import 'package:unisafex/features/favorites/presentation/screens/favorites_screen.dart';
 import 'package:unisafex/features/home/presentation/screens/home_screen.dart';
-import 'package:unisafex/features/heritage/presentation/heritage_catalog_screen.dart';
-import 'package:unisafex/features/heritage/presentation/heritage_detail_screen.dart';
-import 'package:unisafex/features/heritage/domain/heritage_monument.dart';
-
 import 'package:unisafex/features/map/presentation/screens/map_screen.dart';
 import 'package:unisafex/features/maps/presentation/screens/in_app_map_screen.dart';
 
@@ -314,16 +310,12 @@ GoRouter appRouter(
       ),
       GoRoute(
         path: AppRoutes.heritageCatalog,
-        builder: (context, state) => HeritageCatalogScreen(
-          initialType: state.uri.queryParameters['type'],
-          initialRegion: state.uri.queryParameters['region'],
-        ),
+        redirect: (context, state) =>
+            '${AppRoutes.placesList}?title=All Destinations',
       ),
       GoRoute(
         path: AppRoutes.heritageDetail,
-        builder: (context, state) => HeritageDetailScreen(
-          monument: state.extra as HeritageMonument,
-        ),
+        redirect: (context, state) => AppRoutes.home,
       ),
       GoRoute(
         path: AppRoutes.admin,

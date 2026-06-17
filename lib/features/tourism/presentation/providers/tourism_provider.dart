@@ -1,7 +1,10 @@
+import 'dart:math' as math;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:unisafex/core/constants/app_constants.dart';
 import 'package:unisafex/core/utils/distance_calculator.dart';
+import 'package:unisafex/features/tourism/domain/entities/tourism_filters.dart';
 import 'package:unisafex/features/tourism/domain/entities/tourism_place.dart';
 
 class TourismRepository {
@@ -27,11 +30,15 @@ class TourismRepository {
             'tourism_places',
           )
           .select()
+          .eq('featured', true)
+          .order(
+            'tier',
+          )
           .order(
             'rating',
             ascending: false,
           )
-          .limit(10);
+          .limit(12);
 
       return _placesFrom(response);
     } catch (e) {
@@ -50,11 +57,15 @@ class TourismRepository {
             'tourism_places',
           )
           .select()
+          .eq('is_popular', true)
+          .order(
+            'tier',
+          )
           .order(
             'rating',
             ascending: false,
           )
-          .limit(200);
+          .limit(80);
 
       print(
         'SUPABASE DATA: ${response.length}',
@@ -77,11 +88,12 @@ class TourismRepository {
             'tourism_places',
           )
           .select()
+          .eq('is_popular', true)
           .order(
             'rating',
             ascending: false,
           )
-          .limit(20);
+          .limit(16);
 
       return _placesFrom(response);
     } catch (e) {
@@ -100,11 +112,12 @@ class TourismRepository {
             'tourism_places',
           )
           .select()
+          .eq('featured', true)
           .order(
             'rating',
             ascending: false,
           )
-          .limit(20);
+          .limit(12);
 
       return _placesFrom(response);
     } catch (e) {
@@ -202,6 +215,66 @@ class TourismRepository {
   }
 
   // FILTERS
+  Future<List<TourismPlace>> getExplorerPlaces(TourismFilters filters) async {
+    try {
+      var query = _client.from('tourism_places').select();
+      final search = filters.query.trim();
+
+      if (search.isNotEmpty) {
+        final value = search.replaceAll(',', ' ');
+        query = query.or(
+          'place_name.ilike.%$value%,city.ilike.%$value%,'
+          'district.ilike.%$value%,state.ilike.%$value%,'
+          'category.ilike.%$value%,subcategory.ilike.%$value%',
+        );
+      }
+
+      if (filters.city?.isNotEmpty == true) {
+        query = query.ilike('city', '%${filters.city!}%');
+      }
+
+      if (filters.category?.isNotEmpty == true) {
+        query = query.eq('category', filters.category!);
+      }
+
+      if (filters.popularOnly) {
+        query = query.eq('is_popular', true);
+      }
+
+      if (filters.freeOnly) {
+        query =
+            query.or('entry_fee_foreigner.eq.0,entry_fee_foreigner.is.null');
+      }
+
+      if (filters.minimumRating > 0) {
+        query = query.gte('rating', filters.minimumRating);
+      }
+
+      final response = await query
+          .order('featured', ascending: false)
+          .order('is_popular', ascending: false)
+          .order('rating', ascending: false)
+          .limit(300);
+
+      var places = _placesFrom(response);
+      if (filters.hiddenGemsOnly) {
+        places = places.where((place) => place.isHiddenGem).toList();
+      }
+      if (filters.foreignerFriendlyOnly) {
+        places = places.where((place) => place.isForeignerFriendly).toList();
+      }
+      if (filters.openNowOnly) {
+        places = places.where((place) => place.isLikelyOpenNow).toList();
+      }
+      return places;
+    } catch (e) {
+      print(
+        'Explorer places error: $e',
+      );
+      return [];
+    }
+  }
+
   Future<List<TourismPlace>> getPlacesWithFilters({
     String? category,
     bool? isFree,
@@ -274,12 +347,24 @@ class TourismRepository {
     double radiusKm = 50,
   }) async {
     try {
+      final latitudeDelta = radiusKm / 111.0;
+      final longitudeDelta = radiusKm /
+          (111.320 * math.cos(latitude * math.pi / 180).abs().clamp(0.1, 1.0));
+
       final response = await _client
           .from(
             'tourism_places',
           )
           .select()
-          .limit(200);
+          .gte('latitude', latitude - latitudeDelta)
+          .lte('latitude', latitude + latitudeDelta)
+          .gte('longitude', longitude - longitudeDelta)
+          .lte('longitude', longitude + longitudeDelta)
+          .order(
+            'rating',
+            ascending: false,
+          )
+          .limit(300);
 
       final places = _placesFrom(response).where((place) {
         if (place.latitude == 0 || place.longitude == 0) return false;
@@ -403,6 +488,13 @@ final popularPlacesProvider = FutureProvider<List<TourismPlace>>(
           tourismRepositoryProvider,
         )
         .getPopularPlaces();
+  },
+);
+
+final explorerPlacesProvider =
+    FutureProvider.family<List<TourismPlace>, TourismFilters>(
+  (ref, filters) {
+    return ref.read(tourismRepositoryProvider).getExplorerPlaces(filters);
   },
 );
 

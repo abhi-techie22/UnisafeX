@@ -57,4 +57,31 @@ class TourismFilters {
       foreignerFriendlyOnly ||
       openNowOnly ||
       minimumRating > 0;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TourismFilters &&
+          query == other.query &&
+          city == other.city &&
+          category == other.category &&
+          popularOnly == other.popularOnly &&
+          hiddenGemsOnly == other.hiddenGemsOnly &&
+          freeOnly == other.freeOnly &&
+          foreignerFriendlyOnly == other.foreignerFriendlyOnly &&
+          openNowOnly == other.openNowOnly &&
+          minimumRating == other.minimumRating;
+
+  @override
+  int get hashCode => Object.hash(
+        query,
+        city,
+        category,
+        popularOnly,
+        hiddenGemsOnly,
+        freeOnly,
+        foreignerFriendlyOnly,
+        openNowOnly,
+        minimumRating,
+      );
 }

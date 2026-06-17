@@ -468,67 +468,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ),
 
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-              child: Card(
-                clipBehavior: Clip.antiAlias,
-                child: InkWell(
-                  onTap: () => context.push(AppRoutes.heritageCatalog),
-                  child: Row(
-                    children: [
-                      Image.asset(
-                        'assets/images/heritage_placeholder.jpg',
-                        width: 112,
-                        height: 118,
-                        fit: BoxFit.cover,
-                      ),
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.all(14),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'heritage_catalog'.tr(),
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                'heritage_catalog_description'.tr(),
-                                maxLines: 3,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                              const SizedBox(height: 9),
-                              Row(
-                                children: [
-                                  Text(
-                                    'see_all'.tr(),
-                                    style: const TextStyle(
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  const Icon(
-                                    Icons.arrow_forward_rounded,
-                                    size: 18,
-                                    color: AppColors.primary,
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-
           const SliverToBoxAdapter(child: SizedBox(height: 24)),
         ],
       ),
@@ -606,6 +545,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     switch (category) {
       case 'Historical':
         return AppColors.historical;
+      case 'Archaeological':
+        return AppColors.archaeological;
       case 'Nature':
         return AppColors.nature;
       case 'Spiritual':

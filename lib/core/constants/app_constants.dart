@@ -52,6 +52,7 @@ class AppConstants {
   // Categories
   static const List<String> placeCategories = [
     'Historical',
+    'Archaeological',
     'Nature',
     'Spiritual',
     'Adventure',

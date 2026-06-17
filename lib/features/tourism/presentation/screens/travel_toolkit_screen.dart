@@ -35,10 +35,10 @@ class TravelToolkitScreen extends StatelessWidget {
         AppRoutes.aiAssistant
       ),
       (
-        'heritage_catalog'.tr(),
-        'heritage_catalog_description'.tr(),
+        'All destinations',
+        'Browse monuments and tourist places by category, city and rating',
         Icons.account_balance_rounded,
-        AppRoutes.heritageCatalog
+        '${AppRoutes.placesList}?title=All Destinations'
       ),
     ];
 
