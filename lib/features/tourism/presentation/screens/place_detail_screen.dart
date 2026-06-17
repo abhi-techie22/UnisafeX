@@ -12,6 +12,7 @@ import 'package:unisafex/features/favorites/presentation/providers/favorites_pro
 import 'package:unisafex/features/home/presentation/providers/location_provider.dart';
 import 'package:unisafex/features/tourism/domain/entities/tourism_place.dart';
 import 'package:unisafex/features/tourism/domain/services/safety_score_service.dart';
+import 'package:unisafex/features/tourism/presentation/providers/tourism_provider.dart';
 import 'package:unisafex/features/tourism/presentation/providers/saved_places_provider.dart';
 
 class PlaceDetailScreen extends ConsumerStatefulWidget {
@@ -29,10 +30,14 @@ class PlaceDetailScreen extends ConsumerStatefulWidget {
 class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
   final ScrollController _scrollController = ScrollController();
   bool _showAppBarTitle = false;
+  late int _likesCount;
+  bool _likedInSession = false;
+  bool _liking = false;
 
   @override
   void initState() {
     super.initState();
+    _likesCount = widget.place.likesCount;
     _scrollController.addListener(() {
       final show = _scrollController.offset > 250;
       if (show != _showAppBarTitle && mounted) {
@@ -62,7 +67,9 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final place = widget.place;
-    final distance = _calculateDistance(ref.watch(locationProvider).value);
+    final distance = _calculateDistance(
+      ref.watch(locationProvider).valueOrNull,
+    );
     final safetyScore = SafetyScoreService.calculate(place);
     final localSaved = ref.watch(savedPlacesProvider).contains(place.id);
     final remoteFavorites = ref.watch(favoritesProvider).value ?? [];
@@ -150,6 +157,13 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                     _RatingBadge(rating: place.rating),
                   ],
                 ),
+                const SizedBox(height: 14),
+                _LikeCard(
+                  likesLabel: _formatLikes(_likesCount),
+                  liked: _likedInSession,
+                  loading: _liking,
+                  onTap: _likePlace,
+                ),
                 if (distance != null) ...[
                   const SizedBox(height: 8),
                   Text(
@@ -176,6 +190,10 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                         icon: Icons.timelapse,
                         label: _formatDuration(place.visitDurationMinutes!),
                       ),
+                    _FactChip(
+                      icon: Icons.favorite_rounded,
+                      label: '${_formatLikes(_likesCount)} likes',
+                    ),
                   ],
                 ),
                 const SizedBox(height: 28),
@@ -357,6 +375,50 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
     if (hours == 0) return '$minutes min';
     if (remainingMinutes == 0) return '$hours hr';
     return '$hours hr $remainingMinutes min';
+  }
+
+  String _formatLikes(int count) {
+    if (count >= 1000000) {
+      return '${(count / 1000000).toStringAsFixed(1)}M';
+    }
+    if (count >= 1000) {
+      return '${(count / 1000).toStringAsFixed(1)}K';
+    }
+    return count.toString();
+  }
+
+  Future<void> _likePlace() async {
+    if (_liking) return;
+    final user = ref.read(currentUserProvider);
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please login to like destinations')),
+      );
+      return;
+    }
+
+    setState(() => _liking = true);
+    try {
+      final count =
+          await ref.read(tourismRepositoryProvider).likePlace(widget.place.id);
+      if (!mounted) return;
+      setState(() {
+        _likesCount = count;
+        _likedInSession = true;
+      });
+      ref.invalidate(featuredPlacesProvider);
+      ref.invalidate(popularPlacesProvider);
+      ref.invalidate(trendingPlacesProvider);
+      ref.invalidate(mustVisitPlacesProvider);
+      ref.invalidate(explorerPlacesProvider);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not like this place right now')),
+      );
+    } finally {
+      if (mounted) setState(() => _liking = false);
+    }
   }
 
   Future<void> _toggleFavorite({
@@ -580,6 +642,81 @@ class _FactChip extends StatelessWidget {
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 220),
             child: Text(label),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LikeCard extends StatelessWidget {
+  final String likesLabel;
+  final bool liked;
+  final bool loading;
+  final VoidCallback onTap;
+
+  const _LikeCard({
+    required this.likesLabel,
+    required this.liked,
+    required this.loading,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.cardDark : AppColors.cardLight,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: liked
+              ? AppColors.error.withValues(alpha: 0.35)
+              : isDark
+                  ? AppColors.borderDark
+                  : AppColors.borderLight,
+        ),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: AppColors.error.withValues(alpha: 0.12),
+            foregroundColor: AppColors.error,
+            child: const Icon(Icons.favorite_rounded),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$likesLabel travelers liked this',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  liked ? 'Thanks for your vote' : 'Like this destination',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          FilledButton.icon(
+            onPressed: loading ? null : onTap,
+            icon: loading
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Icon(
+                    liked
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
+                    size: 18,
+                  ),
+            label: Text(liked ? 'Liked' : 'Like'),
           ),
         ],
       ),

@@ -20,6 +20,7 @@ class TourismPlace {
   final bool isFree;
 
   final int tier;
+  final int likesCount;
 
   final double entryFeeForeigner;
   final double entryFeeIndian;
@@ -50,6 +51,7 @@ class TourismPlace {
     required this.isPopular,
     required this.isFree,
     required this.tier,
+    required this.likesCount,
     required this.entryFeeForeigner,
     required this.entryFeeIndian,
     this.timings,
@@ -91,6 +93,7 @@ class TourismPlace {
       isPopular: json['is_popular'] ?? false,
       isFree: foreignerFee == 0,
       tier: json['tier'] ?? 2,
+      likesCount: ((json['likes_count'] ?? 1000) as num).toInt(),
       entryFeeForeigner: foreignerFee,
       entryFeeIndian: indianFee,
       timings: json['timings'],
@@ -116,6 +119,16 @@ class TourismPlace {
     }
 
     return '₹${entryFeeForeigner.toInt()}';
+  }
+
+  String get formattedLikes {
+    if (likesCount >= 1000000) {
+      return '${(likesCount / 1000000).toStringAsFixed(1)}M';
+    }
+    if (likesCount >= 1000) {
+      return '${(likesCount / 1000).toStringAsFixed(1)}K';
+    }
+    return likesCount.toString();
   }
 
   bool get isHiddenGem => !featured && !isPopular && rating >= 4.3;

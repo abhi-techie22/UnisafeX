@@ -195,6 +195,25 @@ class PlaceCard extends StatelessWidget {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.favorite_rounded,
+                        size: 13,
+                        color: AppColors.error,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${place.formattedLikes} likes',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? AppColors.grey400 : AppColors.grey600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),

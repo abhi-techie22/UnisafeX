@@ -204,6 +204,33 @@ class FeaturedPlaceCard extends StatelessWidget {
                                 ),
                               ),
                             ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.35),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.favorite_rounded,
+                                  size: 12,
+                                  color: AppColors.error,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  place.formattedLikes,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
                     ],

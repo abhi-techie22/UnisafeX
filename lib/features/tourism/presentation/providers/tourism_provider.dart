@@ -17,9 +17,25 @@ class TourismRepository {
     for (final row in response as List) {
       final place = TourismPlace.fromJson(row as Map<String, dynamic>);
       final key = '${place.name.toLowerCase()}|${place.city.toLowerCase()}';
-      unique.putIfAbsent(key, () => place);
+      final existing = unique[key];
+      if (existing == null || _isBetterDuplicate(place, existing)) {
+        unique[key] = place;
+      }
     }
     return unique.values.toList();
+  }
+
+  bool _isBetterDuplicate(TourismPlace candidate, TourismPlace existing) {
+    if (candidate.images.length != existing.images.length) {
+      return candidate.images.length > existing.images.length;
+    }
+    if (candidate.likesCount != existing.likesCount) {
+      return candidate.likesCount > existing.likesCount;
+    }
+    if (candidate.rating != existing.rating) {
+      return candidate.rating > existing.rating;
+    }
+    return candidate.featured && !existing.featured;
   }
 
   // FEATURED PLACES
@@ -275,6 +291,14 @@ class TourismRepository {
     }
   }
 
+  Future<int> likePlace(String placeId) async {
+    final response = await _client.rpc<int>(
+      'like_tourism_place',
+      params: {'p_place_id': placeId},
+    );
+    return response;
+  }
+
   Future<List<TourismPlace>> getPlacesWithFilters({
     String? category,
     bool? isFree,
@@ -497,6 +521,10 @@ final explorerPlacesProvider =
     return ref.read(tourismRepositoryProvider).getExplorerPlaces(filters);
   },
 );
+
+final likePlaceProvider = FutureProvider.family<int, String>((ref, placeId) {
+  return ref.read(tourismRepositoryProvider).likePlace(placeId);
+});
 
 final trendingPlacesProvider = FutureProvider<List<TourismPlace>>(
   (ref) async {

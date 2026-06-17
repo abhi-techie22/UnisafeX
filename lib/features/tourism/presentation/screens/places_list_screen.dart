@@ -343,6 +343,10 @@ class _PlaceListCard extends StatelessWidget {
                                 ? AppColors.success
                                 : AppColors.warning),
                         Text(' $score'),
+                        const SizedBox(width: 12),
+                        const Icon(Icons.favorite_rounded,
+                            size: 16, color: AppColors.error),
+                        Text(' ${place.formattedLikes}'),
                       ],
                     ),
                   ],

@@ -151,6 +151,11 @@ def build_rows(workbook_path: Path) -> list[dict[str, object]]:
         )
         popular = boolean(row.get("Is_Popular")) or featured
         rating = num(row.get("Rating"), 4.2 if featured else 4.0) or 4.0
+        likes_count = 1000 + (global_id % 650)
+        if popular:
+            likes_count += 700
+        if featured:
+            likes_count += 1200
         images = [
             image
             for image in [clean(row.get("Image_URL_1")), clean(row.get("Image_URL_2"))]
@@ -182,6 +187,7 @@ def build_rows(workbook_path: Path) -> list[dict[str, object]]:
                 "featured": featured,
                 "rating": round(max(0, min(5, rating)), 1),
                 "is_popular": popular,
+                "likes_count": likes_count,
                 "visit_duration_minutes": integer(row.get("Avg_Visit_Duration_Min"), 60),
                 "address": address(row),
             }
