@@ -29,11 +29,22 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   String? _selectedCategory;
   Set<String> _dismissedGuideRequestKeys = const {};
+  ProviderSubscription<List<GuideRequest>>? _guideRequestSubscription;
 
   @override
   void initState() {
     super.initState();
     _loadDismissedGuideRequests();
+    _guideRequestSubscription = ref.listenManual<List<GuideRequest>>(
+      guideRequestsProvider,
+      (previous, next) => _showHomeGuideStatusPopup(previous, next),
+    );
+  }
+
+  @override
+  void dispose() {
+    _guideRequestSubscription?.close();
+    super.dispose();
   }
 
   @override
@@ -47,9 +58,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final mustVisit = ref.watch(mustVisitPlacesProvider);
     final guideRequests = ref.watch(guideRequestsProvider);
     final visibleGuideRequest = _visibleGuideRequest(guideRequests);
-    ref.listen<List<GuideRequest>>(guideRequestsProvider, (previous, next) {
-      _showHomeGuideStatusPopup(previous, next);
-    });
     final cityName = location.asData?.value?.name ?? 'India';
     final locationData = location.asData?.value;
     final nearby = locationData == null

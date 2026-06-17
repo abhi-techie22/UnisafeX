@@ -23,9 +23,20 @@ class _GuideRequestScreenState extends ConsumerState<GuideRequestScreen> {
   int _travelers = 1;
   bool _submitting = false;
   final _noteController = TextEditingController();
+  ProviderSubscription<List<GuideRequest>>? _guideRequestSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _guideRequestSubscription = ref.listenManual<List<GuideRequest>>(
+      guideRequestsProvider,
+      (previous, next) => _showGuideStatusPopup(previous, next),
+    );
+  }
 
   @override
   void dispose() {
+    _guideRequestSubscription?.close();
     _noteController.dispose();
     super.dispose();
   }
@@ -34,9 +45,6 @@ class _GuideRequestScreenState extends ConsumerState<GuideRequestScreen> {
   Widget build(BuildContext context) {
     final requests = ref.watch(guideRequestsProvider);
     final user = ref.watch(currentUserProvider);
-    ref.listen<List<GuideRequest>>(guideRequestsProvider, (previous, next) {
-      _showGuideStatusPopup(previous, next);
-    });
     final delhiPlaces = ref.watch(
       explorerPlacesProvider(
         const TourismFilters(city: 'Delhi', popularOnly: false),
