@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -84,12 +85,17 @@ class GuideRequestRepository {
 class GuideRequestNotifier extends StateNotifier<List<GuideRequest>> {
   GuideRequestNotifier(this._ref, this._repository) : super(const []) {
     load();
+    _refreshTimer = Timer.periodic(
+      const Duration(seconds: 25),
+      (_) => load(silent: true),
+    );
   }
 
   final Ref _ref;
   final GuideRequestRepository _repository;
+  Timer? _refreshTimer;
 
-  Future<void> load() async {
+  Future<void> load({bool silent = false}) async {
     final user = _ref.read(currentUserProvider);
     if (user == null) {
       state = const [];
@@ -101,7 +107,7 @@ class GuideRequestNotifier extends StateNotifier<List<GuideRequest>> {
       state = requests;
       await _persist(requests);
     } catch (_) {
-      state = await _loadLocal();
+      if (!silent) state = await _loadLocal();
     }
   }
 
@@ -154,6 +160,12 @@ class GuideRequestNotifier extends StateNotifier<List<GuideRequest>> {
       _guideRequestsKey,
       requests.map((request) => request.encode()).toList(),
     );
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
   }
 }
 

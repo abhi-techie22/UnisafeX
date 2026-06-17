@@ -34,6 +34,9 @@ class _GuideRequestScreenState extends ConsumerState<GuideRequestScreen> {
   Widget build(BuildContext context) {
     final requests = ref.watch(guideRequestsProvider);
     final user = ref.watch(currentUserProvider);
+    ref.listen<List<GuideRequest>>(guideRequestsProvider, (previous, next) {
+      _showGuideStatusPopup(previous, next);
+    });
     final delhiPlaces = ref.watch(
       explorerPlacesProvider(
         const TourismFilters(city: 'Delhi', popularOnly: false),
@@ -241,11 +244,11 @@ class _GuideRequestScreenState extends ConsumerState<GuideRequestScreen> {
             ),
             const SizedBox(height: 18),
             LinearProgressIndicator(
-              value: 0.28,
+              value: _guideStatusProgress(request.status),
               borderRadius: BorderRadius.circular(99),
             ),
             const SizedBox(height: 8),
-            const Text('Status: team review in progress'),
+            Text('Status: ${_guideStatusMessage(request.status)}'),
             const SizedBox(height: 18),
             SizedBox(
               width: double.infinity,
@@ -258,6 +261,47 @@ class _GuideRequestScreenState extends ConsumerState<GuideRequestScreen> {
         ),
       ),
     );
+  }
+
+  void _showGuideStatusPopup(
+    List<GuideRequest>? previous,
+    List<GuideRequest> next,
+  ) {
+    if (previous == null || previous.isEmpty || next.isEmpty) return;
+    final oldById = {for (final request in previous) request.id: request};
+    for (final request in next) {
+      final old = oldById[request.id];
+      if (old == null || old.status == request.status) continue;
+      if (!_shouldPopupForStatus(request.status)) continue;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        showDialog<void>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text(_guidePopupTitle(request.status)),
+            content: Text(
+              '${request.placeName} guide request is now '
+              '${_guideStatusMessage(request.status).toLowerCase()}.\n\n'
+              'You can see the full progress in Guide Request history.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  context.go(AppRoutes.guideRequest);
+                },
+                child: const Text('View request'),
+              ),
+            ],
+          ),
+        );
+      });
+      return;
+    }
   }
 }
 
@@ -619,7 +663,23 @@ class _GuideRequestCard extends StatelessWidget {
             const SizedBox(height: 14),
             ClipRRect(
               borderRadius: BorderRadius.circular(99),
-              child: const LinearProgressIndicator(value: 0.28),
+              child: LinearProgressIndicator(
+                value: _guideStatusProgress(request.status),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Icon(
+                  _guideStatusIcon(request.status),
+                  size: 18,
+                  color: _guideStatusColor(request.status),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(_guideStatusMessage(request.status)),
+                ),
+              ],
             ),
             const SizedBox(height: 10),
             Text(
@@ -762,6 +822,62 @@ class _EmptyHistory extends StatelessWidget {
       ),
     );
   }
+}
+
+bool _shouldPopupForStatus(GuideRequestStatus status) {
+  return status == GuideRequestStatus.confirmed ||
+      status == GuideRequestStatus.rejected ||
+      status == GuideRequestStatus.completed;
+}
+
+String _guidePopupTitle(GuideRequestStatus status) {
+  return switch (status) {
+    GuideRequestStatus.confirmed => 'Guide confirmed',
+    GuideRequestStatus.rejected => 'Guide request rejected',
+    GuideRequestStatus.completed => 'Guide request completed',
+    GuideRequestStatus.pending => 'Guide request pending',
+    GuideRequestStatus.processing => 'Guide request processing',
+  };
+}
+
+String _guideStatusMessage(GuideRequestStatus status) {
+  return switch (status) {
+    GuideRequestStatus.pending => 'Submitted and waiting for team review',
+    GuideRequestStatus.processing => 'Team review in progress',
+    GuideRequestStatus.confirmed => 'Guide confirmed by UniSafeX team',
+    GuideRequestStatus.rejected => 'Rejected by admin team',
+    GuideRequestStatus.completed => 'Guide service completed',
+  };
+}
+
+double _guideStatusProgress(GuideRequestStatus status) {
+  return switch (status) {
+    GuideRequestStatus.pending => 0.18,
+    GuideRequestStatus.processing => 0.45,
+    GuideRequestStatus.confirmed => 0.78,
+    GuideRequestStatus.rejected => 1.0,
+    GuideRequestStatus.completed => 1.0,
+  };
+}
+
+IconData _guideStatusIcon(GuideRequestStatus status) {
+  return switch (status) {
+    GuideRequestStatus.pending => Icons.hourglass_top_rounded,
+    GuideRequestStatus.processing => Icons.manage_search_rounded,
+    GuideRequestStatus.confirmed => Icons.verified_rounded,
+    GuideRequestStatus.rejected => Icons.cancel_rounded,
+    GuideRequestStatus.completed => Icons.task_alt_rounded,
+  };
+}
+
+Color _guideStatusColor(GuideRequestStatus status) {
+  return switch (status) {
+    GuideRequestStatus.pending => AppColors.warning,
+    GuideRequestStatus.processing => AppColors.primary,
+    GuideRequestStatus.confirmed => AppColors.success,
+    GuideRequestStatus.rejected => AppColors.error,
+    GuideRequestStatus.completed => AppColors.success,
+  };
 }
 
 String _formatDate(DateTime date) {

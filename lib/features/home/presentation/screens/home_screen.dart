@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'package:unisafex/core/constants/app_constants.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
+import 'package:unisafex/features/guide/domain/guide_request.dart';
+import 'package:unisafex/features/guide/presentation/providers/guide_request_provider.dart';
 import 'package:unisafex/features/home/presentation/providers/location_provider.dart';
 import 'package:unisafex/features/profile/presentation/providers/profile_provider.dart';
 import 'package:unisafex/features/tourism/domain/entities/tourism_place.dart';
@@ -35,6 +37,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final popular = ref.watch(popularPlacesProvider);
     final trending = ref.watch(trendingPlacesProvider);
     final mustVisit = ref.watch(mustVisitPlacesProvider);
+    final guideRequests = ref.watch(guideRequestsProvider);
+    ref.listen<List<GuideRequest>>(guideRequestsProvider, (previous, next) {
+      _showHomeGuideStatusPopup(previous, next);
+    });
     final cityName = location.asData?.value?.name ?? 'India';
     final locationData = location.asData?.value;
     final nearby = locationData == null
@@ -174,6 +180,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ).animate().fadeIn(duration: 400.ms),
           ),
+
+          if (guideRequests.isNotEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 6, 20, 10),
+                child: _HomeGuideRequestCard(
+                  request: guideRequests.first,
+                  onTap: () => context.go(AppRoutes.guideRequest),
+                ),
+              ),
+            ),
 
           SliverToBoxAdapter(
             child: Padding(
@@ -649,6 +666,47 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
     );
   }
+
+  void _showHomeGuideStatusPopup(
+    List<GuideRequest>? previous,
+    List<GuideRequest> next,
+  ) {
+    if (previous == null || previous.isEmpty || next.isEmpty) return;
+    final oldById = {for (final request in previous) request.id: request};
+    for (final request in next) {
+      final old = oldById[request.id];
+      if (old == null || old.status == request.status) continue;
+      if (!_homeShouldPopupForStatus(request.status)) continue;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        showDialog<void>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text(_homeGuidePopupTitle(request.status)),
+            content: Text(
+              '${request.placeName} is now '
+              '${_homeGuideStatusMessage(request.status).toLowerCase()}.\n\n'
+              'Tap the guide card on Home or open Guide Request to see history.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  context.go(AppRoutes.guideRequest);
+                },
+                child: const Text('Open request'),
+              ),
+            ],
+          ),
+        );
+      });
+      return;
+    }
+  }
 }
 
 class _AvatarShimmer extends StatelessWidget {
@@ -657,6 +715,81 @@ class _AvatarShimmer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ShimmerLoader(width: 48, height: 48, borderRadius: 14);
+  }
+}
+
+class _HomeGuideRequestCard extends StatelessWidget {
+  final GuideRequest request;
+  final VoidCallback onTap;
+
+  const _HomeGuideRequestCard({
+    required this.request,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _homeGuideStatusColor(request.status);
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: onTap,
+      child: Ink(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.09),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: color.withValues(alpha: 0.22)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: color,
+                  foregroundColor: Colors.white,
+                  child: Icon(_homeGuideStatusIcon(request.status)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Your guide request',
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        request.placeName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(99),
+              child: LinearProgressIndicator(
+                value: _homeGuideStatusProgress(request.status),
+                backgroundColor: color.withValues(alpha: 0.12),
+                valueColor: AlwaysStoppedAnimation<Color>(color),
+              ),
+            ),
+            const SizedBox(height: 9),
+            Text(
+              _homeGuideStatusMessage(request.status),
+              style: TextStyle(color: color, fontWeight: FontWeight.w700),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -779,4 +912,60 @@ class _PopularPlaceListItem extends StatelessWidget {
       ),
     );
   }
+}
+
+bool _homeShouldPopupForStatus(GuideRequestStatus status) {
+  return status == GuideRequestStatus.confirmed ||
+      status == GuideRequestStatus.rejected ||
+      status == GuideRequestStatus.completed;
+}
+
+String _homeGuidePopupTitle(GuideRequestStatus status) {
+  return switch (status) {
+    GuideRequestStatus.confirmed => 'Guide confirmed',
+    GuideRequestStatus.rejected => 'Guide request rejected',
+    GuideRequestStatus.completed => 'Guide request completed',
+    GuideRequestStatus.pending => 'Guide request pending',
+    GuideRequestStatus.processing => 'Guide request processing',
+  };
+}
+
+String _homeGuideStatusMessage(GuideRequestStatus status) {
+  return switch (status) {
+    GuideRequestStatus.pending => 'Submitted and waiting for review',
+    GuideRequestStatus.processing => 'Team review in progress',
+    GuideRequestStatus.confirmed => 'Guide confirmed by UniSafeX',
+    GuideRequestStatus.rejected => 'Rejected by admin team',
+    GuideRequestStatus.completed => 'Guide service completed',
+  };
+}
+
+double _homeGuideStatusProgress(GuideRequestStatus status) {
+  return switch (status) {
+    GuideRequestStatus.pending => 0.18,
+    GuideRequestStatus.processing => 0.45,
+    GuideRequestStatus.confirmed => 0.78,
+    GuideRequestStatus.rejected => 1.0,
+    GuideRequestStatus.completed => 1.0,
+  };
+}
+
+IconData _homeGuideStatusIcon(GuideRequestStatus status) {
+  return switch (status) {
+    GuideRequestStatus.pending => Icons.hourglass_top_rounded,
+    GuideRequestStatus.processing => Icons.manage_search_rounded,
+    GuideRequestStatus.confirmed => Icons.verified_rounded,
+    GuideRequestStatus.rejected => Icons.cancel_rounded,
+    GuideRequestStatus.completed => Icons.task_alt_rounded,
+  };
+}
+
+Color _homeGuideStatusColor(GuideRequestStatus status) {
+  return switch (status) {
+    GuideRequestStatus.pending => AppColors.warning,
+    GuideRequestStatus.processing => AppColors.primary,
+    GuideRequestStatus.confirmed => AppColors.success,
+    GuideRequestStatus.rejected => AppColors.error,
+    GuideRequestStatus.completed => AppColors.success,
+  };
 }
