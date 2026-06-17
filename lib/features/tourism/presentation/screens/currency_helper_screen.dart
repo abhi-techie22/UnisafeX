@@ -195,15 +195,19 @@ class _CurrencyHelperScreenState extends State<CurrencyHelperScreen> {
                     child: CircularProgressIndicator(),
                   )
                 else
-                  Text(
-                    converted == null
-                        ? 'Rate unavailable'
-                        : '${formatter.format(converted)} $_to',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                          color: AppColors.primary,
-                          fontSize: 34,
-                        ),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      converted == null
+                          ? 'Rate unavailable'
+                          : '${formatter.format(converted)} $_to',
+                      textAlign: TextAlign.center,
+                      style:
+                          Theme.of(context).textTheme.displayMedium?.copyWith(
+                                color: AppColors.primary,
+                                fontSize: 34,
+                              ),
+                    ),
                   ),
                 const SizedBox(height: 8),
                 if (rate != null)

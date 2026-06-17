@@ -133,7 +133,10 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
 
   Future<void> resetPassword(String email) async {
     try {
-      await _client.auth.resetPasswordForEmail(email);
+      await _client.auth.resetPasswordForEmail(
+        email,
+        redirectTo: _emailRedirectUrl,
+      );
     } on AuthException {
       rethrow;
     }

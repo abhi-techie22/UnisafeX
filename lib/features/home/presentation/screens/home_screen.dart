@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:unisafex/core/constants/app_constants.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
@@ -27,6 +28,13 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   String? _selectedCategory;
+  Set<String> _dismissedGuideRequestKeys = const {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDismissedGuideRequests();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,6 +46,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final trending = ref.watch(trendingPlacesProvider);
     final mustVisit = ref.watch(mustVisitPlacesProvider);
     final guideRequests = ref.watch(guideRequestsProvider);
+    final visibleGuideRequest = _visibleGuideRequest(guideRequests);
     ref.listen<List<GuideRequest>>(guideRequestsProvider, (previous, next) {
       _showHomeGuideStatusPopup(previous, next);
     });
@@ -181,13 +190,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ).animate().fadeIn(duration: 400.ms),
           ),
 
-          if (guideRequests.isNotEmpty)
+          if (visibleGuideRequest != null)
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 6, 20, 10),
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
                 child: _HomeGuideRequestCard(
-                  request: guideRequests.first,
+                  request: visibleGuideRequest,
                   onTap: () => context.go(AppRoutes.guideRequest),
+                  onDismiss: () => _dismissGuideRequest(visibleGuideRequest),
                 ),
               ),
             ),
@@ -667,6 +677,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  Future<void> _loadDismissedGuideRequests() async {
+    final preferences = await SharedPreferences.getInstance();
+    final keys = preferences.getStringList(_dismissedGuideRequestsKey) ?? [];
+    if (!mounted) return;
+    setState(() => _dismissedGuideRequestKeys = keys.toSet());
+  }
+
+  GuideRequest? _visibleGuideRequest(List<GuideRequest> requests) {
+    for (final request in requests) {
+      if (!_dismissedGuideRequestKeys.contains(_guideDismissKey(request))) {
+        return request;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _dismissGuideRequest(GuideRequest request) async {
+    final next = {..._dismissedGuideRequestKeys, _guideDismissKey(request)};
+    setState(() => _dismissedGuideRequestKeys = next);
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setStringList(_dismissedGuideRequestsKey, next.toList());
+  }
+
   void _showHomeGuideStatusPopup(
     List<GuideRequest>? previous,
     List<GuideRequest> next,
@@ -709,6 +742,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 }
 
+const _dismissedGuideRequestsKey = 'dismissed_home_guide_requests_v1';
+
+String _guideDismissKey(GuideRequest request) {
+  return '${request.id}:${request.status.name}';
+}
+
 class _AvatarShimmer extends StatelessWidget {
   const _AvatarShimmer();
 
@@ -721,70 +760,79 @@ class _AvatarShimmer extends StatelessWidget {
 class _HomeGuideRequestCard extends StatelessWidget {
   final GuideRequest request;
   final VoidCallback onTap;
+  final VoidCallback onDismiss;
 
   const _HomeGuideRequestCard({
     required this.request,
     required this.onTap,
+    required this.onDismiss,
   });
 
   @override
   Widget build(BuildContext context) {
     final color = _homeGuideStatusColor(request.status);
     return InkWell(
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(16),
       onTap: onTap,
       child: Ink(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.09),
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: color.withValues(alpha: 0.22)),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: color,
-                  foregroundColor: Colors.white,
-                  child: Icon(_homeGuideStatusIcon(request.status)),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Your guide request',
-                        style: Theme.of(context).textTheme.titleSmall,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        request.placeName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ],
+            Icon(_homeGuideStatusIcon(request.status), color: color, size: 22),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    request.placeName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleSmall,
                   ),
-                ),
-                const Icon(Icons.chevron_right_rounded),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(99),
-              child: LinearProgressIndicator(
-                value: _homeGuideStatusProgress(request.status),
-                backgroundColor: color.withValues(alpha: 0.12),
-                valueColor: AlwaysStoppedAnimation<Color>(color),
+                  const SizedBox(height: 2),
+                  Text(
+                    _homeGuideStatusMessage(request.status),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  LinearProgressIndicator(
+                    minHeight: 3,
+                    value: _homeGuideStatusProgress(request.status),
+                    backgroundColor: color.withValues(alpha: 0.12),
+                    valueColor: AlwaysStoppedAnimation<Color>(color),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 9),
-            Text(
-              _homeGuideStatusMessage(request.status),
-              style: TextStyle(color: color, fontWeight: FontWeight.w700),
+            IconButton(
+              tooltip: 'Close',
+              visualDensity: VisualDensity.compact,
+              constraints: const BoxConstraints.tightFor(width: 34, height: 34),
+              padding: EdgeInsets.zero,
+              onPressed: onDismiss,
+              icon: const Icon(Icons.close_rounded, size: 18),
+            ),
+            IconButton(
+              tooltip: 'View request',
+              visualDensity: VisualDensity.compact,
+              constraints: const BoxConstraints.tightFor(width: 34, height: 34),
+              padding: EdgeInsets.zero,
+              onPressed: onTap,
+              icon: const Icon(Icons.chevron_right_rounded),
             ),
           ],
         ),

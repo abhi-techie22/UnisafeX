@@ -71,19 +71,22 @@ class _TripPlannerScreenState extends ConsumerState<TripPlannerScreen> {
               Text('travel_style'.tr(),
                   style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 10),
-              SegmentedButton<TravelStyle>(
-                segments: TravelStyle.values
-                    .map(
-                      (style) => ButtonSegment(
-                        value: style,
-                        label: Text(style.label),
-                        icon: Icon(_styleIcon(style)),
-                      ),
-                    )
-                    .toList(),
-                selected: {_style},
-                onSelectionChanged: (selection) =>
-                    setState(() => _style = selection.first),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SegmentedButton<TravelStyle>(
+                  segments: TravelStyle.values
+                      .map(
+                        (style) => ButtonSegment(
+                          value: style,
+                          label: Text(style.label),
+                          icon: Icon(_styleIcon(style)),
+                        ),
+                      )
+                      .toList(),
+                  selected: {_style},
+                  onSelectionChanged: (selection) =>
+                      setState(() => _style = selection.first),
+                ),
               ),
               const SizedBox(height: 20),
               FilledButton.icon(

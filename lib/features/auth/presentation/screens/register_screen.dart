@@ -122,6 +122,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 autocorrect: false,
+                autofillHints: const [AutofillHints.email],
                 textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(
                   hintText: 'your@email.com',
@@ -129,7 +130,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ),
                 validator: (v) {
                   if (v == null || v.isEmpty) return 'required_field'.tr();
-                  if (!v.contains('@')) return 'invalid_email'.tr();
+                  if (!_isValidEmail(v)) return 'invalid_email'.tr();
                   return null;
                 },
               ).animate().slideY(
@@ -144,7 +145,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               TextFormField(
                 controller: _passwordController,
                 obscureText: _obscurePassword,
+                enableSuggestions: false,
+                autocorrect: false,
+                autofillHints: const [AutofillHints.newPassword],
                 textInputAction: TextInputAction.next,
+                onChanged: (_) => setState(() {}),
                 decoration: InputDecoration(
                   hintText: 'min_password'.tr(),
                   prefixIcon: const Icon(Icons.lock_outline, size: 20),
@@ -161,8 +166,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ),
                 validator: (v) {
                   if (v == null || v.isEmpty) return 'required_field'.tr();
-                  if (v.length < 8) {
-                    return 'min_password'.tr();
+                  final passwordError = _passwordValidationMessage(v);
+                  if (passwordError != null) {
+                    return passwordError;
                   }
                   return null;
                 },
@@ -172,12 +178,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     delay: 300.ms,
                     curve: Curves.easeOutCubic,
                   ),
+              const SizedBox(height: 10),
+              _PasswordSecurityNote(password: _passwordController.text),
               const SizedBox(height: 20),
               _buildLabel('confirm_password'.tr()),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _confirmController,
                 obscureText: _obscureConfirm,
+                enableSuggestions: false,
+                autocorrect: false,
+                autofillHints: const [AutofillHints.newPassword],
                 textInputAction: TextInputAction.done,
                 onFieldSubmitted: (_) => _register(),
                 decoration: InputDecoration(
@@ -223,8 +234,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     curve: Curves.easeOutCubic,
                   ),
               const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              Wrap(
+                alignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Text(
                     '${'already_account'.tr()} ',
@@ -260,5 +272,114 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   String _errorMessage(Object error) {
     if (error is AuthException) return error.message;
     return error.toString();
+  }
+
+  bool _isValidEmail(String value) {
+    return RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(value.trim());
+  }
+
+  String? _passwordValidationMessage(String value) {
+    if (value.length < 10) {
+      return 'Use at least 10 characters.';
+    }
+    if (!RegExp(r'[A-Z]').hasMatch(value)) {
+      return 'Add at least one uppercase letter.';
+    }
+    if (!RegExp(r'[a-z]').hasMatch(value)) {
+      return 'Add at least one lowercase letter.';
+    }
+    if (!RegExp(r'\d').hasMatch(value)) {
+      return 'Add at least one number.';
+    }
+    if (!RegExp(r'[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\;/`~]').hasMatch(value)) {
+      return 'Add at least one special character.';
+    }
+    return null;
+  }
+}
+
+class _PasswordSecurityNote extends StatelessWidget {
+  final String password;
+
+  const _PasswordSecurityNote({required this.password});
+
+  @override
+  Widget build(BuildContext context) {
+    final rules = [
+      ('10+ characters', password.length >= 10),
+      ('Uppercase', RegExp(r'[A-Z]').hasMatch(password)),
+      ('Lowercase', RegExp(r'[a-z]').hasMatch(password)),
+      ('Number', RegExp(r'\d').hasMatch(password)),
+      (
+        'Special',
+        RegExp(r'[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\;/`~]').hasMatch(password)
+      ),
+    ];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.14)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Security required: email confirmation + strong password.',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: rules
+                .map(
+                  (rule) => _PasswordRuleChip(
+                    label: rule.$1,
+                    passed: rule.$2,
+                  ),
+                )
+                .toList(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PasswordRuleChip extends StatelessWidget {
+  final String label;
+  final bool passed;
+
+  const _PasswordRuleChip({
+    required this.label,
+    required this.passed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = passed ? AppColors.success : AppColors.grey500;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            passed ? Icons.check_circle_rounded : Icons.circle_outlined,
+            size: 13,
+            color: color,
+          ),
+          const SizedBox(width: 4),
+          Text(label, style: TextStyle(fontSize: 11, color: color)),
+        ],
+      ),
+    );
   }
 }

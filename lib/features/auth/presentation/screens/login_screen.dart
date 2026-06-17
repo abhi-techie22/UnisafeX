@@ -131,6 +131,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 autocorrect: false,
+                autofillHints: const [AutofillHints.email],
                 textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(
                   hintText: 'your@email.com',
@@ -138,7 +139,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 validator: (v) {
                   if (v == null || v.isEmpty) return 'required_field'.tr();
-                  if (!v.contains('@')) return 'invalid_email'.tr();
+                  if (!_isValidEmail(v)) return 'invalid_email'.tr();
                   return null;
                 },
               ).animate().slideY(
@@ -156,6 +157,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               TextFormField(
                 controller: _passwordController,
                 obscureText: _obscurePassword,
+                enableSuggestions: false,
+                autocorrect: false,
+                autofillHints: const [AutofillHints.password],
                 textInputAction: TextInputAction.done,
                 onFieldSubmitted: (_) => _login(),
                 decoration: InputDecoration(
@@ -176,7 +180,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   if (v == null || v.isEmpty) {
                     return 'required_field'.tr();
                   }
-                  if (v.length < 6) {
+                  if (v.length < 8) {
                     return 'min_password'.tr();
                   }
                   return null;
@@ -227,8 +231,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const SizedBox(height: 24),
 
               // Register CTA
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              Wrap(
+                alignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Text(
                     '${'no_account'.tr()} ',
@@ -264,6 +269,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   String _errorMessage(Object error) {
     if (error is AuthException) return error.message;
     return error.toString();
+  }
+
+  bool _isValidEmail(String value) {
+    return RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(value.trim());
   }
 
   Future<void> _handleConfirmedSession(Session session) async {
