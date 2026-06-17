@@ -35,6 +35,8 @@ Deno.serve(async (request) => {
       destination: { location: { latLng: destination } },
       travelMode,
       computeAlternativeRoutes: false,
+      polylineQuality: "HIGH_QUALITY",
+      polylineEncoding: "ENCODED_POLYLINE",
       languageCode: "en-IN",
       units: "METRIC",
     };

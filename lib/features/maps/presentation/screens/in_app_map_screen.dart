@@ -64,40 +64,20 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
             destinationLatitude: widget.latitude,
             destinationLongitude: widget.longitude,
             travelMode: _travelMode,
-          );
+      );
       if (!mounted) return;
       setState(() => _routeState = AsyncValue.data(route));
-      await _fitRoute(route.points);
+      await _focusDestinationRoute();
     } catch (error, stackTrace) {
       if (!mounted) return;
       setState(() => _routeState = AsyncValue.error(error, stackTrace));
     }
   }
 
-  Future<void> _fitRoute(List<LatLng> points) async {
-    final controller = _mapController;
-    if (controller == null || points.isEmpty) return;
-
-    var minLatitude = points.first.latitude;
-    var maxLatitude = points.first.latitude;
-    var minLongitude = points.first.longitude;
-    var maxLongitude = points.first.longitude;
-    for (final point in points.skip(1)) {
-      minLatitude = point.latitude < minLatitude ? point.latitude : minLatitude;
-      maxLatitude = point.latitude > maxLatitude ? point.latitude : maxLatitude;
-      minLongitude =
-          point.longitude < minLongitude ? point.longitude : minLongitude;
-      maxLongitude =
-          point.longitude > maxLongitude ? point.longitude : maxLongitude;
-    }
-
-    await controller.animateCamera(
-      CameraUpdate.newLatLngBounds(
-        LatLngBounds(
-          southwest: LatLng(minLatitude, minLongitude),
-          northeast: LatLng(maxLatitude, maxLongitude),
-        ),
-        72,
+  Future<void> _focusDestinationRoute() async {
+    await _mapController?.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(target: _destination, zoom: 14.2),
       ),
     );
   }
@@ -218,6 +198,11 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
             zoomControlsEnabled: true,
             myLocationEnabled: hasLiveLocation,
             myLocationButtonEnabled: false,
+            padding: const EdgeInsets.only(
+              top: 18,
+              right: 18,
+              bottom: 320,
+            ),
             markers: <Marker>{
               Marker(
                 markerId: const MarkerId('destination'),
@@ -238,6 +223,7 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
                     title: location.source == LocationSource.gps
                         ? 'Your current location'
                         : location.name,
+                    snippet: 'Route start',
                   ),
                 ),
             },
@@ -245,12 +231,24 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
                 ? const <Polyline>{}
                 : {
                     Polyline(
+                      polylineId: const PolylineId('active-route-outline'),
+                      points: route.points,
+                      color: Colors.white,
+                      width: 7,
+                      startCap: Cap.roundCap,
+                      endCap: Cap.roundCap,
+                      jointType: JointType.round,
+                      zIndex: 1,
+                    ),
+                    Polyline(
                       polylineId: const PolylineId('active-route'),
                       points: route.points,
                       color: AppColors.primary,
-                      width: 6,
+                      width: 4,
                       startCap: Cap.roundCap,
                       endCap: Cap.roundCap,
+                      jointType: JointType.round,
+                      zIndex: 2,
                     ),
                   },
             onMapCreated: (controller) {
