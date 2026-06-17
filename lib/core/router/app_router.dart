@@ -12,6 +12,7 @@ import 'package:unisafex/features/auth/presentation/screens/register_screen.dart
 import 'package:unisafex/features/admin/presentation/admin_dashboard_screen.dart';
 
 import 'package:unisafex/features/favorites/presentation/screens/favorites_screen.dart';
+import 'package:unisafex/features/guide/presentation/screens/guide_request_screen.dart';
 import 'package:unisafex/features/home/presentation/screens/home_screen.dart';
 import 'package:unisafex/features/map/presentation/screens/map_screen.dart';
 import 'package:unisafex/features/maps/presentation/screens/in_app_map_screen.dart';
@@ -192,6 +193,17 @@ GoRouter appRouter(
             },
           ),
 
+          /// Guide Request
+          GoRoute(
+            path: AppRoutes.guideRequest,
+            builder: (
+              context,
+              state,
+            ) {
+              return const GuideRequestScreen();
+            },
+          ),
+
           /// Profile
           GoRoute(
             path: AppRoutes.profile,
@@ -361,6 +373,8 @@ class AppRoutes {
   static const String destinationMap = '/maps';
 
   static const String favorites = '/favorites';
+
+  static const String guideRequest = '/guide-request';
 
   static const String profile = '/profile';
   static const String identityDetails = '/profile/identity';

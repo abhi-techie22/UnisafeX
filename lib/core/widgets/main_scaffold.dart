@@ -27,6 +27,11 @@ class MainScaffold extends ConsumerWidget {
         icon: Icons.bookmark_border_outlined,
         activeIcon: Icons.bookmark),
     _NavItem(
+      label: 'guide_request',
+      icon: Icons.support_agent_outlined,
+      activeIcon: Icons.support_agent,
+    ),
+    _NavItem(
         label: 'profile', icon: Icons.person_outline, activeIcon: Icons.person),
   ];
 
@@ -34,6 +39,7 @@ class MainScaffold extends ConsumerWidget {
     AppRoutes.home,
     AppRoutes.map,
     AppRoutes.favorites,
+    AppRoutes.guideRequest,
     AppRoutes.profile,
   ];
 
@@ -88,14 +94,14 @@ class MainScaffold extends ConsumerWidget {
                                   : (isDark
                                       ? AppColors.grey600
                                       : AppColors.grey400),
-                              size: 24,
+                              size: 23,
                             ),
                           ),
                           const SizedBox(height: 3),
                           AnimatedDefaultTextStyle(
                             duration: const Duration(milliseconds: 200),
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: 10,
                               fontWeight:
                                   isActive ? FontWeight.w600 : FontWeight.w400,
                               color: isActive
