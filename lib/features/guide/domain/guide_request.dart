@@ -23,6 +23,17 @@ class GuideRequest {
   final String? adminNote;
   final String? adminWhatsapp;
   final String? adminEmail;
+  final String? guideName;
+  final String? guidePhotoUrl;
+  final String? guidePhone;
+  final String? guideLanguages;
+  final int? guideExperienceYears;
+  final String? guideBio;
+  final double? guideChargeAmount;
+  final String? guideChargeCurrency;
+  final String? guideMeetingPoint;
+  final String bookingStatus;
+  final DateTime? bookedAt;
 
   const GuideRequest({
     required this.id,
@@ -39,6 +50,17 @@ class GuideRequest {
     this.adminNote,
     this.adminWhatsapp,
     this.adminEmail,
+    this.guideName,
+    this.guidePhotoUrl,
+    this.guidePhone,
+    this.guideLanguages,
+    this.guideExperienceYears,
+    this.guideBio,
+    this.guideChargeAmount,
+    this.guideChargeCurrency,
+    this.guideMeetingPoint,
+    this.bookingStatus = 'not_booked',
+    this.bookedAt,
   });
 
   factory GuideRequest.create({
@@ -61,12 +83,14 @@ class GuideRequest {
       contactNote: contactNote,
       adminWhatsapp: GuideRequestDefaults.adminWhatsapp,
       adminEmail: GuideRequestDefaults.adminEmail,
+      bookingStatus: 'not_booked',
     );
   }
 
   factory GuideRequest.fromJson(Map<String, dynamic> json) {
     final requestedAtValue = json['requested_at'] ?? json['requestedAt'];
     final expectedByValue = json['expected_by'] ?? json['expectedBy'];
+    final bookedAtValue = json['booked_at'] ?? json['bookedAt'];
     final statusValue = json['status']?.toString();
     return GuideRequest(
       id: json['id']?.toString() ?? '',
@@ -91,6 +115,29 @@ class GuideRequest {
       adminWhatsapp:
           (json['admin_whatsapp'] ?? json['adminWhatsapp'])?.toString(),
       adminEmail: (json['admin_email'] ?? json['adminEmail'])?.toString(),
+      guideName: (json['guide_name'] ?? json['guideName'])?.toString(),
+      guidePhotoUrl:
+          (json['guide_photo_url'] ?? json['guidePhotoUrl'])?.toString(),
+      guidePhone: (json['guide_phone'] ?? json['guidePhone'])?.toString(),
+      guideLanguages:
+          (json['guide_languages'] ?? json['guideLanguages'])?.toString(),
+      guideExperienceYears: ((json['guide_experience_years'] ??
+              json['guideExperienceYears']) as num?)
+          ?.toInt(),
+      guideBio: (json['guide_bio'] ?? json['guideBio'])?.toString(),
+      guideChargeAmount:
+          ((json['guide_charge_amount'] ?? json['guideChargeAmount']) as num?)
+              ?.toDouble(),
+      guideChargeCurrency:
+          (json['guide_charge_currency'] ?? json['guideChargeCurrency'])
+              ?.toString(),
+      guideMeetingPoint:
+          (json['guide_meeting_point'] ?? json['guideMeetingPoint'])
+              ?.toString(),
+      bookingStatus:
+          (json['booking_status'] ?? json['bookingStatus'])?.toString() ??
+              'not_booked',
+      bookedAt: DateTime.tryParse(bookedAtValue?.toString() ?? ''),
     );
   }
 
@@ -110,6 +157,17 @@ class GuideRequest {
       'adminNote': adminNote,
       'adminWhatsapp': adminWhatsapp,
       'adminEmail': adminEmail,
+      'guideName': guideName,
+      'guidePhotoUrl': guidePhotoUrl,
+      'guidePhone': guidePhone,
+      'guideLanguages': guideLanguages,
+      'guideExperienceYears': guideExperienceYears,
+      'guideBio': guideBio,
+      'guideChargeAmount': guideChargeAmount,
+      'guideChargeCurrency': guideChargeCurrency,
+      'guideMeetingPoint': guideMeetingPoint,
+      'bookingStatus': bookingStatus,
+      'bookedAt': bookedAt?.toIso8601String(),
     };
   }
 
@@ -131,6 +189,28 @@ class GuideRequest {
   }
 
   String encode() => jsonEncode(toJson());
+
+  bool get hasAssignedGuide =>
+      guideName?.trim().isNotEmpty == true &&
+      guideChargeAmount != null &&
+      guideChargeAmount! > 0;
+
+  bool get canBook =>
+      status == GuideRequestStatus.confirmed &&
+      hasAssignedGuide &&
+      bookingStatus != 'booked';
+
+  String get formattedGuideCharge {
+    final amount = guideChargeAmount;
+    if (amount == null) return 'Charges pending';
+    final currency = guideChargeCurrency?.trim().isNotEmpty == true
+        ? guideChargeCurrency!.trim()
+        : 'INR';
+    final pretty = amount == amount.roundToDouble()
+        ? amount.toStringAsFixed(0)
+        : amount.toStringAsFixed(2);
+    return '$currency $pretty';
+  }
 }
 
 class GuideRequestDefaults {

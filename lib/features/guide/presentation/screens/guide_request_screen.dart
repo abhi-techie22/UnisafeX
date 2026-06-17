@@ -94,6 +94,7 @@ class _GuideRequestScreenState extends ConsumerState<GuideRequestScreen> {
           _HistorySection(
             requests: requests,
             onRebook: _rebook,
+            onBook: _bookGuide,
             onDelete: (request) async {
               await ref
                   .read(guideRequestsProvider.notifier)
@@ -208,6 +209,29 @@ class _GuideRequestScreenState extends ConsumerState<GuideRequestScreen> {
         content: Text('Select ${request.placeName} again and confirm rebook.'),
       ),
     );
+  }
+
+  Future<void> _bookGuide(GuideRequest request) async {
+    try {
+      await ref.read(guideRequestsProvider.notifier).bookRequest(request.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${request.guideName ?? 'Guide'} booked for ${request.placeName}.',
+          ),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Guide could not be booked right now. $error'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   void _showConfirmation(GuideRequest request) {
@@ -584,11 +608,13 @@ class _RequestForm extends StatelessWidget {
 class _HistorySection extends StatelessWidget {
   final List<GuideRequest> requests;
   final ValueChanged<GuideRequest> onRebook;
+  final ValueChanged<GuideRequest> onBook;
   final ValueChanged<GuideRequest> onDelete;
 
   const _HistorySection({
     required this.requests,
     required this.onRebook,
+    required this.onBook,
     required this.onDelete,
   });
 
@@ -606,6 +632,7 @@ class _HistorySection extends StatelessWidget {
             (request) => _GuideRequestCard(
               request: request,
               onRebook: () => onRebook(request),
+              onBook: () => onBook(request),
               onDelete: () => onDelete(request),
             ),
           ),
@@ -617,11 +644,13 @@ class _HistorySection extends StatelessWidget {
 class _GuideRequestCard extends StatelessWidget {
   final GuideRequest request;
   final VoidCallback onRebook;
+  final VoidCallback onBook;
   final VoidCallback onDelete;
 
   const _GuideRequestCard({
     required this.request,
     required this.onRebook,
+    required this.onBook,
     required this.onDelete,
   });
 
@@ -691,6 +720,13 @@ class _GuideRequestCard extends StatelessWidget {
               Text('Note: ${request.contactNote}'),
             ],
             const SizedBox(height: 12),
+            if (request.status == GuideRequestStatus.confirmed &&
+                request.hasAssignedGuide)
+              _AssignedGuideCard(request: request, onBook: onBook)
+            else if (request.status != GuideRequestStatus.rejected &&
+                request.status != GuideRequestStatus.completed)
+              _GuidePreparingCard(request: request),
+            const SizedBox(height: 12),
             Row(
               children: [
                 TextButton.icon(
@@ -743,6 +779,191 @@ class _StatusPill extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(color: color, fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+}
+
+class _GuidePreparingCard extends StatelessWidget {
+  final GuideRequest request;
+
+  const _GuidePreparingCard({required this.request});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.14)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.16),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.person_search_rounded,
+                    color: AppColors.primary),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Guide profile is being prepared',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      request.status == GuideRequestStatus.confirmed
+                          ? 'Confirmed. Admin will add guide details shortly.'
+                          : 'We will show the guide profile, charges and booking button after admin confirmation.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          const _GuideSkeletonLine(widthFactor: 0.85),
+          const SizedBox(height: 8),
+          const _GuideSkeletonLine(widthFactor: 0.62),
+          const SizedBox(height: 8),
+          const _GuideSkeletonLine(widthFactor: 0.72),
+        ],
+      ),
+    );
+  }
+}
+
+class _GuideSkeletonLine extends StatelessWidget {
+  final double widthFactor;
+
+  const _GuideSkeletonLine({required this.widthFactor});
+
+  @override
+  Widget build(BuildContext context) {
+    return FractionallySizedBox(
+      widthFactor: widthFactor,
+      child: Container(
+        height: 9,
+        decoration: BoxDecoration(
+          color: AppColors.grey300.withValues(alpha: 0.55),
+          borderRadius: BorderRadius.circular(99),
+        ),
+      ),
+    );
+  }
+}
+
+class _AssignedGuideCard extends StatelessWidget {
+  final GuideRequest request;
+  final VoidCallback onBook;
+
+  const _AssignedGuideCard({
+    required this.request,
+    required this.onBook,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final booked = request.bookingStatus == 'booked';
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.success.withValues(alpha: 0.1),
+            AppColors.primary.withValues(alpha: 0.08),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.success.withValues(alpha: 0.22)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                radius: 31,
+                backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                backgroundImage: request.guidePhotoUrl?.isNotEmpty == true
+                    ? NetworkImage(request.guidePhotoUrl!)
+                    : null,
+                child: request.guidePhotoUrl?.isNotEmpty == true
+                    ? null
+                    : const Icon(Icons.badge_rounded,
+                        color: AppColors.primary, size: 28),
+              ),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      request.guideName ?? 'Assigned guide',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      [
+                        if (request.guideLanguages?.isNotEmpty == true)
+                          request.guideLanguages,
+                        if (request.guideExperienceYears != null)
+                          '${request.guideExperienceYears} yrs experience',
+                      ].whereType<String>().join(' · '),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      request.formattedGuideCharge,
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (request.guideBio?.isNotEmpty == true) ...[
+            const SizedBox(height: 12),
+            Text(request.guideBio!),
+          ],
+          if (request.guideMeetingPoint?.isNotEmpty == true) ...[
+            const SizedBox(height: 10),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.location_on_outlined,
+                    size: 18, color: AppColors.primary),
+                const SizedBox(width: 6),
+                Expanded(child: Text('Meeting: ${request.guideMeetingPoint}')),
+              ],
+            ),
+          ],
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: booked ? null : onBook,
+              icon: Icon(booked ? Icons.check_circle_rounded : Icons.event),
+              label: Text(booked ? 'Guide booked' : 'Book this guide'),
+            ),
+          ),
+        ],
       ),
     );
   }

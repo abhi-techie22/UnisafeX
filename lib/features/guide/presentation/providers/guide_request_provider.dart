@@ -76,6 +76,43 @@ class GuideRequestRepository {
     await _client.from('guide_requests').update(data).eq('id', requestId);
   }
 
+  Future<void> updateGuideDetails({
+    required String requestId,
+    required String guideName,
+    required String guidePhotoUrl,
+    required String guidePhone,
+    required String guideLanguages,
+    required int? guideExperienceYears,
+    required String guideBio,
+    required double? guideChargeAmount,
+    required String guideChargeCurrency,
+    required String guideMeetingPoint,
+    required String adminNote,
+    bool confirmRequest = true,
+  }) async {
+    final data = <String, dynamic>{
+      'guide_name': _emptyToNull(guideName),
+      'guide_photo_url': _emptyToNull(guidePhotoUrl),
+      'guide_phone': _emptyToNull(guidePhone),
+      'guide_languages': _emptyToNull(guideLanguages),
+      'guide_experience_years': guideExperienceYears,
+      'guide_bio': _emptyToNull(guideBio),
+      'guide_charge_amount': guideChargeAmount,
+      'guide_charge_currency': _emptyToNull(guideChargeCurrency) ?? 'INR',
+      'guide_meeting_point': _emptyToNull(guideMeetingPoint),
+      'admin_note': _emptyToNull(adminNote),
+    };
+    if (confirmRequest) data['status'] = GuideRequestStatus.confirmed.name;
+    await _client.from('guide_requests').update(data).eq('id', requestId);
+  }
+
+  Future<void> bookRequest(String requestId) async {
+    await _client.rpc(
+      'book_guide_request',
+      params: {'p_request_id': requestId},
+    );
+  }
+
   String? _emptyToNull(String? value) {
     final trimmed = value?.trim();
     return trimmed == null || trimmed.isEmpty ? null : trimmed;
@@ -141,6 +178,11 @@ class GuideRequestNotifier extends StateNotifier<List<GuideRequest>> {
   Future<void> removeLocal(String requestId) async {
     state = state.where((request) => request.id != requestId).toList();
     await _persist(state);
+  }
+
+  Future<void> bookRequest(String requestId) async {
+    await _repository.bookRequest(requestId);
+    await load();
   }
 
   Future<List<GuideRequest>> _loadLocal() async {

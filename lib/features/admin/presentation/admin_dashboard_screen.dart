@@ -362,6 +362,7 @@ class _GuideRequestsAdminTab extends ConsumerWidget {
             else
               ...items.map((request) => _AdminGuideRequestCard(
                     request: request,
+                    onEditGuide: () => _editGuideDetails(context, ref, request),
                     onStatusChanged: (status) async {
                       await ref
                           .read(guideRequestRepositoryProvider)
@@ -377,6 +378,187 @@ class _GuideRequestsAdminTab extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _editGuideDetails(
+    BuildContext context,
+    WidgetRef ref,
+    GuideRequest request,
+  ) async {
+    final name = TextEditingController(text: request.guideName);
+    final photo = TextEditingController(text: request.guidePhotoUrl);
+    final phone = TextEditingController(text: request.guidePhone);
+    final languages = TextEditingController(text: request.guideLanguages);
+    final experience = TextEditingController(
+      text: request.guideExperienceYears?.toString(),
+    );
+    final bio = TextEditingController(text: request.guideBio);
+    final charge = TextEditingController(
+      text: request.guideChargeAmount?.toString(),
+    );
+    final currency = TextEditingController(
+      text: request.guideChargeCurrency ?? 'INR',
+    );
+    final meeting = TextEditingController(text: request.guideMeetingPoint);
+    final note = TextEditingController(text: request.adminNote);
+    var confirmRequest = request.status != GuideRequestStatus.confirmed;
+
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheetState) => Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            20,
+            20,
+            MediaQuery.viewInsetsOf(context).bottom + 24,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Assign guide profile',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 6),
+                Text('${request.placeName} · ${request.userEmail ?? ''}'),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: name,
+                  decoration: const InputDecoration(labelText: 'Guide name'),
+                ),
+                TextField(
+                  controller: photo,
+                  keyboardType: TextInputType.url,
+                  decoration:
+                      const InputDecoration(labelText: 'Guide photo URL'),
+                ),
+                TextField(
+                  controller: phone,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(labelText: 'Guide phone'),
+                ),
+                TextField(
+                  controller: languages,
+                  decoration: const InputDecoration(
+                    labelText: 'Languages',
+                    hintText: 'English, Hindi, French...',
+                  ),
+                ),
+                TextField(
+                  controller: experience,
+                  keyboardType: TextInputType.number,
+                  decoration:
+                      const InputDecoration(labelText: 'Experience years'),
+                ),
+                TextField(
+                  controller: bio,
+                  maxLines: 3,
+                  decoration:
+                      const InputDecoration(labelText: 'Guide short bio'),
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: charge,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        decoration:
+                            const InputDecoration(labelText: 'Guide charges'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    SizedBox(
+                      width: 96,
+                      child: TextField(
+                        controller: currency,
+                        textCapitalization: TextCapitalization.characters,
+                        decoration:
+                            const InputDecoration(labelText: 'Currency'),
+                      ),
+                    ),
+                  ],
+                ),
+                TextField(
+                  controller: meeting,
+                  decoration: const InputDecoration(labelText: 'Meeting point'),
+                ),
+                TextField(
+                  controller: note,
+                  maxLines: 2,
+                  decoration: const InputDecoration(labelText: 'Admin note'),
+                ),
+                SwitchListTile(
+                  value: confirmRequest,
+                  title: const Text('Confirm request after saving'),
+                  subtitle: const Text(
+                    'User will see this guide profile and booking button.',
+                  ),
+                  onChanged: (value) =>
+                      setSheetState(() => confirmRequest = value),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () async {
+                      if (name.text.trim().isEmpty ||
+                          charge.text.trim().isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Guide name and charges required.'),
+                          ),
+                        );
+                        return;
+                      }
+                      await ref
+                          .read(guideRequestRepositoryProvider)
+                          .updateGuideDetails(
+                            requestId: request.id,
+                            guideName: name.text,
+                            guidePhotoUrl: photo.text,
+                            guidePhone: phone.text,
+                            guideLanguages: languages.text,
+                            guideExperienceYears: int.tryParse(experience.text),
+                            guideBio: bio.text,
+                            guideChargeAmount: double.tryParse(charge.text),
+                            guideChargeCurrency: currency.text,
+                            guideMeetingPoint: meeting.text,
+                            adminNote: note.text,
+                            confirmRequest: confirmRequest,
+                          );
+                      if (context.mounted) Navigator.pop(context, true);
+                    },
+                    icon: const Icon(Icons.save_rounded),
+                    label: const Text('Save guide profile'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    name.dispose();
+    photo.dispose();
+    phone.dispose();
+    languages.dispose();
+    experience.dispose();
+    bio.dispose();
+    charge.dispose();
+    currency.dispose();
+    meeting.dispose();
+    note.dispose();
+
+    if (saved == true) {
+      ref.invalidate(adminGuideRequestsProvider);
+    }
   }
 }
 
@@ -452,10 +634,12 @@ class _AdminGuideEmpty extends StatelessWidget {
 
 class _AdminGuideRequestCard extends StatelessWidget {
   final GuideRequest request;
+  final VoidCallback onEditGuide;
   final ValueChanged<GuideRequestStatus> onStatusChanged;
 
   const _AdminGuideRequestCard({
     required this.request,
+    required this.onEditGuide,
     required this.onStatusChanged,
   });
 
@@ -525,11 +709,24 @@ class _AdminGuideRequestCard extends StatelessWidget {
               const SizedBox(height: 8),
               Text('Admin note: ${request.adminNote}'),
             ],
+            if (request.hasAssignedGuide) ...[
+              const SizedBox(height: 10),
+              _AdminGuideProfileSummary(request: request),
+            ],
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
+                FilledButton.icon(
+                  onPressed: onEditGuide,
+                  icon: const Icon(Icons.badge_rounded),
+                  label: Text(
+                    request.hasAssignedGuide
+                        ? 'Edit guide profile'
+                        : 'Assign guide',
+                  ),
+                ),
                 OutlinedButton.icon(
                   onPressed: () => _openWhatsapp(request),
                   icon: const Icon(Icons.chat_rounded),
@@ -619,6 +816,60 @@ class _AdminStatusMenu extends StatelessWidget {
             fontWeight: FontWeight.w700,
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _AdminGuideProfileSummary extends StatelessWidget {
+  final GuideRequest request;
+
+  const _AdminGuideProfileSummary({required this.request});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.success.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.success.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+            backgroundImage: request.guidePhotoUrl?.isNotEmpty == true
+                ? NetworkImage(request.guidePhotoUrl!)
+                : null,
+            child: request.guidePhotoUrl?.isNotEmpty == true
+                ? null
+                : const Icon(Icons.badge_rounded, color: AppColors.primary),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  request.guideName ?? 'Assigned guide',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '${request.formattedGuideCharge}'
+                  '${request.bookingStatus == 'booked' ? ' · Booked' : ''}',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                if (request.guidePhone?.isNotEmpty == true)
+                  Text(
+                    request.guidePhone!,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
