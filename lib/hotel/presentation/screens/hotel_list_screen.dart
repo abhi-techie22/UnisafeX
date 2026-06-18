@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../widgets/common/shimmer_loader.dart';
+import '../../domain/entities/hotel_search_params.dart';
 import '../providers/hotel_providers.dart';
 import '../widgets/hotel_card.dart';
 import '../widgets/hotel_filter_sheet.dart';
@@ -59,7 +60,8 @@ class HotelListScreen extends ConsumerWidget {
               ),
               // Filter
               IconButton(
-                icon: const Icon(Icons.tune, color: AppColors.goldPrimary, size: 20),
+                icon: const Icon(Icons.tune,
+                    color: AppColors.goldPrimary, size: 20),
                 onPressed: () => _showFilters(context),
               ),
               const SizedBox(width: 4),
@@ -251,7 +253,8 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.wifi_off, color: AppColors.darkTextMuted, size: 56),
+            const Icon(Icons.wifi_off,
+                color: AppColors.darkTextMuted, size: 56),
             const SizedBox(height: 16),
             Text('Unable to load hotels',
                 style: AppTextStyles.headlineSmall

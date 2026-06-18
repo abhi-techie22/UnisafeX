@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:unisafex/core/constants/app_constants.dart';
 import 'package:unisafex/core/widgets/main_scaffold.dart';
@@ -78,6 +79,26 @@ GoRouter appRouter(
 
       if (onboardingDone && isOnOnboarding) {
         return AppRoutes.authSelection;
+      }
+
+      final location = state.matchedLocation;
+      final user = Supabase.instance.client.auth.currentUser;
+      final isAuthRoute = location == AppRoutes.authSelection ||
+          location == AppRoutes.login ||
+          location == AppRoutes.register;
+
+      if (user != null && isAuthRoute) {
+        return AppRoutes.home;
+      }
+
+      if (_requiresSignedInUser(location) && user == null) {
+        return AppRoutes.login;
+      }
+
+      if (location == AppRoutes.admin) {
+        if (user == null) return AppRoutes.login;
+        final isAdmin = await _isAdminUser();
+        if (!isAdmin) return AppRoutes.profile;
       }
 
       return null;
@@ -347,6 +368,24 @@ GoRouter appRouter(
       );
     },
   );
+}
+
+bool _requiresSignedInUser(String location) {
+  return location == AppRoutes.profileCompletion ||
+      location == AppRoutes.profile ||
+      location == AppRoutes.identityDetails ||
+      location == AppRoutes.favorites ||
+      location == AppRoutes.guideRequest ||
+      location == AppRoutes.admin;
+}
+
+Future<bool> _isAdminUser() async {
+  try {
+    final value = await Supabase.instance.client.rpc('is_unisafex_admin');
+    return value == true;
+  } catch (_) {
+    return false;
+  }
 }
 
 class AppRoutes {

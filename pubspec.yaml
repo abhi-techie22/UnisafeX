@@ -54,6 +54,7 @@ dependencies:
   equatable: ^2.0.5
   dartz: ^0.10.1
   dio: ^5.7.0
+  logger: ^2.5.0
 
   # Icons
   flutter_svg: ^2.0.10+1

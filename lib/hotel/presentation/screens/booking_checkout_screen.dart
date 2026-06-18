@@ -7,7 +7,6 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../widgets/common/loading_overlay.dart';
 import '../../../widgets/common/premium_text_field.dart';
-import '../../domain/entities/booking.dart';
 import '../../domain/entities/hotel.dart';
 import '../../domain/entities/room.dart';
 import '../providers/hotel_providers.dart';
@@ -35,8 +34,7 @@ class BookingCheckoutScreen extends ConsumerStatefulWidget {
       _BookingCheckoutScreenState();
 }
 
-class _BookingCheckoutScreenState
-    extends ConsumerState<BookingCheckoutScreen> {
+class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> {
   final _formKey = GlobalKey<FormState>();
   final _firstNameCtrl = TextEditingController();
   final _lastNameCtrl = TextEditingController();
@@ -62,9 +60,7 @@ class _BookingCheckoutScreenState
       return;
     }
 
-    final booking = await ref
-        .read(bookingFlowProvider.notifier)
-        .confirmBooking(
+    final booking = await ref.read(bookingFlowProvider.notifier).confirmBooking(
           hotel: widget.hotel,
           checkIn: widget.checkIn,
           checkOut: widget.checkOut,
@@ -137,8 +133,8 @@ class _BookingCheckoutScreenState
 
                 // ── Guest details ────────────────────────────────────
                 Text('Guest Details',
-                    style: AppTextStyles.headlineSmall
-                        .copyWith(color: AppColors.ivory))
+                        style: AppTextStyles.headlineSmall
+                            .copyWith(color: AppColors.ivory))
                     .animate()
                     .fadeIn(delay: 100.ms),
 
@@ -195,16 +191,15 @@ class _BookingCheckoutScreenState
                   hint: '+91 98765 43210',
                   prefixIcon: Icons.phone_outlined,
                   keyboardType: TextInputType.phone,
-                  validator: (v) =>
-                      v == null || v.isEmpty ? 'Required' : null,
+                  validator: (v) => v == null || v.isEmpty ? 'Required' : null,
                 ).animate().fadeIn(delay: 210.ms),
 
                 const SizedBox(height: 28),
 
                 // ── Price breakdown ──────────────────────────────────
                 Text('Price Breakdown',
-                    style: AppTextStyles.headlineSmall
-                        .copyWith(color: AppColors.ivory))
+                        style: AppTextStyles.headlineSmall
+                            .copyWith(color: AppColors.ivory))
                     .animate()
                     .fadeIn(delay: 240.ms),
 
@@ -293,8 +288,7 @@ class _BookingCheckoutScreenState
 
                 // ── Terms checkbox ───────────────────────────────────
                 GestureDetector(
-                  onTap: () =>
-                      setState(() => _acceptTerms = !_acceptTerms),
+                  onTap: () => setState(() => _acceptTerms = !_acceptTerms),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -324,8 +318,7 @@ class _BookingCheckoutScreenState
                         child: Text(
                           'I agree to the Terms & Conditions and Privacy Policy. I understand the cancellation policy for this booking.',
                           style: AppTextStyles.bodySmall.copyWith(
-                              color: AppColors.darkTextSecondary,
-                              height: 1.5),
+                              color: AppColors.darkTextSecondary, height: 1.5),
                         ),
                       ),
                     ],
@@ -339,8 +332,7 @@ class _BookingCheckoutScreenState
                   width: double.infinity,
                   height: 54,
                   child: ElevatedButton(
-                    onPressed:
-                        bookingState.isLoading ? null : _placeBooking,
+                    onPressed: bookingState.isLoading ? null : _placeBooking,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.goldPrimary,
                       foregroundColor: AppColors.navyDeep,
@@ -362,14 +354,15 @@ class _BookingCheckoutScreenState
                   width: double.infinity,
                   height: 50,
                   child: OutlinedButton.icon(
-                    onPressed: () =>
-                        ref.read(bookingFlowProvider.notifier).redirectToBookingCom(
-                              hotel: widget.hotel,
-                              checkIn: widget.checkIn,
-                              checkOut: widget.checkOut,
-                              adults: widget.adults,
-                              rooms: 1,
-                            ),
+                    onPressed: () => ref
+                        .read(bookingFlowProvider.notifier)
+                        .redirectToBookingCom(
+                          hotel: widget.hotel,
+                          checkIn: widget.checkIn,
+                          checkOut: widget.checkOut,
+                          adults: widget.adults,
+                          rooms: 1,
+                        ),
                     icon: const Icon(Icons.open_in_browser, size: 16),
                     label: const Text('Book via Booking.com instead'),
                     style: OutlinedButton.styleFrom(
@@ -532,7 +525,8 @@ class _PriceBreakdown extends StatelessWidget {
       child: Column(
         children: [
           _PriceRow(
-            label: '${room.formattedPrice} × $nights night${nights != 1 ? 's' : ''}',
+            label:
+                '${room.formattedPrice} × $nights night${nights != 1 ? 's' : ''}',
             value: '₹${subtotal.toStringAsFixed(0)}',
           ),
           if (room.breakfastIncluded)

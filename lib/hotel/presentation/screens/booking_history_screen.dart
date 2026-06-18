@@ -9,7 +9,7 @@ import '../../../core/router/app_router.dart';
 import '../../../widgets/common/shimmer_loader.dart';
 import '../../domain/entities/booking.dart';
 import '../providers/hotel_providers.dart';
-import 'package:unisafex/data/providers/auth_provider.dart';
+import 'package:unisafex/features/auth/presentation/providers/auth_provider.dart';
 
 class BookingHistoryScreen extends ConsumerWidget {
   const BookingHistoryScreen({super.key});
@@ -29,8 +29,8 @@ class BookingHistoryScreen extends ConsumerWidget {
           onPressed: () => context.pop(),
         ),
         title: Text('My Bookings',
-            style: AppTextStyles.headlineSmall
-                .copyWith(color: AppColors.ivory)),
+            style:
+                AppTextStyles.headlineSmall.copyWith(color: AppColors.ivory)),
       ),
       body: isGuest
           ? _GuestView()
@@ -59,8 +59,7 @@ class _BookingHistoryCard extends StatelessWidget {
   final Booking booking;
   final int index;
 
-  const _BookingHistoryCard(
-      {required this.booking, required this.index});
+  const _BookingHistoryCard({required this.booking, required this.index});
 
   Color get _statusColor {
     switch (booking.status) {
@@ -141,8 +140,8 @@ class _BookingHistoryCard extends StatelessWidget {
                 ),
                 // Status badge
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: _statusColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(100),
@@ -166,13 +165,11 @@ class _BookingHistoryCard extends StatelessWidget {
 
           // ── Dates row ──────────────────────────────────────────
           Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
                 _DateChip(
-                    label: 'CHECK-IN',
-                    value: fmt.format(booking.checkIn)),
+                    label: 'CHECK-IN', value: fmt.format(booking.checkIn)),
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 12),
                   child: Column(
@@ -185,32 +182,28 @@ class _BookingHistoryCard extends StatelessWidget {
                       const SizedBox(height: 3),
                       Text(
                         '${booking.nights}n',
-                        style: AppTextStyles.labelSmall
-                            .copyWith(color: AppColors.darkTextMuted,
-                                fontSize: 9),
+                        style: AppTextStyles.labelSmall.copyWith(
+                            color: AppColors.darkTextMuted, fontSize: 9),
                       ),
                     ],
                   ),
                 ),
                 _DateChip(
-                    label: 'CHECK-OUT',
-                    value: fmt.format(booking.checkOut)),
+                    label: 'CHECK-OUT', value: fmt.format(booking.checkOut)),
                 const Spacer(),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text('TOTAL',
-                        style: AppTextStyles.overline
-                            .copyWith(
-                                color: AppColors.darkTextMuted,
-                                fontSize: 8,
-                                letterSpacing: 1)),
+                        style: AppTextStyles.overline.copyWith(
+                            color: AppColors.darkTextMuted,
+                            fontSize: 8,
+                            letterSpacing: 1)),
                     Text(
                       booking.formattedTotal,
-                      style: AppTextStyles.headlineSmall
-                          .copyWith(
-                              color: AppColors.goldPrimary,
-                              fontWeight: FontWeight.w700),
+                      style: AppTextStyles.headlineSmall.copyWith(
+                          color: AppColors.goldPrimary,
+                          fontWeight: FontWeight.w700),
                     ),
                   ],
                 ),
@@ -362,8 +355,7 @@ class _EmptyView extends StatelessWidget {
               foregroundColor: AppColors.navyDeep,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(100)),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
           ),
         ],

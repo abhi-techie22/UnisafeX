@@ -415,10 +415,10 @@ class _HeroImageSection extends StatelessWidget {
             onPageChanged: onPageChanged,
             itemCount: validImages.isEmpty ? 1 : validImages.length,
             itemBuilder: (_, i) {
-              final url = validImages.isNotEmpty ? validImages[i] : null;
-              return url != null
-                  ? CachedNetworkImage(
-                      imageUrl: url!,
+                  final url = validImages.isNotEmpty ? validImages[i] : null;
+                  return url != null
+                      ? CachedNetworkImage(
+                          imageUrl: url,
                       fit: BoxFit.cover,
                       placeholder: (_, __) =>
                           Container(color: AppColors.navyMid),

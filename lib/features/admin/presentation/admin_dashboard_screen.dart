@@ -1,8 +1,11 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
+import 'package:unisafex/features/auth/presentation/providers/auth_provider.dart';
 import 'package:unisafex/features/guide/domain/guide_request.dart';
 import 'package:unisafex/features/guide/presentation/providers/guide_request_provider.dart';
 import 'package:unisafex/features/heritage/data/heritage_repository.dart';
@@ -35,6 +38,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: Text('admin_console'.tr()),
+          actions: [
+            IconButton(
+              tooltip: 'sign_out'.tr(),
+              onPressed: () => _confirmAdminSignOut(context),
+              icon: const Icon(Icons.logout_rounded),
+            ),
+          ],
           bottom: const TabBar(
             tabs: [
               Tab(icon: Icon(Icons.account_balance_rounded), text: 'Places'),
@@ -326,6 +336,31 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       ref.invalidate(heritageMonumentsProvider);
       ref.invalidate(heritageFilterOptionsProvider);
     }
+  }
+
+  void _confirmAdminSignOut(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('sign_out_question'.tr()),
+        content: Text('sign_out_message'.tr()),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text('cancel'.tr()),
+          ),
+          FilledButton.icon(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              await ref.read(authNotifierProvider.notifier).signOut();
+              if (context.mounted) context.go(AppRoutes.authSelection);
+            },
+            icon: const Icon(Icons.logout_rounded),
+            label: Text('sign_out'.tr()),
+          ),
+        ],
+      ),
+    );
   }
 }
 

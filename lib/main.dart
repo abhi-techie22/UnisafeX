@@ -13,9 +13,11 @@ Future<void> main() async {
 
   await EasyLocalization.ensureInitialized();
 
+  AppConstants.validateRuntimeConfig();
+
   await Supabase.initialize(
     url: AppConstants.supabaseUrl,
-    anonKey: AppConstants.supabaseAnonKey,
+    publishableKey: AppConstants.supabaseAnonKey,
   );
 
   SystemChrome.setPreferredOrientations([

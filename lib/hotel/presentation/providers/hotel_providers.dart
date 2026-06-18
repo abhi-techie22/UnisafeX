@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/services/amadeus_api_service.dart';
 import '../../data/services/mock_hotel_service.dart';
 import '../../data/services/hotel_supabase_service.dart';
@@ -10,7 +9,7 @@ import '../../domain/entities/room.dart';
 import '../../domain/entities/booking.dart';
 import '../../domain/entities/hotel_search_params.dart';
 import '../../application/usecases/hotel_usecases.dart';
-import 'package:unisafex/data/providers/auth_provider.dart';
+import 'package:unisafex/features/auth/presentation/providers/auth_provider.dart';
 
 // ── Infrastructure providers ──────────────────────────────────
 
@@ -19,7 +18,7 @@ final _mockHotelServiceProvider = Provider<MockHotelService>(
 );
 
 final _hotelSupabaseServiceProvider = Provider<HotelSupabaseService>((ref) {
-  final client = ref.watch(supabaseProvider);
+  final client = ref.watch(supabaseClientProvider);
   return HotelSupabaseService(client);
 });
 
@@ -30,8 +29,8 @@ final _bookingAffiliateServiceProvider = Provider<BookingAffiliateService>(
 /// To enable Amadeus, set these env values or replace the strings.
 /// Leave them as '' to use mock service.
 final _amadeusServiceProvider = Provider<AmadeusApiService?>((_) {
-  const clientId = '';     // 'your_amadeus_client_id'
-  const clientSecret = ''; // 'your_amadeus_client_secret'
+  const clientId = String.fromEnvironment('AMADEUS_CLIENT_ID');
+  const clientSecret = String.fromEnvironment('AMADEUS_CLIENT_SECRET');
   if (clientId.isEmpty || clientSecret.isEmpty) return null;
   return AmadeusApiService(
     clientId: clientId,
@@ -112,7 +111,7 @@ final hotelSearchResultsProvider =
     FutureProvider.autoDispose<List<Hotel>>((ref) async {
   final params = ref.watch(hotelSearchParamsProvider);
   final useCase = ref.watch(searchHotelsUseCaseProvider);
-  final userId = ref.watch(supabaseProvider).auth.currentUser?.id;
+  final userId = ref.watch(supabaseClientProvider).auth.currentUser?.id;
   return useCase.execute(params: params, userId: userId);
 });
 
@@ -120,7 +119,7 @@ final hotelSearchResultsProvider =
 final hotelDetailProvider =
     FutureProvider.family.autoDispose<Hotel?, String>((ref, hotelId) async {
   final useCase = ref.watch(getHotelDetailUseCaseProvider);
-  final userId = ref.watch(supabaseProvider).auth.currentUser?.id;
+  final userId = ref.watch(supabaseClientProvider).auth.currentUser?.id;
   return useCase.execute(hotelId: hotelId, userId: userId);
 });
 
@@ -129,7 +128,7 @@ final hotelRoomsProvider =
     FutureProvider.family.autoDispose<List<Room>, Hotel>((ref, hotel) async {
   final useCase = ref.watch(getHotelRoomsUseCaseProvider);
   final params = ref.watch(hotelSearchParamsProvider);
-  final userId = ref.watch(supabaseProvider).auth.currentUser?.id;
+  final userId = ref.watch(supabaseClientProvider).auth.currentUser?.id;
   return useCase.execute(
     hotel: hotel,
     checkIn: params.checkIn,
@@ -142,7 +141,7 @@ final hotelRoomsProvider =
 /// User booking history
 final userBookingsProvider =
     FutureProvider.autoDispose<List<Booking>>((ref) async {
-  final userId = ref.watch(supabaseProvider).auth.currentUser?.id;
+  final userId = ref.watch(supabaseClientProvider).auth.currentUser?.id;
   if (userId == null) return [];
   final useCase = ref.watch(getUserBookingsUseCaseProvider);
   return useCase.execute(userId);
@@ -195,7 +194,7 @@ class BookingFlowNotifier extends StateNotifier<BookingFlowState> {
     required int guests,
   }) async {
     if (state.selectedRoom == null) return null;
-    final userId = _ref.read(supabaseProvider).auth.currentUser?.id;
+    final userId = _ref.read(supabaseClientProvider).auth.currentUser?.id;
     if (userId == null) return null;
 
     state = state.copyWith(isLoading: true, error: null);
@@ -225,7 +224,7 @@ class BookingFlowNotifier extends StateNotifier<BookingFlowState> {
     required int adults,
     required int rooms,
   }) async {
-    final userId = _ref.read(supabaseProvider).auth.currentUser?.id;
+    final userId = _ref.read(supabaseClientProvider).auth.currentUser?.id;
     await _ref.read(trackAffiliateUseCaseProvider).execute(
           hotel: hotel,
           checkIn: checkIn,

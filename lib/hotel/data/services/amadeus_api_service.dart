@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:logger/logger.dart';
 import 'package:intl/intl.dart';
 import '../dto/amadeus_dto.dart';
 import '../../domain/entities/hotel.dart';
@@ -17,7 +16,6 @@ class AmadeusApiService {
   static const String _testBaseUrl = 'https://test.api.amadeus.com';
 
   final Dio _dio;
-  final Logger _log = Logger();
   final String _clientId;
   final String _clientSecret;
   final bool _useSandbox;
@@ -58,14 +56,9 @@ class AmadeusApiService {
       ),
     );
 
-    _cachedToken = AmadeusTokenDto.fromJson(
-        response.data as Map<String, dynamic>);
+    _cachedToken =
+        AmadeusTokenDto.fromJson(response.data as Map<String, dynamic>);
     return _cachedToken!.accessToken;
-  }
-
-  Future<Options> _authOptions() async {
-    final token = await _getAccessToken();
-    return Options(headers: {'Authorization': 'Bearer $token'});
   }
 
   // ── Hotel Search by City ───────────────────────────────────────
@@ -113,9 +106,8 @@ class AmadeusApiService {
 
     final data = (offersResp.data['data'] as List?) ?? [];
     return data
-        .map((json) =>
-            AmadeusHotelDto.fromJson(json as Map<String, dynamic>)
-                .toEntity(params.city))
+        .map((json) => AmadeusHotelDto.fromJson(json as Map<String, dynamic>)
+            .toEntity(params.city))
         .toList();
   }
 
@@ -165,9 +157,8 @@ class AmadeusApiService {
 
     final data = (offersResp.data['data'] as List?) ?? [];
     return data
-        .map((json) =>
-            AmadeusHotelDto.fromJson(json as Map<String, dynamic>)
-                .toEntity(params.city))
+        .map((json) => AmadeusHotelDto.fromJson(json as Map<String, dynamic>)
+            .toEntity(params.city))
         .toList();
   }
 

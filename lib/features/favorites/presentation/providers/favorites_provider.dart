@@ -70,7 +70,7 @@ class FavoritesRepository {
 }
 
 final favoritesRepositoryProvider = Provider<FavoritesRepository>((ref) {
-  return FavoritesRepository(Supabase.instance.client);
+  return FavoritesRepository(ref.watch(supabaseClientProvider));
 });
 
 class FavoritesNotifier extends StateNotifier<AsyncValue<List<Favorite>>> {
@@ -78,20 +78,22 @@ class FavoritesNotifier extends StateNotifier<AsyncValue<List<Favorite>>> {
   final String? _userId; // ✅ nullable now
 
   FavoritesNotifier(this._repo, this._userId)
-      : super(const AsyncValue.data([])) { // ✅ default to empty, not loading
-    if (_userId != null && _userId!.isNotEmpty) {
+      : super(const AsyncValue.data([])) {
+    final userId = _userId;
+    if (userId != null && userId.isNotEmpty) {
       _load();
     }
   }
 
   Future<void> _load() async {
-    if (_userId == null || _userId!.isEmpty) {
+    final userId = _userId;
+    if (userId == null || userId.isEmpty) {
       state = const AsyncValue.data([]);
       return;
     }
     try {
       state = const AsyncValue.loading();
-      final favs = await _repo.getFavorites(_userId!);
+      final favs = await _repo.getFavorites(userId);
       state = AsyncValue.data(favs);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
@@ -99,20 +101,22 @@ class FavoritesNotifier extends StateNotifier<AsyncValue<List<Favorite>>> {
   }
 
   Future<void> addFavorite(String placeId) async {
-    if (_userId == null || _userId!.isEmpty) return; // ✅ guard
+    final userId = _userId;
+    if (userId == null || userId.isEmpty) return;
     try {
-      await _repo.addFavorite(_userId!, placeId);
+      await _repo.addFavorite(userId, placeId);
       await _load();
     } catch (_) {}
   }
 
   Future<void> removeFavorite(String placeId) async {
-    if (_userId == null || _userId!.isEmpty) return; // ✅ guard
+    final userId = _userId;
+    if (userId == null || userId.isEmpty) return;
     try {
-      await _repo.removeFavorite(_userId!, placeId);
+      await _repo.removeFavorite(userId, placeId);
       final current = state.value ?? [];
-      state = AsyncValue.data(
-          current.where((f) => f.placeId != placeId).toList());
+      state =
+          AsyncValue.data(current.where((f) => f.placeId != placeId).toList());
     } catch (_) {}
   }
 
@@ -120,16 +124,14 @@ class FavoritesNotifier extends StateNotifier<AsyncValue<List<Favorite>>> {
 }
 
 final favoritesProvider =
-    StateNotifierProvider<FavoritesNotifier, AsyncValue<List<Favorite>>>(
-        (ref) {
+    StateNotifierProvider<FavoritesNotifier, AsyncValue<List<Favorite>>>((ref) {
   final user = ref.watch(currentUserProvider);
   final repo = ref.read(favoritesRepositoryProvider);
-  // ✅ pass null instead of empty string when guest
   return FavoritesNotifier(repo, user?.id);
 });
 
 final favoritePlacesProvider = FutureProvider<List<TourismPlace>>((ref) async {
   final user = ref.watch(currentUserProvider);
-  if (user == null) return []; // ✅ already correct
+  if (user == null) return [];
   return ref.read(favoritesRepositoryProvider).getFavoritePlaces(user.id);
 });

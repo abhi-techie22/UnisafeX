@@ -61,11 +61,12 @@ class HotelRepository {
     List<Hotel> hotels = [];
 
     // Try Amadeus first
-    if (_amadeusService != null) {
+    final amadeusService = _amadeusService;
+    if (amadeusService != null) {
       try {
         hotels = params.isNearbySearch
-            ? await _amadeusService!.searchByGeo(params)
-            : await _amadeusService!.searchByCity(params);
+            ? await amadeusService.searchByGeo(params)
+            : await amadeusService.searchByCity(params);
         _log.d('Amadeus returned ${hotels.length} hotels');
       } catch (e) {
         _log.w('Amadeus search failed, using mock', error: e);
@@ -117,10 +118,12 @@ class HotelRepository {
     String? userId,
   }) async {
     // Try Amadeus if we have a partner ID and service is configured
-    if (_amadeusService != null && hotel.partnerHotelId != null) {
+    final amadeusService = _amadeusService;
+    final partnerHotelId = hotel.partnerHotelId;
+    if (amadeusService != null && partnerHotelId != null) {
       try {
-        final rooms = await _amadeusService!.getHotelOffers(
-          partnerHotelId: hotel.partnerHotelId!,
+        final rooms = await amadeusService.getHotelOffers(
+          partnerHotelId: partnerHotelId,
           checkIn: checkIn,
           checkOut: checkOut,
           adults: adults,
@@ -163,11 +166,12 @@ class HotelRepository {
       String? partnerBookingId;
       String? confirmationCode;
 
-      if (_amadeusService != null &&
+      final amadeusService = _amadeusService;
+      if (amadeusService != null &&
           hotel.partnerSource == 'amadeus' &&
           travelerInfo.isNotEmpty) {
         try {
-          final result = await _amadeusService!.createBooking(
+          final result = await amadeusService.createBooking(
             offerId: room.partnerRateId,
             traveler: travelerInfo,
           );

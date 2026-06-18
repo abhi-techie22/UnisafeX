@@ -4,9 +4,9 @@ class AppConstants {
   AppConstants._();
 
   // Supabase
-  static const String supabaseUrl = 'https://anslzankezcrxvuoidxj.supabase.co';
+  static const String supabaseUrl = String.fromEnvironment('SUPABASE_URL');
   static const String supabaseAnonKey =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFuc2x6YW5rZXpjcnh2dW9pZHhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0ODM4NDMsImV4cCI6MjA5NjA1OTg0M30.G2TbpW3dA7IRo1zf0ft7cR7AMKZL4TjNobnfNa9QJE0';
+      String.fromEnvironment('SUPABASE_ANON_KEY');
 
   static const String authCallbackUrl = 'unisafex://login-callback/';
 
@@ -109,4 +109,14 @@ class AppConstants {
 
   // Pagination
   static const int pageSize = 20;
+
+  static void validateRuntimeConfig() {
+    if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
+      throw FlutterError(
+        'Missing Supabase runtime config. Run with '
+        '--dart-define=SUPABASE_URL=... '
+        '--dart-define=SUPABASE_ANON_KEY=...',
+      );
+    }
+  }
 }

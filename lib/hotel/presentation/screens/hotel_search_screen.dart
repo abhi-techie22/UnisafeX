@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../domain/entities/hotel_search_params.dart';
 import '../providers/hotel_providers.dart';
@@ -33,11 +32,10 @@ class _HotelSearchScreenState extends ConsumerState<HotelSearchScreen> {
         return;
       }
       final pos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium,
-        ),
+        desiredAccuracy: LocationAccuracy.medium,
       );
-      ref.read(hotelSearchParamsProvider.notifier)
+      ref
+          .read(hotelSearchParamsProvider.notifier)
           .updateGeoLocation(pos.latitude, pos.longitude);
       _showSnack('Using your current location');
     } catch (e) {
@@ -53,8 +51,7 @@ class _HotelSearchScreenState extends ConsumerState<HotelSearchScreen> {
       SnackBar(
         content: Text(msg),
         behavior: SnackBarBehavior.floating,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
@@ -163,7 +160,8 @@ class _HotelSearchScreenState extends ConsumerState<HotelSearchScreen> {
                         color: AppColors.darkCard,
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
-                            color: AppColors.goldPrimary.withValues(alpha: 0.3)),
+                            color:
+                                AppColors.goldPrimary.withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         children: [
@@ -228,8 +226,7 @@ class _HotelSearchScreenState extends ConsumerState<HotelSearchScreen> {
                     mainAxisSpacing: 12,
                     crossAxisSpacing: 12,
                     childAspectRatio: 1.7,
-                    children:
-                        _popularDestinations.asMap().entries.map((e) {
+                    children: _popularDestinations.asMap().entries.map((e) {
                       return _DestinationTile(
                         data: e.value,
                         index: e.key,
@@ -284,8 +281,7 @@ class _HeroSearchCard extends StatelessWidget {
           colors: [AppColors.navyMid, AppColors.navyLight],
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-            color: AppColors.goldPrimary.withValues(alpha: 0.2)),
+        border: Border.all(color: AppColors.goldPrimary.withValues(alpha: 0.2)),
         boxShadow: [
           BoxShadow(
             color: AppColors.navyDeep.withValues(alpha: 0.6),
@@ -315,8 +311,8 @@ class _HeroSearchCard extends StatelessWidget {
                         .copyWith(color: AppColors.ivory)),
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: AppColors.glassGold,
                     borderRadius: BorderRadius.circular(100),
@@ -383,8 +379,7 @@ class _DestinationTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Text(data['emoji'] ?? '🏨',
-                style: const TextStyle(fontSize: 28)),
+            Text(data['emoji'] ?? '🏨', style: const TextStyle(fontSize: 28)),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
