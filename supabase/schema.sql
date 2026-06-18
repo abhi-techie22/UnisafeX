@@ -110,6 +110,23 @@ create index if not exists idx_tourism_place_likes_user_id on public.tourism_pla
 create index if not exists idx_tourism_place_likes_place_id on public.tourism_place_likes(place_id);
 
 -- ============================================================
+-- TABLE: app_settings
+-- ============================================================
+create table if not exists public.app_settings (
+  key text primary key,
+  value jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+insert into public.app_settings(key, value)
+values (
+  'maps_config',
+  '{"in_app_maps_enabled": true, "route_overlay_enabled": true}'::jsonb
+)
+on conflict (key) do nothing;
+
+-- ============================================================
 -- TABLE: guide_profiles
 -- ============================================================
 create table if not exists public.guide_profiles (
@@ -264,6 +281,28 @@ create policy "tourism_place_likes_delete_own" on public.tourism_place_likes
   for delete to authenticated
   using ((select auth.uid()) = user_id);
 
+-- app_settings: public read, admin write
+alter table public.app_settings enable row level security;
+
+grant select on public.app_settings to anon, authenticated;
+grant insert, update, delete on public.app_settings to authenticated;
+
+drop policy if exists app_settings_public_read on public.app_settings;
+drop policy if exists app_settings_admin_write on public.app_settings;
+
+create policy app_settings_public_read
+  on public.app_settings
+  for select
+  to anon, authenticated
+  using (true);
+
+create policy app_settings_admin_write
+  on public.app_settings
+  for all
+  to authenticated
+  using (public.is_unisafex_admin())
+  with check (public.is_unisafex_admin());
+
 -- guide_requests: users see their own requests, admin manages all requests
 alter table public.guide_requests enable row level security;
 
@@ -371,6 +410,12 @@ drop trigger if exists guide_profiles_updated_at on public.guide_profiles;
 
 create trigger guide_profiles_updated_at
   before update on public.guide_profiles
+  for each row execute function public.handle_updated_at();
+
+drop trigger if exists app_settings_updated_at on public.app_settings;
+
+create trigger app_settings_updated_at
+  before update on public.app_settings
   for each row execute function public.handle_updated_at();
 
 create or replace function public.book_guide_request(p_request_id uuid)

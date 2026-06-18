@@ -22,6 +22,7 @@ class _GuideRequestScreenState extends ConsumerState<GuideRequestScreen> {
   TourismPlace? _selectedPlace;
   int _travelers = 1;
   bool _submitting = false;
+  _GuideHistoryFilter _historyFilter = _GuideHistoryFilter.all;
   final _noteController = TextEditingController();
   ProviderSubscription<List<GuideRequest>>? _guideRequestSubscription;
 
@@ -101,6 +102,10 @@ class _GuideRequestScreenState extends ConsumerState<GuideRequestScreen> {
           const SizedBox(height: 24),
           _HistorySection(
             requests: requests,
+            filter: _historyFilter,
+            onFilterChanged: (filter) {
+              setState(() => _historyFilter = filter);
+            },
             onRebook: _rebook,
             onBook: _bookGuide,
             onDelete: (request) async {
@@ -613,14 +618,31 @@ class _RequestForm extends StatelessWidget {
   }
 }
 
+enum _GuideHistoryFilter {
+  all('All'),
+  active('Active'),
+  confirmed('Confirmed'),
+  booked('Booked'),
+  rejected('Rejected'),
+  completed('Completed');
+
+  const _GuideHistoryFilter(this.label);
+
+  final String label;
+}
+
 class _HistorySection extends StatelessWidget {
   final List<GuideRequest> requests;
+  final _GuideHistoryFilter filter;
+  final ValueChanged<_GuideHistoryFilter> onFilterChanged;
   final ValueChanged<GuideRequest> onRebook;
   final ValueChanged<GuideRequest> onBook;
   final ValueChanged<GuideRequest> onDelete;
 
   const _HistorySection({
     required this.requests,
+    required this.filter,
+    required this.onFilterChanged,
     required this.onRebook,
     required this.onBook,
     required this.onDelete,
@@ -628,23 +650,164 @@ class _HistorySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final visible = requests.where((request) {
+      return switch (filter) {
+        _GuideHistoryFilter.all => true,
+        _GuideHistoryFilter.active => _isActiveGuideRequest(request),
+        _GuideHistoryFilter.confirmed =>
+          request.status == GuideRequestStatus.confirmed,
+        _GuideHistoryFilter.booked => request.bookingStatus == 'booked',
+        _GuideHistoryFilter.rejected =>
+          request.status == GuideRequestStatus.rejected,
+        _GuideHistoryFilter.completed =>
+          request.status == GuideRequestStatus.completed,
+      };
+    }).toList();
+    final activeRequests = visible.where(_isActiveGuideRequest).toList();
+    final historyRequests =
+        visible.where((request) => !_isActiveGuideRequest(request)).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Request history', style: Theme.of(context).textTheme.titleLarge),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Guide requests',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            ),
+            Text(
+              '${visible.length}/${requests.length}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: _GuideHistoryFilter.values
+                .map(
+                  (item) => Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      selected: filter == item,
+                      label: Text(item.label),
+                      onSelected: (_) => onFilterChanged(item),
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+        ),
         const SizedBox(height: 12),
         if (requests.isEmpty)
           const _EmptyHistory()
-        else
-          ...requests.map(
-            (request) => _GuideRequestCard(
-              request: request,
-              onRebook: () => onRebook(request),
-              onBook: () => onBook(request),
-              onDelete: () => onDelete(request),
+        else if (visible.isEmpty)
+          const _EmptyFilteredHistory()
+        else ...[
+          if (activeRequests.isNotEmpty) ...[
+            _HistoryGroupTitle(
+              title: 'Current requests',
+              count: activeRequests.length,
             ),
-          ),
+            ...activeRequests.map(
+              (request) => _GuideRequestCard(
+                request: request,
+                onRebook: () => onRebook(request),
+                onBook: () => onBook(request),
+                onDelete: () => onDelete(request),
+              ),
+            ),
+          ],
+          if (historyRequests.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            _HistoryGroupTitle(
+              title: 'History',
+              count: historyRequests.length,
+            ),
+            ...historyRequests.map(
+              (request) => _GuideRequestCard(
+                request: request,
+                onRebook: () => onRebook(request),
+                onBook: () => onBook(request),
+                onDelete: () => onDelete(request),
+              ),
+            ),
+          ],
+        ],
       ],
+    );
+  }
+}
+
+bool _isActiveGuideRequest(GuideRequest request) {
+  if (request.status == GuideRequestStatus.rejected ||
+      request.status == GuideRequestStatus.completed ||
+      request.bookingStatus == 'booked') {
+    return false;
+  }
+  return true;
+}
+
+class _HistoryGroupTitle extends StatelessWidget {
+  const _HistoryGroupTitle({required this.title, required this.count});
+
+  final String title;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(width: 8),
+          _MiniCountPill(count: count),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniCountPill extends StatelessWidget {
+  const _MiniCountPill({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        '$count',
+        style: const TextStyle(
+          color: AppColors.primary,
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyFilteredHistory extends StatelessWidget {
+  const _EmptyFilteredHistory();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Card(
+      child: Padding(
+        padding: EdgeInsets.all(18),
+        child: Text('No requests match this filter.'),
+      ),
     );
   }
 }

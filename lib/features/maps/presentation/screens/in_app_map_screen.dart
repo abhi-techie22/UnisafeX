@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,7 @@ import 'package:unisafex/core/theme/app_theme.dart';
 import 'package:unisafex/core/utils/distance_calculator.dart';
 import 'package:unisafex/core/utils/google_maps_launcher.dart';
 import 'package:unisafex/features/home/presentation/providers/location_provider.dart';
+import 'package:unisafex/features/maps/data/map_access_config_provider.dart';
 import 'package:unisafex/features/maps/data/map_route_repository.dart';
 import 'package:unisafex/features/maps/domain/map_route.dart';
 
@@ -34,6 +36,7 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
   RouteTravelMode _travelMode = RouteTravelMode.driving;
   String? _lastOriginKey;
   bool _isCardCollapsed = false;
+  bool _navigationMode = false;
 
   LatLng get _destination => LatLng(widget.latitude, widget.longitude);
 
@@ -52,6 +55,9 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
   }
 
   Future<void> _loadRoute(LocationData location) async {
+    final access = ref.read(mapAccessConfigProvider).valueOrNull ??
+        const MapAccessConfig();
+    if (!access.routeOverlayEnabled) return;
     final originKey =
         '${location.latitude},${location.longitude},${_travelMode.name}';
     if (_routeState.isLoading || originKey == _lastOriginKey) return;
@@ -76,9 +82,47 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
   }
 
   Future<void> _focusDestinationRoute() async {
+    final location = ref.read(locationProvider).asData?.value;
+    final route = _routeState.asData?.value;
+    if (location != null && route?.points.isNotEmpty == true) {
+      final bounds = _boundsForPoints([
+        LatLng(location.latitude, location.longitude),
+        _destination,
+        ...route!.points,
+      ]);
+      await _mapController?.animateCamera(
+        CameraUpdate.newLatLngBounds(bounds, 72),
+      );
+      return;
+    }
     await _mapController?.animateCamera(
       CameraUpdate.newCameraPosition(
         CameraPosition(target: _destination, zoom: 14.2),
+      ),
+    );
+  }
+
+  Future<void> _startNavigation(LocationData? location) async {
+    if (location == null) {
+      await _showCurrentLocation();
+      return;
+    }
+    setState(() => _navigationMode = true);
+    await _moveNavigationCamera(location);
+    _lastOriginKey = null;
+    await _loadRoute(location);
+  }
+
+  Future<void> _moveNavigationCamera(LocationData location) async {
+    final origin = LatLng(location.latitude, location.longitude);
+    await _mapController?.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(
+          target: origin,
+          zoom: 17,
+          tilt: 58,
+          bearing: _bearing(origin, _destination),
+        ),
       ),
     );
   }
@@ -166,6 +210,8 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
   @override
   Widget build(BuildContext context) {
     final locationState = ref.watch(locationProvider);
+    final mapAccessState = ref.watch(mapAccessConfigProvider);
+    final mapAccess = mapAccessState.valueOrNull ?? const MapAccessConfig();
     final location = locationState.asData?.value;
     final hasLiveLocation = location?.source == LocationSource.gps;
     final straightLineDistance = location == null
@@ -182,8 +228,24 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
       final nextLocation = next.asData?.value;
       if (nextLocation != null) {
         unawaited(_loadRoute(nextLocation));
+        if (_navigationMode) {
+          unawaited(_moveNavigationCamera(nextLocation));
+        }
       }
     });
+
+    if (mapAccess.fallbackOnly) {
+      return Scaffold(
+        appBar: AppBar(title: Text(widget.placeName)),
+        body: _ExternalMapsFallback(
+          placeName: widget.placeName,
+          address: widget.address,
+          latitude: widget.latitude,
+          longitude: widget.longitude,
+          onOpenExternalMaps: _openExternalMaps,
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(title: Text(widget.placeName)),
@@ -217,6 +279,12 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
                 Marker(
                   markerId: const MarkerId('origin'),
                   position: LatLng(location.latitude, location.longitude),
+                  anchor: const Offset(0.5, 0.5),
+                  flat: true,
+                  rotation: _bearing(
+                    LatLng(location.latitude, location.longitude),
+                    _destination,
+                  ),
                   icon: BitmapDescriptor.defaultMarkerWithHue(
                     BitmapDescriptor.hueAzure,
                   ),
@@ -228,7 +296,7 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
                   ),
                 ),
             },
-            polylines: route == null
+            polylines: route == null || !mapAccess.routeOverlayEnabled
                 ? const <Polyline>{}
                 : {
                     Polyline(
@@ -267,7 +335,8 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
                 _MapControlButton(
                   tooltip: 'Center destination',
                   icon: Icons.center_focus_strong_rounded,
-                  onPressed: _centerDestination,
+                  onPressed:
+                      mapAccess.routeOverlayEnabled ? _centerDestination : null,
                 ),
                 const SizedBox(height: 10),
                 _MapControlButton(
@@ -295,12 +364,19 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
                 routeState: _routeState,
                 travelMode: _travelMode,
                 origin: location,
+                navigationMode: _navigationMode,
+                routeOverlayEnabled: mapAccess.routeOverlayEnabled,
                 locationError: locationState.hasError
                     ? locationState.error.toString()
                     : null,
                 onTravelModeChanged: (mode) =>
                     _changeTravelMode(mode, location),
                 onCenter: _centerDestination,
+                onStartNavigation: () => _startNavigation(location),
+                onStopNavigation: () {
+                  setState(() => _navigationMode = false);
+                  _focusDestinationRoute();
+                },
                 onCurrentLocation:
                     locationState.isLoading ? null : _showCurrentLocation,
                 onChangeStartLocation: _showStartLocationPicker,
@@ -410,6 +486,39 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
     if (meters < 1000) return '$meters m';
     return '${(meters / 1000).toStringAsFixed(1)} km';
   }
+
+  LatLngBounds _boundsForPoints(List<LatLng> points) {
+    var minLat = points.first.latitude;
+    var maxLat = points.first.latitude;
+    var minLng = points.first.longitude;
+    var maxLng = points.first.longitude;
+    for (final point in points.skip(1)) {
+      minLat = math.min(minLat, point.latitude);
+      maxLat = math.max(maxLat, point.latitude);
+      minLng = math.min(minLng, point.longitude);
+      maxLng = math.max(maxLng, point.longitude);
+    }
+    return LatLngBounds(
+      southwest: LatLng(minLat, minLng),
+      northeast: LatLng(maxLat, maxLng),
+    );
+  }
+
+  double _bearing(LatLng from, LatLng to) {
+    final fromLat = _degreesToRadians(from.latitude);
+    final fromLng = _degreesToRadians(from.longitude);
+    final toLat = _degreesToRadians(to.latitude);
+    final toLng = _degreesToRadians(to.longitude);
+    final deltaLng = toLng - fromLng;
+    final y = math.sin(deltaLng) * math.cos(toLat);
+    final x = math.cos(fromLat) * math.sin(toLat) -
+        math.sin(fromLat) * math.cos(toLat) * math.cos(deltaLng);
+    return (_radiansToDegrees(math.atan2(y, x)) + 360) % 360;
+  }
+
+  double _degreesToRadians(double degrees) => degrees * math.pi / 180;
+
+  double _radiansToDegrees(double radians) => radians * 180 / math.pi;
 }
 
 class _MapControlButton extends StatelessWidget {
@@ -449,9 +558,13 @@ class _DestinationCard extends StatelessWidget {
     required this.routeState,
     required this.travelMode,
     required this.origin,
+    required this.navigationMode,
+    required this.routeOverlayEnabled,
     required this.locationError,
     required this.onTravelModeChanged,
     required this.onCenter,
+    required this.onStartNavigation,
+    required this.onStopNavigation,
     required this.onCurrentLocation,
     required this.onChangeStartLocation,
     required this.onRetryRoute,
@@ -469,9 +582,13 @@ class _DestinationCard extends StatelessWidget {
   final AsyncValue<MapRoute?> routeState;
   final RouteTravelMode travelMode;
   final LocationData? origin;
+  final bool navigationMode;
+  final bool routeOverlayEnabled;
   final String? locationError;
   final ValueChanged<RouteTravelMode> onTravelModeChanged;
   final VoidCallback onCenter;
+  final VoidCallback onStartNavigation;
+  final VoidCallback onStopNavigation;
   final VoidCallback? onCurrentLocation;
   final VoidCallback onChangeStartLocation;
   final VoidCallback? onRetryRoute;
@@ -502,7 +619,7 @@ class _DestinationCard extends StatelessWidget {
                 routeState: routeState,
                 onExpand: onToggleCollapsed,
                 onDirections: onDirections,
-                onCenter: onCenter,
+                onCenter: routeOverlayEnabled ? onCenter : null,
               )
             : Material(
                 key: const ValueKey('expanded-map-card'),
@@ -652,16 +769,24 @@ class _DestinationCard extends StatelessWidget {
                         children: [
                           Expanded(
                             child: FilledButton.icon(
-                              onPressed: onDirections ?? onCenter,
+                              onPressed: routeOverlayEnabled
+                                  ? (navigationMode
+                                      ? onStopNavigation
+                                      : onStartNavigation)
+                                  : onExternalMaps,
                               icon: Icon(
-                                onDirections == null
-                                    ? Icons.center_focus_strong_rounded
-                                    : Icons.directions_rounded,
+                                routeOverlayEnabled
+                                    ? navigationMode
+                                        ? Icons.stop_circle_rounded
+                                        : Icons.navigation_rounded
+                                    : Icons.open_in_new_rounded,
                               ),
                               label: Text(
-                                onDirections == null
-                                    ? 'Center map'
-                                    : 'Directions',
+                                routeOverlayEnabled
+                                    ? navigationMode
+                                        ? 'Stop navigation'
+                                        : 'Start navigation'
+                                    : 'Open Google Maps',
                               ),
                             ),
                           ),
@@ -682,10 +807,28 @@ class _DestinationCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Align(
                         alignment: Alignment.center,
-                        child: TextButton.icon(
-                          onPressed: onExternalMaps,
-                          icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                          label: const Text('Open external Google Maps'),
+                        child: Wrap(
+                          alignment: WrapAlignment.center,
+                          spacing: 10,
+                          children: [
+                            if (onDirections != null)
+                              TextButton.icon(
+                                onPressed: onDirections,
+                                icon: const Icon(
+                                  Icons.list_alt_rounded,
+                                  size: 18,
+                                ),
+                                label: const Text('Steps'),
+                              ),
+                            TextButton.icon(
+                              onPressed: onExternalMaps,
+                              icon: const Icon(
+                                Icons.open_in_new_rounded,
+                                size: 18,
+                              ),
+                              label: const Text('Open external Google Maps'),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -724,7 +867,7 @@ class _CollapsedDestinationCard extends StatelessWidget {
   final AsyncValue<MapRoute?> routeState;
   final VoidCallback onExpand;
   final VoidCallback? onDirections;
-  final VoidCallback onCenter;
+  final VoidCallback? onCenter;
 
   @override
   Widget build(BuildContext context) {
@@ -901,6 +1044,87 @@ class _RouteOriginBanner extends StatelessWidget {
             child: Text(hasOrigin ? 'Change' : 'Choose start'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ExternalMapsFallback extends StatelessWidget {
+  const _ExternalMapsFallback({
+    required this.placeName,
+    required this.address,
+    required this.latitude,
+    required this.longitude,
+    required this.onOpenExternalMaps,
+  });
+
+  final String placeName;
+  final String? address;
+  final double latitude;
+  final double longitude;
+  final VoidCallback onOpenExternalMaps;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(22),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(22),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircleAvatar(
+                    radius: 30,
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    child: Icon(Icons.map_rounded, size: 30),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Open route in Google Maps',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    placeName,
+                    style: Theme.of(context).textTheme.titleMedium,
+                    textAlign: TextAlign.center,
+                  ),
+                  if (address?.trim().isNotEmpty == true) ...[
+                    const SizedBox(height: 4),
+                    Text(address!, textAlign: TextAlign.center),
+                  ],
+                  const SizedBox(height: 8),
+                  Text(
+                    '${latitude.toStringAsFixed(5)}, '
+                    '${longitude.toStringAsFixed(5)}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 18),
+                  const Text(
+                    'In-app map is temporarily disabled by UniSafeX admin. '
+                    'Directions still work through Google Maps.',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: onOpenExternalMaps,
+                      icon: const Icon(Icons.navigation_rounded),
+                      label: const Text('Open Google Maps directions'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

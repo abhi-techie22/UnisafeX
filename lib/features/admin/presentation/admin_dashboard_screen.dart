@@ -7,6 +7,7 @@ import 'package:unisafex/features/guide/domain/guide_request.dart';
 import 'package:unisafex/features/guide/presentation/providers/guide_request_provider.dart';
 import 'package:unisafex/features/heritage/data/heritage_repository.dart';
 import 'package:unisafex/features/heritage/domain/heritage_monument.dart';
+import 'package:unisafex/features/maps/data/map_access_config_provider.dart';
 
 class AdminDashboardScreen extends ConsumerStatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -30,7 +31,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   Widget build(BuildContext context) {
     final access = ref.watch(isAdminProvider);
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           title: Text('admin_console'.tr()),
@@ -38,6 +39,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             tabs: [
               Tab(icon: Icon(Icons.account_balance_rounded), text: 'Places'),
               Tab(icon: Icon(Icons.support_agent_rounded), text: 'Guides'),
+              Tab(icon: Icon(Icons.map_rounded), text: 'Maps'),
             ],
           ),
         ),
@@ -65,6 +67,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               children: [
                 _buildPlacesTab(monuments),
                 const _GuideRequestsAdminTab(),
+                const _MapAccessAdminTab(),
               ],
             );
           },
@@ -326,11 +329,42 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 }
 
-class _GuideRequestsAdminTab extends ConsumerWidget {
+enum _AdminGuideFilter {
+  all('All'),
+  active('Active'),
+  pending('Pending'),
+  processing('Processing'),
+  confirmed('Confirmed'),
+  booked('Booked'),
+  rejected('Rejected'),
+  completed('Completed');
+
+  const _AdminGuideFilter(this.label);
+
+  final String label;
+}
+
+class _GuideRequestsAdminTab extends ConsumerStatefulWidget {
   const _GuideRequestsAdminTab();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_GuideRequestsAdminTab> createState() =>
+      _GuideRequestsAdminTabState();
+}
+
+class _GuideRequestsAdminTabState
+    extends ConsumerState<_GuideRequestsAdminTab> {
+  final _search = TextEditingController();
+  _AdminGuideFilter _filter = _AdminGuideFilter.active;
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final requests = ref.watch(adminGuideRequestsProvider);
     final profiles = ref.watch(adminGuideProfilesProvider);
     return RefreshIndicator(
@@ -353,52 +387,113 @@ class _GuideRequestsAdminTab extends ConsumerWidget {
             ),
           ],
         ),
-        data: (items) => ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-          children: [
-            _AdminGuideHeader(total: items.length),
-            const SizedBox(height: 12),
-            profiles.when(
-              data: (items) => _SavedGuidesStrip(
-                profiles: items,
-                onEdit: (profile) => _editSavedGuide(context, ref, profile),
+        data: (items) {
+          final filtered = _filterRequests(items);
+          final active = filtered.where(_isActiveAdminRequest).toList();
+          final history =
+              filtered.where((item) => !_isActiveAdminRequest(item)).toList();
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+            children: [
+              _AdminGuideHeader(total: items.length),
+              const SizedBox(height: 12),
+              profiles.when(
+                data: (items) => _SavedGuidesStrip(
+                  profiles: items,
+                  onEdit: (profile) => _editSavedGuide(context, ref, profile),
+                ),
+                loading: () => const SizedBox.shrink(),
+                error: (_, __) => const SizedBox.shrink(),
               ),
-              loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
-            ),
-            const SizedBox(height: 12),
-            if (items.isEmpty)
-              const _AdminGuideEmpty()
-            else
-              ...items.map((request) => _AdminGuideRequestCard(
-                    request: request,
-                    savedGuides: profiles.valueOrNull ?? const [],
-                    onApplyGuide: (profile) async {
-                      await ref
-                          .read(guideRequestRepositoryProvider)
-                          .applyGuideProfile(
-                            requestId: request.id,
-                            profile: profile,
-                            adminNote:
-                                'Assigned ${profile.name} from saved guides',
-                          );
-                      ref.invalidate(adminGuideRequestsProvider);
-                    },
-                    onEditGuide: () => _editGuideDetails(context, ref, request),
-                    onStatusChanged: (status) async {
-                      await ref
-                          .read(guideRequestRepositoryProvider)
-                          .updateStatus(
-                            requestId: request.id,
-                            status: status,
-                            adminNote: 'Updated from UniSafeX admin dashboard',
-                          );
-                      ref.invalidate(adminGuideRequestsProvider);
-                    },
-                  )),
-          ],
-        ),
+              const SizedBox(height: 12),
+              _AdminGuideFilterBar(
+                controller: _search,
+                filter: _filter,
+                total: filtered.length,
+                onChanged: () => setState(() {}),
+                onFilterChanged: (value) => setState(() => _filter = value),
+              ),
+              const SizedBox(height: 12),
+              if (items.isEmpty)
+                const _AdminGuideEmpty()
+              else if (filtered.isEmpty)
+                const _AdminGuideFilteredEmpty()
+              else ...[
+                if (active.isNotEmpty) ...[
+                  _AdminGuideSectionTitle(
+                    title: 'Active work queue',
+                    count: active.length,
+                  ),
+                  ...active.map(_requestCard),
+                ],
+                if (history.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  _AdminGuideSectionTitle(
+                    title: 'Request history',
+                    count: history.length,
+                  ),
+                  ...history.map(_requestCard),
+                ],
+              ],
+            ],
+          );
+        },
       ),
+    );
+  }
+
+  List<GuideRequest> _filterRequests(List<GuideRequest> items) {
+    final query = _search.text.trim().toLowerCase();
+    return items.where((request) {
+      final statusMatches = switch (_filter) {
+        _AdminGuideFilter.all => true,
+        _AdminGuideFilter.active => _isActiveAdminRequest(request),
+        _AdminGuideFilter.pending =>
+          request.status == GuideRequestStatus.pending,
+        _AdminGuideFilter.processing =>
+          request.status == GuideRequestStatus.processing,
+        _AdminGuideFilter.confirmed =>
+          request.status == GuideRequestStatus.confirmed,
+        _AdminGuideFilter.booked => request.bookingStatus == 'booked',
+        _AdminGuideFilter.rejected =>
+          request.status == GuideRequestStatus.rejected,
+        _AdminGuideFilter.completed =>
+          request.status == GuideRequestStatus.completed,
+      };
+      if (!statusMatches) return false;
+      if (query.isEmpty) return true;
+      final haystack = [
+        request.placeName,
+        request.city,
+        request.userEmail,
+        request.guideName,
+        request.contactNote,
+      ].whereType<String>().join(' ').toLowerCase();
+      return haystack.contains(query);
+    }).toList();
+  }
+
+  Widget _requestCard(GuideRequest request) {
+    return _AdminGuideRequestCard(
+      request: request,
+      savedGuides: ref.read(adminGuideProfilesProvider).valueOrNull ?? const [],
+      onApplyGuide: (profile) async {
+        await ref.read(guideRequestRepositoryProvider).applyGuideProfile(
+              requestId: request.id,
+              profile: profile,
+              adminNote: 'Assigned ${profile.name} from saved guides',
+            );
+        ref.invalidate(adminGuideRequestsProvider);
+      },
+      onEditGuide: () => _editGuideDetails(context, ref, request),
+      onStatusChanged: (status) async {
+        await ref.read(guideRequestRepositoryProvider).updateStatus(
+              requestId: request.id,
+              status: status,
+              adminNote: 'Updated from UniSafeX admin dashboard',
+            );
+        ref.invalidate(adminGuideRequestsProvider);
+      },
     );
   }
 
@@ -747,6 +842,315 @@ class _GuideRequestsAdminTab extends ConsumerWidget {
     meeting.dispose();
     return saved;
   }
+}
+
+class _MapAccessAdminTab extends ConsumerStatefulWidget {
+  const _MapAccessAdminTab();
+
+  @override
+  ConsumerState<_MapAccessAdminTab> createState() => _MapAccessAdminTabState();
+}
+
+class _MapAccessAdminTabState extends ConsumerState<_MapAccessAdminTab> {
+  MapAccessConfig? _draft;
+  bool _saving = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final configState = ref.watch(mapAccessConfigProvider);
+    final config = _draft ?? configState.valueOrNull ?? const MapAccessConfig();
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: AppColors.primary,
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.map_rounded, color: Colors.white, size: 34),
+              SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Google Maps access',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Control in-app maps from Supabase. If Google Cloud '
+                      'quota is tight, switch users to external directions.',
+                      style: TextStyle(color: Colors.white70, height: 1.35),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        if (configState.hasError)
+          Card(
+            color: AppColors.warning.withValues(alpha: 0.08),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'Map settings table is not ready yet. Apply the app_settings '
+                'SQL migration in Supabase, then reload admin.\n\n'
+                '${configState.error}',
+              ),
+            ),
+          ),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SwitchListTile(
+                  value: config.inAppMapsEnabled,
+                  title: const Text('Use in-app Google Maps for users'),
+                  subtitle: const Text(
+                    'Off = users see a redirect screen and open external '
+                    'Google Maps directions. This avoids loading the map SDK.',
+                  ),
+                  onChanged: (value) {
+                    setState(() {
+                      _draft = config.copyWith(
+                        inAppMapsEnabled: value,
+                        routeOverlayEnabled:
+                            value ? config.routeOverlayEnabled : false,
+                      );
+                    });
+                  },
+                ),
+                const Divider(),
+                SwitchListTile(
+                  value: config.routeOverlayEnabled,
+                  title: const Text('Route overlay, time and center controls'),
+                  subtitle: const Text(
+                    'Off = hide center/start navigation and avoid route '
+                    'calculation calls. Basic destination map can still show.',
+                  ),
+                  onChanged: config.inAppMapsEnabled
+                      ? (value) {
+                          setState(() {
+                            _draft = config.copyWith(
+                              routeOverlayEnabled: value,
+                            );
+                          });
+                        }
+                      : null,
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _MapModeStatusCard(config: config),
+                    ),
+                    const SizedBox(width: 10),
+                    FilledButton.icon(
+                      onPressed: _saving ? null : () => _save(config),
+                      icon: _saving
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.save_rounded),
+                      label: Text(_saving ? 'Saving...' : 'Save'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _save(MapAccessConfig config) async {
+    setState(() => _saving = true);
+    try {
+      await ref.read(mapAccessConfigRepositoryProvider).save(config);
+      ref.invalidate(mapAccessConfigProvider);
+      if (!mounted) return;
+      setState(() => _draft = null);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Map access settings saved.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not save map settings. $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+}
+
+class _MapModeStatusCard extends StatelessWidget {
+  const _MapModeStatusCard({required this.config});
+
+  final MapAccessConfig config;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = config.inAppMapsEnabled
+        ? config.routeOverlayEnabled
+            ? 'Users see in-app map + route navigation.'
+            : 'Users see in-app destination map only.'
+        : 'Users are sent to external Google Maps directions.';
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: config.inAppMapsEnabled
+            ? AppColors.success.withValues(alpha: 0.08)
+            : AppColors.warning.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Text(text, style: Theme.of(context).textTheme.bodySmall),
+    );
+  }
+}
+
+class _AdminGuideFilterBar extends StatelessWidget {
+  const _AdminGuideFilterBar({
+    required this.controller,
+    required this.filter,
+    required this.total,
+    required this.onChanged,
+    required this.onFilterChanged,
+  });
+
+  final TextEditingController controller;
+  final _AdminGuideFilter filter;
+  final int total;
+  final VoidCallback onChanged;
+  final ValueChanged<_AdminGuideFilter> onFilterChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Find guide requests',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                _InfoChip(
+                  icon: Icons.filter_alt_rounded,
+                  label: '$total shown',
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              onChanged: (_) => onChanged(),
+              decoration: InputDecoration(
+                hintText: 'Search place, city, email, guide...',
+                prefixIcon: const Icon(Icons.search_rounded),
+                suffixIcon: controller.text.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: 'Clear',
+                        onPressed: () {
+                          controller.clear();
+                          onChanged();
+                        },
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: _AdminGuideFilter.values
+                    .map(
+                      (item) => Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ChoiceChip(
+                          selected: filter == item,
+                          label: Text(item.label),
+                          onSelected: (_) => onFilterChanged(item),
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AdminGuideSectionTitle extends StatelessWidget {
+  const _AdminGuideSectionTitle({
+    required this.title,
+    required this.count,
+  });
+
+  final String title;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 4, 2, 8),
+      child: Row(
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(width: 8),
+          _InfoChip(icon: Icons.list_alt_rounded, label: '$count'),
+        ],
+      ),
+    );
+  }
+}
+
+class _AdminGuideFilteredEmpty extends StatelessWidget {
+  const _AdminGuideFilteredEmpty();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Card(
+      child: Padding(
+        padding: EdgeInsets.all(22),
+        child: Text('No guide requests match this search or filter.'),
+      ),
+    );
+  }
+}
+
+bool _isActiveAdminRequest(GuideRequest request) {
+  if (request.status == GuideRequestStatus.rejected ||
+      request.status == GuideRequestStatus.completed ||
+      request.bookingStatus == 'booked') {
+    return false;
+  }
+  return true;
 }
 
 class _AdminGuideHeader extends StatelessWidget {
