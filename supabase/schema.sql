@@ -110,6 +110,32 @@ create index if not exists idx_tourism_place_likes_user_id on public.tourism_pla
 create index if not exists idx_tourism_place_likes_place_id on public.tourism_place_likes(place_id);
 
 -- ============================================================
+-- TABLE: guide_profiles
+-- ============================================================
+create table if not exists public.guide_profiles (
+  id uuid primary key default uuid_generate_v4(),
+  name text not null,
+  photo_url text,
+  phone text,
+  languages text,
+  experience_years integer
+    check (experience_years is null or experience_years >= 0),
+  bio text,
+  charge_amount numeric(10,2)
+    check (charge_amount is null or charge_amount >= 0),
+  charge_currency text not null default 'INR',
+  meeting_point text,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists guide_profiles_active_idx
+  on public.guide_profiles(is_active);
+create index if not exists guide_profiles_name_idx
+  on public.guide_profiles(name);
+
+-- ============================================================
 -- TABLE: guide_requests
 -- ============================================================
 create table if not exists public.guide_requests (
@@ -128,6 +154,7 @@ create table if not exists public.guide_requests (
   admin_note text,
   admin_whatsapp text not null default '9625119731',
   admin_email text not null default 'abhishek.work962511@gmail.com',
+  guide_profile_id uuid references public.guide_profiles(id) on delete set null,
   guide_name text,
   guide_photo_url text,
   guide_phone text,
@@ -156,6 +183,8 @@ create index if not exists guide_requests_requested_at_idx
   on public.guide_requests(requested_at desc);
 create index if not exists guide_requests_booking_status_idx
   on public.guide_requests(booking_status);
+create index if not exists guide_requests_guide_profile_id_idx
+  on public.guide_requests(guide_profile_id);
 
 -- ============================================================
 -- ADMIN HELPERS
@@ -270,6 +299,27 @@ create policy guide_requests_admin_delete
   to authenticated
   using (public.is_unisafex_admin());
 
+-- guide_profiles: admin-only saved guide catalog
+alter table public.guide_profiles enable row level security;
+
+grant select, insert, update, delete on public.guide_profiles to authenticated;
+
+drop policy if exists guide_profiles_admin_read on public.guide_profiles;
+drop policy if exists guide_profiles_admin_write on public.guide_profiles;
+
+create policy guide_profiles_admin_read
+  on public.guide_profiles
+  for select
+  to authenticated
+  using (public.is_unisafex_admin());
+
+create policy guide_profiles_admin_write
+  on public.guide_profiles
+  for all
+  to authenticated
+  using (public.is_unisafex_admin())
+  with check (public.is_unisafex_admin());
+
 -- favorites: users can only access their own favorites
 alter table public.favorites enable row level security;
 
@@ -315,6 +365,12 @@ drop trigger if exists guide_requests_updated_at on public.guide_requests;
 
 create trigger guide_requests_updated_at
   before update on public.guide_requests
+  for each row execute function public.handle_updated_at();
+
+drop trigger if exists guide_profiles_updated_at on public.guide_profiles;
+
+create trigger guide_profiles_updated_at
+  before update on public.guide_profiles
   for each row execute function public.handle_updated_at();
 
 create or replace function public.book_guide_request(p_request_id uuid)

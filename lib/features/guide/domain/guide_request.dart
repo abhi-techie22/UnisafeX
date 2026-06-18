@@ -24,6 +24,7 @@ class GuideRequest {
   final String? adminWhatsapp;
   final String? adminEmail;
   final String? guideName;
+  final String? guideProfileId;
   final String? guidePhotoUrl;
   final String? guidePhone;
   final String? guideLanguages;
@@ -51,6 +52,7 @@ class GuideRequest {
     this.adminWhatsapp,
     this.adminEmail,
     this.guideName,
+    this.guideProfileId,
     this.guidePhotoUrl,
     this.guidePhone,
     this.guideLanguages,
@@ -116,6 +118,8 @@ class GuideRequest {
           (json['admin_whatsapp'] ?? json['adminWhatsapp'])?.toString(),
       adminEmail: (json['admin_email'] ?? json['adminEmail'])?.toString(),
       guideName: (json['guide_name'] ?? json['guideName'])?.toString(),
+      guideProfileId:
+          (json['guide_profile_id'] ?? json['guideProfileId'])?.toString(),
       guidePhotoUrl:
           (json['guide_photo_url'] ?? json['guidePhotoUrl'])?.toString(),
       guidePhone: (json['guide_phone'] ?? json['guidePhone'])?.toString(),
@@ -158,6 +162,7 @@ class GuideRequest {
       'adminWhatsapp': adminWhatsapp,
       'adminEmail': adminEmail,
       'guideName': guideName,
+      'guideProfileId': guideProfileId,
       'guidePhotoUrl': guidePhotoUrl,
       'guidePhone': guidePhone,
       'guideLanguages': guideLanguages,
@@ -217,4 +222,72 @@ class GuideRequestDefaults {
   static const adminWhatsapp = '9625119731';
   static const adminWhatsappInternational = '919625119731';
   static const adminEmail = 'abhishek.work962511@gmail.com';
+}
+
+class GuideProfile {
+  final String id;
+  final String name;
+  final String? photoUrl;
+  final String? phone;
+  final String? languages;
+  final int? experienceYears;
+  final String? bio;
+  final double? chargeAmount;
+  final String chargeCurrency;
+  final String? meetingPoint;
+  final bool isActive;
+
+  const GuideProfile({
+    required this.id,
+    required this.name,
+    this.photoUrl,
+    this.phone,
+    this.languages,
+    this.experienceYears,
+    this.bio,
+    this.chargeAmount,
+    this.chargeCurrency = 'INR',
+    this.meetingPoint,
+    this.isActive = true,
+  });
+
+  factory GuideProfile.fromJson(Map<String, dynamic> json) {
+    return GuideProfile(
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? 'Guide',
+      photoUrl: json['photo_url']?.toString(),
+      phone: json['phone']?.toString(),
+      languages: json['languages']?.toString(),
+      experienceYears: (json['experience_years'] as num?)?.toInt(),
+      bio: json['bio']?.toString(),
+      chargeAmount: (json['charge_amount'] as num?)?.toDouble(),
+      chargeCurrency: json['charge_currency']?.toString() ?? 'INR',
+      meetingPoint: json['meeting_point']?.toString(),
+      isActive: json['is_active'] != false,
+    );
+  }
+
+  Map<String, dynamic> toRequestUpdateJson() {
+    return {
+      'guide_profile_id': id,
+      'guide_name': name,
+      'guide_photo_url': photoUrl,
+      'guide_phone': phone,
+      'guide_languages': languages,
+      'guide_experience_years': experienceYears,
+      'guide_bio': bio,
+      'guide_charge_amount': chargeAmount,
+      'guide_charge_currency': chargeCurrency,
+      'guide_meeting_point': meetingPoint,
+    };
+  }
+
+  String get formattedCharge {
+    final amount = chargeAmount;
+    if (amount == null) return 'Charges pending';
+    final pretty = amount == amount.roundToDouble()
+        ? amount.toStringAsFixed(0)
+        : amount.toStringAsFixed(2);
+    return '$chargeCurrency $pretty';
+  }
 }

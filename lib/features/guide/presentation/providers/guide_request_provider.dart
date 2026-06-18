@@ -40,6 +40,19 @@ class GuideRequestRepository {
         .toList();
   }
 
+  Future<List<GuideProfile>> getGuideProfiles() async {
+    final rows = await _client
+        .from('guide_profiles')
+        .select()
+        .eq('is_active', true)
+        .order('name');
+    return rows
+        .map<GuideProfile>(
+          (row) => GuideProfile.fromJson(Map<String, dynamic>.from(row)),
+        )
+        .toList();
+  }
+
   Future<GuideRequest> createRequest({
     required String userId,
     required String? userEmail,
@@ -78,6 +91,7 @@ class GuideRequestRepository {
 
   Future<void> updateGuideDetails({
     required String requestId,
+    String? guideProfileId,
     required String guideName,
     required String guidePhotoUrl,
     required String guidePhone,
@@ -90,7 +104,20 @@ class GuideRequestRepository {
     required String adminNote,
     bool confirmRequest = true,
   }) async {
+    final profileId = await saveGuideProfile(
+      profileId: guideProfileId,
+      name: guideName,
+      photoUrl: guidePhotoUrl,
+      phone: guidePhone,
+      languages: guideLanguages,
+      experienceYears: guideExperienceYears,
+      bio: guideBio,
+      chargeAmount: guideChargeAmount,
+      chargeCurrency: guideChargeCurrency,
+      meetingPoint: guideMeetingPoint,
+    );
     final data = <String, dynamic>{
+      'guide_profile_id': profileId,
       'guide_name': _emptyToNull(guideName),
       'guide_photo_url': _emptyToNull(guidePhotoUrl),
       'guide_phone': _emptyToNull(guidePhone),
@@ -100,6 +127,58 @@ class GuideRequestRepository {
       'guide_charge_amount': guideChargeAmount,
       'guide_charge_currency': _emptyToNull(guideChargeCurrency) ?? 'INR',
       'guide_meeting_point': _emptyToNull(guideMeetingPoint),
+      'admin_note': _emptyToNull(adminNote),
+    };
+    if (confirmRequest) data['status'] = GuideRequestStatus.confirmed.name;
+    await _client.from('guide_requests').update(data).eq('id', requestId);
+  }
+
+  Future<String> saveGuideProfile({
+    String? profileId,
+    required String name,
+    required String photoUrl,
+    required String phone,
+    required String languages,
+    required int? experienceYears,
+    required String bio,
+    required double? chargeAmount,
+    required String chargeCurrency,
+    required String meetingPoint,
+  }) async {
+    final data = {
+      'name': name.trim(),
+      'photo_url': _emptyToNull(photoUrl),
+      'phone': _emptyToNull(phone),
+      'languages': _emptyToNull(languages),
+      'experience_years': experienceYears,
+      'bio': _emptyToNull(bio),
+      'charge_amount': chargeAmount,
+      'charge_currency': _emptyToNull(chargeCurrency) ?? 'INR',
+      'meeting_point': _emptyToNull(meetingPoint),
+      'is_active': true,
+    };
+    if (profileId?.isNotEmpty == true) {
+      final row = await _client
+          .from('guide_profiles')
+          .update(data)
+          .eq('id', profileId!)
+          .select('id')
+          .single();
+      return row['id'].toString();
+    }
+    final row =
+        await _client.from('guide_profiles').insert(data).select('id').single();
+    return row['id'].toString();
+  }
+
+  Future<void> applyGuideProfile({
+    required String requestId,
+    required GuideProfile profile,
+    required String adminNote,
+    bool confirmRequest = true,
+  }) async {
+    final data = <String, dynamic>{
+      ...profile.toRequestUpdateJson(),
       'admin_note': _emptyToNull(adminNote),
     };
     if (confirmRequest) data['status'] = GuideRequestStatus.confirmed.name;
@@ -225,4 +304,8 @@ final guideRequestsProvider =
 
 final adminGuideRequestsProvider = FutureProvider<List<GuideRequest>>(
   (ref) => ref.read(guideRequestRepositoryProvider).getAdminRequests(),
+);
+
+final adminGuideProfilesProvider = FutureProvider<List<GuideProfile>>(
+  (ref) => ref.read(guideRequestRepositoryProvider).getGuideProfiles(),
 );

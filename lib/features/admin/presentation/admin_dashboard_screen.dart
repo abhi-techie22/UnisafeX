@@ -332,6 +332,7 @@ class _GuideRequestsAdminTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final requests = ref.watch(adminGuideRequestsProvider);
+    final profiles = ref.watch(adminGuideProfilesProvider);
     return RefreshIndicator(
       onRefresh: () async => ref.invalidate(adminGuideRequestsProvider),
       child: requests.when(
@@ -357,11 +358,32 @@ class _GuideRequestsAdminTab extends ConsumerWidget {
           children: [
             _AdminGuideHeader(total: items.length),
             const SizedBox(height: 12),
+            profiles.when(
+              data: (items) => _SavedGuidesStrip(
+                profiles: items,
+                onEdit: (profile) => _editSavedGuide(context, ref, profile),
+              ),
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
+            ),
+            const SizedBox(height: 12),
             if (items.isEmpty)
               const _AdminGuideEmpty()
             else
               ...items.map((request) => _AdminGuideRequestCard(
                     request: request,
+                    savedGuides: profiles.valueOrNull ?? const [],
+                    onApplyGuide: (profile) async {
+                      await ref
+                          .read(guideRequestRepositoryProvider)
+                          .applyGuideProfile(
+                            requestId: request.id,
+                            profile: profile,
+                            adminNote:
+                                'Assigned ${profile.name} from saved guides',
+                          );
+                      ref.invalidate(adminGuideRequestsProvider);
+                    },
                     onEditGuide: () => _editGuideDetails(context, ref, request),
                     onStatusChanged: (status) async {
                       await ref
@@ -380,28 +402,136 @@ class _GuideRequestsAdminTab extends ConsumerWidget {
     );
   }
 
+  Future<void> _editSavedGuide(
+    BuildContext context,
+    WidgetRef ref,
+    GuideProfile profile,
+  ) async {
+    final saved = await _showGuideProfileSheet(
+      context: context,
+      ref: ref,
+      profile: profile,
+      title: 'Edit saved guide',
+      subtitle: 'Update this guide for future one-click assignments.',
+    );
+    if (saved == true) {
+      ref.invalidate(adminGuideProfilesProvider);
+      ref.invalidate(adminGuideRequestsProvider);
+    }
+  }
+
   Future<void> _editGuideDetails(
     BuildContext context,
     WidgetRef ref,
     GuideRequest request,
   ) async {
-    final name = TextEditingController(text: request.guideName);
-    final photo = TextEditingController(text: request.guidePhotoUrl);
-    final phone = TextEditingController(text: request.guidePhone);
-    final languages = TextEditingController(text: request.guideLanguages);
-    final experience = TextEditingController(
-      text: request.guideExperienceYears?.toString(),
-    );
-    final bio = TextEditingController(text: request.guideBio);
-    final charge = TextEditingController(
-      text: request.guideChargeAmount?.toString(),
-    );
-    final currency = TextEditingController(
-      text: request.guideChargeCurrency ?? 'INR',
-    );
-    final meeting = TextEditingController(text: request.guideMeetingPoint);
     final note = TextEditingController(text: request.adminNote);
     var confirmRequest = request.status != GuideRequestStatus.confirmed;
+    var selectedProfileId = request.guideProfileId;
+
+    final saved = await _showGuideProfileSheet(
+      context: context,
+      ref: ref,
+      profile: request.hasAssignedGuide
+          ? GuideProfile(
+              id: request.guideProfileId ?? '',
+              name: request.guideName ?? '',
+              photoUrl: request.guidePhotoUrl,
+              phone: request.guidePhone,
+              languages: request.guideLanguages,
+              experienceYears: request.guideExperienceYears,
+              bio: request.guideBio,
+              chargeAmount: request.guideChargeAmount,
+              chargeCurrency: request.guideChargeCurrency ?? 'INR',
+              meetingPoint: request.guideMeetingPoint,
+            )
+          : null,
+      title: 'Assign guide profile',
+      subtitle: '${request.placeName} · ${request.userEmail ?? ''}',
+      noteController: note,
+      confirmRequest: confirmRequest,
+      selectedProfileId: selectedProfileId,
+      onConfirmChanged: (value) => confirmRequest = value,
+      onSelectedProfileChanged: (value) => selectedProfileId = value,
+      onSave: ({
+        required String guideName,
+        required String guidePhotoUrl,
+        required String guidePhone,
+        required String guideLanguages,
+        required int? guideExperienceYears,
+        required String guideBio,
+        required double? guideChargeAmount,
+        required String guideChargeCurrency,
+        required String guideMeetingPoint,
+      }) async {
+        await ref.read(guideRequestRepositoryProvider).updateGuideDetails(
+              requestId: request.id,
+              guideProfileId: selectedProfileId,
+              guideName: guideName,
+              guidePhotoUrl: guidePhotoUrl,
+              guidePhone: guidePhone,
+              guideLanguages: guideLanguages,
+              guideExperienceYears: guideExperienceYears,
+              guideBio: guideBio,
+              guideChargeAmount: guideChargeAmount,
+              guideChargeCurrency: guideChargeCurrency,
+              guideMeetingPoint: guideMeetingPoint,
+              adminNote: note.text,
+              confirmRequest: confirmRequest,
+            );
+      },
+    );
+
+    note.dispose();
+
+    if (saved == true) {
+      ref.invalidate(adminGuideProfilesProvider);
+      ref.invalidate(adminGuideRequestsProvider);
+    }
+  }
+
+  Future<bool?> _showGuideProfileSheet({
+    required BuildContext context,
+    required WidgetRef ref,
+    required String title,
+    required String subtitle,
+    GuideProfile? profile,
+    TextEditingController? noteController,
+    bool? confirmRequest,
+    String? selectedProfileId,
+    ValueChanged<bool>? onConfirmChanged,
+    ValueChanged<String?>? onSelectedProfileChanged,
+    Future<void> Function({
+      required String guideName,
+      required String guidePhotoUrl,
+      required String guidePhone,
+      required String guideLanguages,
+      required int? guideExperienceYears,
+      required String guideBio,
+      required double? guideChargeAmount,
+      required String guideChargeCurrency,
+      required String guideMeetingPoint,
+    })? onSave,
+  }) async {
+    final savedProfiles =
+        ref.read(adminGuideProfilesProvider).valueOrNull ?? [];
+    final name = TextEditingController(text: profile?.name);
+    final photo = TextEditingController(text: profile?.photoUrl);
+    final phone = TextEditingController(text: profile?.phone);
+    final languages = TextEditingController(text: profile?.languages);
+    final experience = TextEditingController(
+      text: profile?.experienceYears?.toString(),
+    );
+    final bio = TextEditingController(text: profile?.bio);
+    final charge = TextEditingController(
+      text: profile?.chargeAmount?.toString(),
+    );
+    final currency =
+        TextEditingController(text: profile?.chargeCurrency ?? 'INR');
+    final meeting = TextEditingController(text: profile?.meetingPoint);
+    var localConfirm = confirmRequest ?? false;
+    var localSelectedProfileId =
+        selectedProfileId?.isNotEmpty == true ? selectedProfileId : null;
 
     final saved = await showModalBottomSheet<bool>(
       context: context,
@@ -420,12 +550,53 @@ class _GuideRequestsAdminTab extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Assign guide profile',
+                  title,
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
                 const SizedBox(height: 6),
-                Text('${request.placeName} · ${request.userEmail ?? ''}'),
+                Text(subtitle),
                 const SizedBox(height: 16),
+                if (savedProfiles.isNotEmpty) ...[
+                  DropdownButtonFormField<String>(
+                    initialValue: localSelectedProfileId,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Use saved guide',
+                      prefixIcon: Icon(Icons.verified_user_rounded),
+                    ),
+                    items: savedProfiles
+                        .map(
+                          (profile) => DropdownMenuItem(
+                            value: profile.id,
+                            child: Text(
+                              '${profile.name} · ${profile.formattedCharge}',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      final profile = savedProfiles.firstWhere(
+                        (item) => item.id == value,
+                      );
+                      setSheetState(() {
+                        localSelectedProfileId = value;
+                        name.text = profile.name;
+                        photo.text = profile.photoUrl ?? '';
+                        phone.text = profile.phone ?? '';
+                        languages.text = profile.languages ?? '';
+                        experience.text =
+                            profile.experienceYears?.toString() ?? '';
+                        bio.text = profile.bio ?? '';
+                        charge.text = profile.chargeAmount?.toString() ?? '';
+                        currency.text = profile.chargeCurrency;
+                        meeting.text = profile.meetingPoint ?? '';
+                      });
+                      onSelectedProfileChanged?.call(value);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 TextField(
                   controller: name,
                   decoration: const InputDecoration(labelText: 'Guide name'),
@@ -488,20 +659,24 @@ class _GuideRequestsAdminTab extends ConsumerWidget {
                   controller: meeting,
                   decoration: const InputDecoration(labelText: 'Meeting point'),
                 ),
-                TextField(
-                  controller: note,
-                  maxLines: 2,
-                  decoration: const InputDecoration(labelText: 'Admin note'),
-                ),
-                SwitchListTile(
-                  value: confirmRequest,
-                  title: const Text('Confirm request after saving'),
-                  subtitle: const Text(
-                    'User will see this guide profile and booking button.',
+                if (noteController != null)
+                  TextField(
+                    controller: noteController,
+                    maxLines: 2,
+                    decoration: const InputDecoration(labelText: 'Admin note'),
                   ),
-                  onChanged: (value) =>
-                      setSheetState(() => confirmRequest = value),
-                ),
+                if (confirmRequest != null)
+                  SwitchListTile(
+                    value: localConfirm,
+                    title: const Text('Confirm request after saving'),
+                    subtitle: const Text(
+                      'User will see this verified guide card and booking button.',
+                    ),
+                    onChanged: (value) {
+                      setSheetState(() => localConfirm = value);
+                      onConfirmChanged?.call(value);
+                    },
+                  ),
                 const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
@@ -516,26 +691,42 @@ class _GuideRequestsAdminTab extends ConsumerWidget {
                         );
                         return;
                       }
-                      await ref
-                          .read(guideRequestRepositoryProvider)
-                          .updateGuideDetails(
-                            requestId: request.id,
-                            guideName: name.text,
-                            guidePhotoUrl: photo.text,
-                            guidePhone: phone.text,
-                            guideLanguages: languages.text,
-                            guideExperienceYears: int.tryParse(experience.text),
-                            guideBio: bio.text,
-                            guideChargeAmount: double.tryParse(charge.text),
-                            guideChargeCurrency: currency.text,
-                            guideMeetingPoint: meeting.text,
-                            adminNote: note.text,
-                            confirmRequest: confirmRequest,
-                          );
+                      if (onSave != null) {
+                        await onSave(
+                          guideName: name.text,
+                          guidePhotoUrl: photo.text,
+                          guidePhone: phone.text,
+                          guideLanguages: languages.text,
+                          guideExperienceYears: int.tryParse(experience.text),
+                          guideBio: bio.text,
+                          guideChargeAmount: double.tryParse(charge.text),
+                          guideChargeCurrency: currency.text,
+                          guideMeetingPoint: meeting.text,
+                        );
+                      } else {
+                        await ref
+                            .read(guideRequestRepositoryProvider)
+                            .saveGuideProfile(
+                              profileId: profile?.id.isNotEmpty == true
+                                  ? profile!.id
+                                  : null,
+                              name: name.text,
+                              photoUrl: photo.text,
+                              phone: phone.text,
+                              languages: languages.text,
+                              experienceYears: int.tryParse(experience.text),
+                              bio: bio.text,
+                              chargeAmount: double.tryParse(charge.text),
+                              chargeCurrency: currency.text,
+                              meetingPoint: meeting.text,
+                            );
+                      }
                       if (context.mounted) Navigator.pop(context, true);
                     },
                     icon: const Icon(Icons.save_rounded),
-                    label: const Text('Save guide profile'),
+                    label: Text(onSave == null
+                        ? 'Save guide'
+                        : 'Save and assign guide'),
                   ),
                 ),
               ],
@@ -554,11 +745,7 @@ class _GuideRequestsAdminTab extends ConsumerWidget {
     charge.dispose();
     currency.dispose();
     meeting.dispose();
-    note.dispose();
-
-    if (saved == true) {
-      ref.invalidate(adminGuideRequestsProvider);
-    }
+    return saved;
   }
 }
 
@@ -632,13 +819,150 @@ class _AdminGuideEmpty extends StatelessWidget {
   }
 }
 
+class _SavedGuidesStrip extends StatelessWidget {
+  final List<GuideProfile> profiles;
+  final ValueChanged<GuideProfile> onEdit;
+
+  const _SavedGuidesStrip({
+    required this.profiles,
+    required this.onEdit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (profiles.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.grey100,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: const Text(
+          'Saved guide profiles will appear here after you assign your first guide.',
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Saved guide profiles',
+            style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 118,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: profiles.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (context, index) => _SavedGuideProfileCard(
+              profile: profiles[index],
+              onEdit: () => onEdit(profiles[index]),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SavedGuideProfileCard extends StatelessWidget {
+  final GuideProfile profile;
+  final VoidCallback onEdit;
+
+  const _SavedGuideProfileCard({
+    required this.profile,
+    required this.onEdit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 250,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.16)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 14,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 25,
+            backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+            backgroundImage: profile.photoUrl?.isNotEmpty == true
+                ? NetworkImage(profile.photoUrl!)
+                : null,
+            child: profile.photoUrl?.isNotEmpty == true
+                ? null
+                : const Icon(Icons.verified_user_rounded,
+                    color: AppColors.primary),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        profile.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                    ),
+                    const Icon(Icons.verified_rounded,
+                        size: 15, color: AppColors.success),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  profile.formattedCharge,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  profile.languages ?? 'Languages pending',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Edit saved guide',
+            onPressed: onEdit,
+            icon: const Icon(Icons.edit_outlined),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _AdminGuideRequestCard extends StatelessWidget {
   final GuideRequest request;
+  final List<GuideProfile> savedGuides;
+  final ValueChanged<GuideProfile> onApplyGuide;
   final VoidCallback onEditGuide;
   final ValueChanged<GuideRequestStatus> onStatusChanged;
 
   const _AdminGuideRequestCard({
     required this.request,
+    required this.savedGuides,
+    required this.onApplyGuide,
     required this.onEditGuide,
     required this.onStatusChanged,
   });
@@ -713,20 +1037,85 @@ class _AdminGuideRequestCard extends StatelessWidget {
               const SizedBox(height: 10),
               _AdminGuideProfileSummary(request: request),
             ],
+            if (request.status != GuideRequestStatus.rejected &&
+                savedGuides.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Quick assign saved guide',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: savedGuides.take(4).map((profile) {
+                  return ActionChip(
+                    avatar: const Icon(Icons.verified_rounded, size: 16),
+                    label: Text(profile.name),
+                    onPressed: () => onApplyGuide(profile),
+                  );
+                }).toList(),
+              ),
+            ],
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
-                FilledButton.icon(
-                  onPressed: onEditGuide,
-                  icon: const Icon(Icons.badge_rounded),
-                  label: Text(
-                    request.hasAssignedGuide
-                        ? 'Edit guide profile'
-                        : 'Assign guide',
+                if (request.status != GuideRequestStatus.rejected) ...[
+                  if (savedGuides.isNotEmpty)
+                    PopupMenuButton<GuideProfile>(
+                      onSelected: onApplyGuide,
+                      itemBuilder: (context) => savedGuides
+                          .map(
+                            (profile) => PopupMenuItem(
+                              value: profile,
+                              child: Text(
+                                '${profile.name} · ${profile.formattedCharge}',
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.flash_on_rounded,
+                                color: Colors.white, size: 18),
+                            SizedBox(width: 7),
+                            Text(
+                              'Use saved guide',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  FilledButton.icon(
+                    onPressed: onEditGuide,
+                    icon: const Icon(Icons.badge_rounded),
+                    label: Text(
+                      request.hasAssignedGuide
+                          ? 'Edit guide profile'
+                          : 'Assign guide',
+                    ),
                   ),
-                ),
+                ] else
+                  const _InfoChip(
+                    icon: Icons.block_rounded,
+                    label: 'Rejected - no guide assignment',
+                  ),
                 OutlinedButton.icon(
                   onPressed: () => _openWhatsapp(request),
                   icon: const Icon(Icons.chat_rounded),

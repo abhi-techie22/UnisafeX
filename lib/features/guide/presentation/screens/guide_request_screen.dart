@@ -887,16 +887,22 @@ class _AssignedGuideCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final booked = request.bookingStatus == 'booked';
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppColors.success.withValues(alpha: 0.1),
-            AppColors.primary.withValues(alpha: 0.08),
+            AppColors.primaryDark.withValues(alpha: 0.96),
+            AppColors.primary.withValues(alpha: 0.9),
           ],
         ),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.success.withValues(alpha: 0.22)),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.2),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -904,25 +910,67 @@ class _AssignedGuideCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
-                radius: 31,
-                backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                backgroundImage: request.guidePhotoUrl?.isNotEmpty == true
-                    ? NetworkImage(request.guidePhotoUrl!)
-                    : null,
-                child: request.guidePhotoUrl?.isNotEmpty == true
-                    ? null
-                    : const Icon(Icons.badge_rounded,
-                        color: AppColors.primary, size: 28),
+              Stack(
+                children: [
+                  CircleAvatar(
+                    radius: 34,
+                    backgroundColor: Colors.white.withValues(alpha: 0.16),
+                    backgroundImage: request.guidePhotoUrl?.isNotEmpty == true
+                        ? NetworkImage(request.guidePhotoUrl!)
+                        : null,
+                    child: request.guidePhotoUrl?.isNotEmpty == true
+                        ? null
+                        : const Icon(Icons.badge_rounded,
+                            color: Colors.white, size: 30),
+                  ),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: const BoxDecoration(
+                        color: AppColors.success,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.verified_rounded,
+                        size: 15,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(width: 13),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                      child: const Text(
+                        'Verified UniSafeX Guide',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 7),
                     Text(
                       request.guideName ?? 'Assigned guide',
-                      style: Theme.of(context).textTheme.titleMedium,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                          ),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -932,12 +980,14 @@ class _AssignedGuideCard extends StatelessWidget {
                         if (request.guideExperienceYears != null)
                           '${request.guideExperienceYears} yrs experience',
                       ].whereType<String>().join(' · '),
+                      style: const TextStyle(color: Colors.white70),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       request.formattedGuideCharge,
                       style: const TextStyle(
-                        color: AppColors.primary,
+                        color: Colors.white,
+                        fontSize: 18,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -948,7 +998,10 @@ class _AssignedGuideCard extends StatelessWidget {
           ),
           if (request.guideBio?.isNotEmpty == true) ...[
             const SizedBox(height: 12),
-            Text(request.guideBio!),
+            Text(
+              request.guideBio!,
+              style: const TextStyle(color: Colors.white, height: 1.4),
+            ),
           ],
           if (request.guideMeetingPoint?.isNotEmpty == true) ...[
             const SizedBox(height: 10),
@@ -956,16 +1009,25 @@ class _AssignedGuideCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Icon(Icons.location_on_outlined,
-                    size: 18, color: AppColors.primary),
+                    size: 18, color: Colors.white),
                 const SizedBox(width: 6),
-                Expanded(child: Text('Meeting: ${request.guideMeetingPoint}')),
+                Expanded(
+                  child: Text(
+                    'Meeting: ${request.guideMeetingPoint}',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
               ],
             ),
           ],
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
-            child: FilledButton.icon(
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: AppColors.primary,
+              ),
               onPressed: booked ? null : onBook,
               icon: Icon(booked ? Icons.check_circle_rounded : Icons.event),
               label: Text(booked ? 'Guide booked' : 'Book this guide'),
