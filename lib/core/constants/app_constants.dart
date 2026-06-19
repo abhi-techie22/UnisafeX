@@ -10,6 +10,14 @@ class AppConstants {
 
   static const String authCallbackUrl = 'unisafex://login-callback/';
 
+  static bool get hasRuntimeConfig =>
+      supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
+
+  static const String missingRuntimeConfigMessage =
+      'Missing Supabase runtime config. Run with '
+      '--dart-define=SUPABASE_URL=... '
+      '--dart-define=SUPABASE_ANON_KEY=...';
+
   // App Info
   static const String appName = 'UniSafeX';
   static const String appVersion = '1.0.4-profile-save-fix (build 8)';
@@ -111,12 +119,8 @@ class AppConstants {
   static const int pageSize = 20;
 
   static void validateRuntimeConfig() {
-    if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
-      throw FlutterError(
-        'Missing Supabase runtime config. Run with '
-        '--dart-define=SUPABASE_URL=... '
-        '--dart-define=SUPABASE_ANON_KEY=...',
-      );
+    if (!hasRuntimeConfig) {
+      throw FlutterError(missingRuntimeConfigMessage);
     }
   }
 }

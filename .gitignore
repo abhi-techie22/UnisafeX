@@ -37,6 +37,10 @@ migrate_working_dir/
 /ios/Flutter/GoogleMapsSecrets.xcconfig
 /web/google_maps_config.js
 
+# Local runtime secrets for flutter run/build.
+/.env.local
+/.env.local.json
+
 # Symbolication related
 app.*.symbols
 

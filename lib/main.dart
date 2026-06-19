@@ -13,7 +13,10 @@ Future<void> main() async {
 
   await EasyLocalization.ensureInitialized();
 
-  AppConstants.validateRuntimeConfig();
+  if (!AppConstants.hasRuntimeConfig) {
+    runApp(const MissingRuntimeConfigApp());
+    return;
+  }
 
   await Supabase.initialize(
     url: AppConstants.supabaseUrl,
@@ -42,6 +45,72 @@ Future<void> main() async {
       ),
     ),
   );
+}
+
+class MissingRuntimeConfigApp extends StatelessWidget {
+  const MissingRuntimeConfigApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    const projectUrl = 'https://anslzankezcrxvuoidxj.supabase.co';
+    const command = 'flutter run '
+        '--dart-define=SUPABASE_URL=$projectUrl '
+        '--dart-define=SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY';
+
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Card(
+              margin: const EdgeInsets.all(24),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.settings_suggest_rounded,
+                      size: 42,
+                      color: Color(0xFF2563EB),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'UniSafeX needs Supabase config',
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'The app is not broken. It is waiting for your Supabase '
+                      'URL and publishable anon key. These are passed at run '
+                      'time so keys are not committed to GitHub.',
+                    ),
+                    const SizedBox(height: 18),
+                    const SelectableText(
+                      command,
+                      style: TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 13,
+                        height: 1.45,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    const Text(
+                      'Find the anon key in Supabase Dashboard > Project '
+                      'Settings > API > Project API keys.',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class UniSafeXApp extends ConsumerWidget {
