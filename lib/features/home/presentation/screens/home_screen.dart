@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
+import 'package:unisafex/features/admin/data/admin_remote_config_repository.dart';
 import 'package:unisafex/features/auth/presentation/providers/auth_provider.dart';
 import 'package:unisafex/features/guide/domain/guide_request.dart';
 import 'package:unisafex/features/guide/presentation/providers/guide_request_provider.dart';
@@ -58,6 +59,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final trending = ref.watch(trendingPlacesProvider);
     final mustVisit = ref.watch(mustVisitPlacesProvider);
     final guideRequests = ref.watch(guideRequestsProvider);
+    final featureFlags = ref.watch(publicFeatureFlagsProvider).valueOrNull ??
+        const FeatureFlags({});
+    final banners = ref.watch(activeHomeBannersProvider);
+    final travelAlerts = ref.watch(activeTravelAlertsProvider);
     final visibleGuideRequest = _visibleGuideRequest(guideRequests);
     final cityName = location.asData?.value?.name ?? 'India';
     final locationData = location.asData?.value;
@@ -225,6 +230,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               loading: () => const SizedBox.shrink(),
               error: (_, __) => const SizedBox.shrink(),
+            ),
+          ),
+
+          SliverToBoxAdapter(
+            child: _HomeTravelAlertsSection(alerts: travelAlerts),
+          ),
+
+          SliverToBoxAdapter(
+            child: _HomeRemoteBannersSection(
+              banners: banners,
+              flags: featureFlags,
+              onTap: (route) {
+                if (route == null || route.trim().isEmpty) return;
+                context.push(route.trim());
+              },
             ),
           ),
 
@@ -488,6 +508,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
               child: _HomeBottomDiscoveryCard(
+                aiEnabled: featureFlags.aiAssistant,
                 onToolkit: () => context.push(AppRoutes.travelToolkit),
                 onAssistant: () => context.push(AppRoutes.aiAssistant),
                 onAllPlaces: () => context.push(
@@ -987,13 +1008,216 @@ class _ProfileCompletionPrompt extends StatelessWidget {
   }
 }
 
+class _HomeTravelAlertsSection extends StatelessWidget {
+  const _HomeTravelAlertsSection({required this.alerts});
+
+  final AsyncValue<List<TravelAlert>> alerts;
+
+  @override
+  Widget build(BuildContext context) {
+    return alerts.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (items) {
+        if (items.isEmpty) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+          child: Column(
+            children: items
+                .take(2)
+                .map((alert) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: _HomeTravelAlertCard(alert: alert),
+                    ))
+                .toList(),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _HomeTravelAlertCard extends StatelessWidget {
+  const _HomeTravelAlertCard({required this.alert});
+
+  final TravelAlert alert;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _homeAlertColor(alert.severity);
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: [
+          Icon(_homeAlertIcon(alert.severity), color: color, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  alert.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  alert.message,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeRemoteBannersSection extends StatelessWidget {
+  const _HomeRemoteBannersSection({
+    required this.banners,
+    required this.flags,
+    required this.onTap,
+  });
+
+  final AsyncValue<List<HomeBanner>> banners;
+  final FeatureFlags flags;
+  final ValueChanged<String?> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return banners.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (items) {
+        final visible = items.where((item) => _bannerAllowed(item)).toList();
+        if (visible.isEmpty) return const SizedBox.shrink();
+        return SizedBox(
+          height: 150,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(20, 6, 20, 12),
+            itemCount: visible.take(5).length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, index) => _HomeRemoteBannerCard(
+              banner: visible[index],
+              onTap: () => onTap(visible[index].actionRoute),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  bool _bannerAllowed(HomeBanner banner) {
+    return switch (banner.bannerType) {
+      'festival' => flags.festivalCampaign,
+      'hotel_promo' => flags.hotels,
+      'flight_promo' => flags.flights,
+      'emergency' => flags.sos,
+      _ => true,
+    };
+  }
+}
+
+class _HomeRemoteBannerCard extends StatelessWidget {
+  const _HomeRemoteBannerCard({
+    required this.banner,
+    required this.onTap,
+  });
+
+  final HomeBanner banner;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasAction = banner.actionRoute?.trim().isNotEmpty == true;
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: hasAction ? onTap : null,
+      child: Ink(
+        width: 285,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppColors.primaryDark,
+              _homeBannerAccent(banner.bannerType),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          image: banner.imageUrl?.trim().isNotEmpty == true
+              ? DecorationImage(
+                  image: NetworkImage(banner.imageUrl!.trim()),
+                  fit: BoxFit.cover,
+                  colorFilter: ColorFilter.mode(
+                    Colors.black.withValues(alpha: 0.42),
+                    BlendMode.darken,
+                  ),
+                )
+              : null,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(_homeBannerIcon(banner.bannerType),
+                color: Colors.white, size: 26),
+            const Spacer(),
+            Text(
+              banner.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            if (banner.subtitle?.trim().isNotEmpty == true) ...[
+              const SizedBox(height: 3),
+              Text(
+                banner.subtitle!.trim(),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white70, height: 1.25),
+              ),
+            ],
+            if (hasAction && banner.actionLabel?.trim().isNotEmpty == true) ...[
+              const SizedBox(height: 8),
+              Text(
+                banner.actionLabel!.trim(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _HomeBottomDiscoveryCard extends StatelessWidget {
   const _HomeBottomDiscoveryCard({
+    required this.aiEnabled,
     required this.onToolkit,
     required this.onAssistant,
     required this.onAllPlaces,
   });
 
+  final bool aiEnabled;
   final VoidCallback onToolkit;
   final VoidCallback onAssistant;
   final VoidCallback onAllPlaces;
@@ -1042,11 +1266,12 @@ class _HomeBottomDiscoveryCard extends StatelessWidget {
                 icon: const Icon(Icons.widgets_rounded, size: 18),
                 label: const Text('Toolkit'),
               ),
-              FilledButton.tonalIcon(
-                onPressed: onAssistant,
-                icon: const Icon(Icons.auto_awesome_rounded, size: 18),
-                label: const Text('Ask AI'),
-              ),
+              if (aiEnabled)
+                FilledButton.tonalIcon(
+                  onPressed: onAssistant,
+                  icon: const Icon(Icons.auto_awesome_rounded, size: 18),
+                  label: const Text('Ask AI'),
+                ),
               OutlinedButton.icon(
                 onPressed: onAllPlaces,
                 icon: const Icon(Icons.account_balance_rounded, size: 18),
@@ -1058,6 +1283,42 @@ class _HomeBottomDiscoveryCard extends StatelessWidget {
       ),
     );
   }
+}
+
+IconData _homeAlertIcon(String severity) {
+  return switch (severity) {
+    'emergency' => Icons.emergency_rounded,
+    'warning' => Icons.warning_amber_rounded,
+    _ => Icons.info_outline_rounded,
+  };
+}
+
+Color _homeAlertColor(String severity) {
+  return switch (severity) {
+    'emergency' => AppColors.error,
+    'warning' => AppColors.warning,
+    _ => AppColors.primary,
+  };
+}
+
+IconData _homeBannerIcon(String type) {
+  return switch (type) {
+    'festival' => Icons.celebration_rounded,
+    'hotel_promo' => Icons.hotel_rounded,
+    'flight_promo' => Icons.flight_takeoff_rounded,
+    'emergency' => Icons.warning_amber_rounded,
+    _ => Icons.location_city_rounded,
+  };
+}
+
+Color _homeBannerAccent(String type) {
+  return switch (type) {
+    'festival' => AppColors.accent,
+    'hotel_promo' => AppColors.success,
+    'flight_promo' => AppColors.info,
+    'emergency' => AppColors.error,
+    _ => AppColors.primary,
+  };
 }
 
 class _HomeGuideRequestCard extends StatelessWidget {

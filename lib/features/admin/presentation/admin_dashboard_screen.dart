@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:unisafex/core/constants/app_constants.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
+import 'package:unisafex/features/admin/data/admin_remote_config_repository.dart';
 import 'package:unisafex/features/auth/presentation/providers/auth_provider.dart';
 import 'package:unisafex/features/guide/domain/guide_request.dart';
 import 'package:unisafex/features/guide/presentation/providers/guide_request_provider.dart';
@@ -36,7 +37,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   Widget build(BuildContext context) {
     final access = ref.watch(isAdminProvider);
     return DefaultTabController(
-      length: 3,
+      length: 8,
       child: Scaffold(
         appBar: AppBar(
           title: Text('admin_console'.tr()),
@@ -48,20 +49,19 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             ),
           ],
           bottom: const TabBar(
+            isScrollable: true,
             tabs: [
+              Tab(icon: Icon(Icons.dashboard_rounded), text: 'Dashboard'),
               Tab(icon: Icon(Icons.account_balance_rounded), text: 'Places'),
+              Tab(icon: Icon(Icons.campaign_rounded), text: 'Banners'),
+              Tab(icon: Icon(Icons.tune_rounded), text: 'Flags'),
+              Tab(icon: Icon(Icons.warning_amber_rounded), text: 'Alerts'),
+              Tab(icon: Icon(Icons.people_alt_rounded), text: 'Users'),
               Tab(icon: Icon(Icons.support_agent_rounded), text: 'Guides'),
               Tab(icon: Icon(Icons.map_rounded), text: 'Maps'),
             ],
           ),
         ),
-        floatingActionButton: access.value == true
-            ? FloatingActionButton.extended(
-                onPressed: () => _editPlace(),
-                icon: const Icon(Icons.add_rounded),
-                label: const Text('Add place'),
-              )
-            : null,
         body: access.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, _) => Center(child: Text('$error')),
@@ -76,7 +76,12 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             );
             return TabBarView(
               children: [
+                const _AdminDashboardOverviewTab(),
                 _buildPlacesTab(places),
+                const _HomeBannersAdminTab(),
+                const _FeatureFlagsAdminTab(),
+                const _TravelAlertsAdminTab(),
+                const _UsersAdminTab(),
                 const _GuideRequestsAdminTab(),
                 const _MapAccessAdminTab(),
               ],
@@ -113,6 +118,18 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             ],
           ),
         ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton.icon(
+              onPressed: () => _editPlace(),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Add place'),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: TextField(
@@ -659,6 +676,646 @@ class _AdminPhotoPreviewState extends State<_AdminPhotoPreview> {
       ),
     );
   }
+}
+
+class _AdminDashboardOverviewTab extends ConsumerWidget {
+  const _AdminDashboardOverviewTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final stats = ref.watch(adminDashboardStatsProvider);
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [AppColors.primaryDark, AppColors.primary],
+            ),
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.admin_panel_settings_rounded,
+                  color: Colors.white, size: 36),
+              SizedBox(height: 12),
+              Text(
+                'UniSafeX Admin Control Center',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              SizedBox(height: 6),
+              Text(
+                'Control places, banners, feature flags, alerts and users without app updates.',
+                style: TextStyle(color: Colors.white70, height: 1.35),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        stats.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) => Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text('Dashboard stats unavailable. $error'),
+            ),
+          ),
+          data: (stats) => Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _AdminStatCard(
+                label: 'Places',
+                value: stats.places,
+                icon: Icons.account_balance_rounded,
+              ),
+              _AdminStatCard(
+                label: 'Banners',
+                value: stats.banners,
+                icon: Icons.campaign_rounded,
+              ),
+              _AdminStatCard(
+                label: 'Alerts',
+                value: stats.alerts,
+                icon: Icons.warning_amber_rounded,
+              ),
+              _AdminStatCard(
+                label: 'Users',
+                value: stats.users,
+                icon: Icons.people_alt_rounded,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AdminStatCard extends StatelessWidget {
+  const _AdminStatCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  final String label;
+  final int value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 165,
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, color: AppColors.primary),
+              const SizedBox(height: 12),
+              Text(
+                '$value',
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
+              Text(label),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeBannersAdminTab extends ConsumerWidget {
+  const _HomeBannersAdminTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final banners = ref.watch(adminHomeBannersProvider);
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+      children: [
+        _AdminSectionHeader(
+          title: 'Home Banner Manager',
+          subtitle:
+              'Festival, hotel, flight, featured city and emergency banners.',
+          actionLabel: 'Add banner',
+          onAction: () => _editBanner(context, ref),
+        ),
+        banners.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) => _AdminErrorCard(error: error),
+          data: (items) => items.isEmpty
+              ? const _AdminEmptyCard(text: 'No banners yet.')
+              : Column(
+                  children: items
+                      .map(
+                        (banner) => Card(
+                          child: ListTile(
+                            leading: Icon(
+                              _bannerIcon(banner.bannerType),
+                              color: banner.isActive
+                                  ? AppColors.primary
+                                  : AppColors.grey500,
+                            ),
+                            title: Text(banner.title),
+                            subtitle: Text(
+                              '${banner.bannerType} · priority ${banner.priority} · '
+                              '${banner.isActive ? 'active' : 'hidden'}',
+                            ),
+                            trailing: const Icon(Icons.edit_outlined),
+                            onTap: () => _editBanner(context, ref, banner),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _editBanner(
+    BuildContext context,
+    WidgetRef ref, [
+    HomeBanner? banner,
+  ]) async {
+    final title = TextEditingController(text: banner?.title);
+    final subtitle = TextEditingController(text: banner?.subtitle);
+    final image = TextEditingController(text: banner?.imageUrl);
+    final actionLabel = TextEditingController(text: banner?.actionLabel);
+    final actionRoute = TextEditingController(text: banner?.actionRoute);
+    final city = TextEditingController(text: banner?.city);
+    final state = TextEditingController(text: banner?.state);
+    final priority = TextEditingController(text: '${banner?.priority ?? 100}');
+    var type = banner?.bannerType ?? 'featured_city';
+    var active = banner?.isActive ?? true;
+
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheetState) => _AdminFormSheet(
+          title: banner == null ? 'Add banner' : 'Edit banner',
+          children: [
+            TextField(
+                controller: title,
+                decoration: const InputDecoration(labelText: 'Title')),
+            TextField(
+                controller: subtitle,
+                decoration: const InputDecoration(labelText: 'Subtitle')),
+            TextField(
+                controller: image,
+                decoration: const InputDecoration(labelText: 'Image URL')),
+            TextField(
+                controller: actionLabel,
+                decoration: const InputDecoration(labelText: 'Action label')),
+            TextField(
+                controller: actionRoute,
+                decoration: const InputDecoration(labelText: 'Action route')),
+            DropdownButtonFormField<String>(
+              initialValue: type,
+              decoration: const InputDecoration(labelText: 'Banner type'),
+              items: const [
+                DropdownMenuItem(value: 'festival', child: Text('Festival')),
+                DropdownMenuItem(
+                    value: 'hotel_promo', child: Text('Hotel promo')),
+                DropdownMenuItem(
+                    value: 'flight_promo', child: Text('Flight promo')),
+                DropdownMenuItem(
+                    value: 'featured_city', child: Text('Featured city')),
+                DropdownMenuItem(value: 'emergency', child: Text('Emergency')),
+              ],
+              onChanged: (value) => setSheetState(() => type = value ?? type),
+            ),
+            TextField(
+                controller: city,
+                decoration: const InputDecoration(labelText: 'City optional')),
+            TextField(
+                controller: state,
+                decoration: const InputDecoration(labelText: 'State optional')),
+            TextField(
+              controller: priority,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Priority'),
+            ),
+            SwitchListTile(
+              value: active,
+              title: const Text('Active'),
+              onChanged: (value) => setSheetState(() => active = value),
+            ),
+            FilledButton(
+              onPressed: () async {
+                if (title.text.trim().isEmpty) return;
+                await ref
+                    .read(adminRemoteConfigRepositoryProvider)
+                    .saveHomeBanner(
+                      id: banner?.id,
+                      title: title.text,
+                      subtitle: subtitle.text,
+                      imageUrl: image.text,
+                      actionLabel: actionLabel.text,
+                      actionRoute: actionRoute.text,
+                      bannerType: type,
+                      city: city.text,
+                      state: state.text,
+                      priority: int.tryParse(priority.text) ?? 100,
+                      isActive: active,
+                    );
+                if (context.mounted) Navigator.pop(context, true);
+              },
+              child: const Text('Save banner'),
+            ),
+          ],
+        ),
+      ),
+    );
+    for (final controller in [
+      title,
+      subtitle,
+      image,
+      actionLabel,
+      actionRoute,
+      city,
+      state,
+      priority,
+    ]) {
+      controller.dispose();
+    }
+    if (saved == true) {
+      ref.invalidate(adminHomeBannersProvider);
+      ref.invalidate(activeHomeBannersProvider);
+    }
+  }
+
+  IconData _bannerIcon(String type) {
+    return switch (type) {
+      'festival' => Icons.celebration_rounded,
+      'hotel_promo' => Icons.hotel_rounded,
+      'flight_promo' => Icons.flight_takeoff_rounded,
+      'emergency' => Icons.warning_amber_rounded,
+      _ => Icons.location_city_rounded,
+    };
+  }
+}
+
+class _FeatureFlagsAdminTab extends ConsumerWidget {
+  const _FeatureFlagsAdminTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final flags = ref.watch(adminFeatureFlagsProvider);
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+      children: [
+        const _AdminSectionHeader(
+          title: 'Feature Flags',
+          subtitle: 'Turn app features on or off from Supabase.',
+        ),
+        flags.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) => _AdminErrorCard(error: error),
+          data: (items) => Column(
+            children: items
+                .map(
+                  (flag) => Card(
+                    child: SwitchListTile(
+                      value: flag.enabled,
+                      title: Text(flag.key),
+                      subtitle: Text(flag.description ?? ''),
+                      onChanged: (enabled) async {
+                        await ref
+                            .read(adminRemoteConfigRepositoryProvider)
+                            .saveFeatureFlag(
+                              AppFeatureFlag(
+                                key: flag.key,
+                                enabled: enabled,
+                                description: flag.description,
+                              ),
+                            );
+                        ref.invalidate(adminFeatureFlagsProvider);
+                        ref.invalidate(publicFeatureFlagsProvider);
+                      },
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TravelAlertsAdminTab extends ConsumerWidget {
+  const _TravelAlertsAdminTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final alerts = ref.watch(adminTravelAlertsProvider);
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+      children: [
+        _AdminSectionHeader(
+          title: 'Notifications / Travel Alerts',
+          subtitle: 'Create city, state or India-wide alerts for travelers.',
+          actionLabel: 'Add alert',
+          onAction: () => _editAlert(context, ref),
+        ),
+        alerts.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) => _AdminErrorCard(error: error),
+          data: (items) => items.isEmpty
+              ? const _AdminEmptyCard(text: 'No alerts yet.')
+              : Column(
+                  children: items
+                      .map(
+                        (alert) => Card(
+                          child: ListTile(
+                            leading: Icon(
+                              _alertIcon(alert.severity),
+                              color: _alertColor(alert.severity),
+                            ),
+                            title: Text(alert.title),
+                            subtitle: Text(
+                              '${alert.severity} · ${alert.city ?? alert.state ?? 'India'} · '
+                              '${alert.isActive ? 'active' : 'hidden'}',
+                            ),
+                            trailing: const Icon(Icons.edit_outlined),
+                            onTap: () => _editAlert(context, ref, alert),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _editAlert(
+    BuildContext context,
+    WidgetRef ref, [
+    TravelAlert? alert,
+  ]) async {
+    final title = TextEditingController(text: alert?.title);
+    final message = TextEditingController(text: alert?.message);
+    final city = TextEditingController(text: alert?.city);
+    final state = TextEditingController(text: alert?.state);
+    var severity = alert?.severity ?? 'info';
+    var active = alert?.isActive ?? true;
+
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheetState) => _AdminFormSheet(
+          title: alert == null ? 'Add travel alert' : 'Edit travel alert',
+          children: [
+            TextField(
+                controller: title,
+                decoration: const InputDecoration(labelText: 'Title')),
+            TextField(
+              controller: message,
+              maxLines: 4,
+              decoration: const InputDecoration(labelText: 'Message'),
+            ),
+            DropdownButtonFormField<String>(
+              initialValue: severity,
+              decoration: const InputDecoration(labelText: 'Severity'),
+              items: const [
+                DropdownMenuItem(value: 'info', child: Text('Info')),
+                DropdownMenuItem(value: 'warning', child: Text('Warning')),
+                DropdownMenuItem(value: 'emergency', child: Text('Emergency')),
+              ],
+              onChanged: (value) =>
+                  setSheetState(() => severity = value ?? severity),
+            ),
+            TextField(
+                controller: city,
+                decoration: const InputDecoration(labelText: 'City optional')),
+            TextField(
+                controller: state,
+                decoration: const InputDecoration(labelText: 'State optional')),
+            SwitchListTile(
+              value: active,
+              title: const Text('Active'),
+              onChanged: (value) => setSheetState(() => active = value),
+            ),
+            FilledButton(
+              onPressed: () async {
+                if (title.text.trim().isEmpty || message.text.trim().isEmpty) {
+                  return;
+                }
+                await ref
+                    .read(adminRemoteConfigRepositoryProvider)
+                    .saveTravelAlert(
+                      id: alert?.id,
+                      title: title.text,
+                      message: message.text,
+                      severity: severity,
+                      city: city.text,
+                      state: state.text,
+                      isActive: active,
+                    );
+                if (context.mounted) Navigator.pop(context, true);
+              },
+              child: const Text('Save alert'),
+            ),
+          ],
+        ),
+      ),
+    );
+    title.dispose();
+    message.dispose();
+    city.dispose();
+    state.dispose();
+    if (saved == true) {
+      ref.invalidate(adminTravelAlertsProvider);
+      ref.invalidate(activeTravelAlertsProvider);
+    }
+  }
+}
+
+class _UsersAdminTab extends ConsumerWidget {
+  const _UsersAdminTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profiles = ref.watch(adminProfilesProvider);
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+      children: [
+        const _AdminSectionHeader(
+          title: 'Users / Profiles',
+          subtitle:
+              'Read-only user profile overview for support and operations.',
+        ),
+        profiles.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) => _AdminErrorCard(error: error),
+          data: (items) => items.isEmpty
+              ? const _AdminEmptyCard(text: 'No profiles yet.')
+              : Column(
+                  children: items
+                      .map(
+                        (profile) => Card(
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              child: Text(profile.initials),
+                            ),
+                            title: Text(profile.displayName),
+                            subtitle: Text(
+                              '${profile.email ?? 'No email'}\n'
+                              '${profile.currentLocation ?? 'No location'} · '
+                              '${profile.visaType ?? 'No visa'}',
+                            ),
+                            isThreeLine: true,
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AdminSectionHeader extends StatelessWidget {
+  const _AdminSectionHeader({
+    required this.title,
+    required this.subtitle,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  final String title;
+  final String subtitle;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: Theme.of(context).textTheme.headlineSmall),
+                const SizedBox(height: 4),
+                Text(subtitle),
+              ],
+            ),
+          ),
+          if (actionLabel != null && onAction != null)
+            FilledButton.icon(
+              onPressed: onAction,
+              icon: const Icon(Icons.add_rounded),
+              label: Text(actionLabel!),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AdminFormSheet extends StatelessWidget {
+  const _AdminFormSheet({
+    required this.title,
+    required this.children,
+  });
+
+  final String title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        20,
+        20,
+        MediaQuery.viewInsetsOf(context).bottom + 24,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(title, style: Theme.of(context).textTheme.headlineSmall),
+            const SizedBox(height: 14),
+            ...children.map(
+              (child) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: child,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AdminErrorCard extends StatelessWidget {
+  const _AdminErrorCard({required this.error});
+
+  final Object error;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text(
+            'Could not load admin data. Apply the remote config SQL migration first.\n\n$error'),
+      ),
+    );
+  }
+}
+
+class _AdminEmptyCard extends StatelessWidget {
+  const _AdminEmptyCard({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Text(text),
+      ),
+    );
+  }
+}
+
+IconData _alertIcon(String severity) {
+  return switch (severity) {
+    'emergency' => Icons.emergency_rounded,
+    'warning' => Icons.warning_amber_rounded,
+    _ => Icons.info_outline_rounded,
+  };
+}
+
+Color _alertColor(String severity) {
+  return switch (severity) {
+    'emergency' => AppColors.error,
+    'warning' => AppColors.warning,
+    _ => AppColors.primary,
+  };
 }
 
 enum _AdminGuideFilter {

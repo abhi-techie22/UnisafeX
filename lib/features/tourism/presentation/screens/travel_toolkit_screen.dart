@@ -1,39 +1,46 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
+import 'package:unisafex/features/admin/data/admin_remote_config_repository.dart';
 
-class TravelToolkitScreen extends StatelessWidget {
+class TravelToolkitScreen extends ConsumerWidget {
   const TravelToolkitScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final flags = ref.watch(publicFeatureFlagsProvider).valueOrNull ??
+        const FeatureFlags({});
     final tools = [
-      (
-        'smart_trip_planner'.tr(),
-        'trip_planner_description'.tr(),
-        Icons.route_rounded,
-        AppRoutes.tripPlanner
-      ),
+      if (flags.tripPlanner)
+        (
+          'smart_trip_planner'.tr(),
+          'trip_planner_description'.tr(),
+          Icons.route_rounded,
+          AppRoutes.tripPlanner
+        ),
       (
         'currency_helper'.tr(),
         'currency_description'.tr(),
         Icons.currency_exchange,
         AppRoutes.currencyHelper
       ),
-      (
-        'local_phrase_book'.tr(),
-        'phrase_book_description'.tr(),
-        Icons.translate_rounded,
-        AppRoutes.phraseBook
-      ),
-      (
-        'ai_travel_assistant'.tr(),
-        'ai_description'.tr(),
-        Icons.auto_awesome,
-        AppRoutes.aiAssistant
-      ),
+      if (flags.audioGuide)
+        (
+          'local_phrase_book'.tr(),
+          'phrase_book_description'.tr(),
+          Icons.translate_rounded,
+          AppRoutes.phraseBook
+        ),
+      if (flags.aiAssistant)
+        (
+          'ai_travel_assistant'.tr(),
+          'ai_description'.tr(),
+          Icons.auto_awesome,
+          AppRoutes.aiAssistant
+        ),
       (
         'All destinations',
         'Browse monuments and tourist places by category, city and rating',
