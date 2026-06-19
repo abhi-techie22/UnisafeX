@@ -76,6 +76,8 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
     final remoteSaved =
         remoteFavorites.any((favorite) => favorite.placeId == place.id);
     final isFavorite = localSaved || remoteSaved;
+    final completedPlaces = ref.watch(bucketListCompletedProvider);
+    final isCompleted = completedPlaces.contains(place.id);
 
     return Scaffold(
       body: CustomScrollView(
@@ -163,6 +165,20 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                   liked: _likedInSession,
                   loading: _liking,
                   onTap: _likePlace,
+                ),
+                const SizedBox(height: 12),
+                _BucketListCard(
+                  saved: isFavorite,
+                  completed: isCompleted,
+                  onSave: () => _toggleFavorite(
+                    localSaved: localSaved,
+                    remoteSaved: remoteSaved,
+                  ),
+                  onToggleCompleted: isFavorite
+                      ? () => ref
+                          .read(bucketListCompletedProvider.notifier)
+                          .toggleCompleted(place.id)
+                      : null,
                 ),
                 if (distance != null) ...[
                   const SizedBox(height: 8),
@@ -489,6 +505,77 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
             _EmergencyRow(label: 'Tourist helpline', number: '1363'),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _BucketListCard extends StatelessWidget {
+  const _BucketListCard({
+    required this.saved,
+    required this.completed,
+    required this.onSave,
+    required this.onToggleCompleted,
+  });
+
+  final bool saved;
+  final bool completed;
+  final VoidCallback onSave;
+  final VoidCallback? onToggleCompleted;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.14)),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+            foregroundColor: AppColors.primary,
+            child: Icon(saved ? Icons.flag_rounded : Icons.flag_outlined),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  saved ? 'In your bucket list' : 'Add to bucket list',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  saved
+                      ? completed
+                          ? 'Marked completed after your visit.'
+                          : 'Track this place and mark it completed later.'
+                      : 'Save this place before your trip.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          if (!saved)
+            FilledButton.tonal(
+              onPressed: onSave,
+              child: const Text('Save'),
+            )
+          else
+            IconButton.filledTonal(
+              tooltip: completed ? 'Mark not visited' : 'Mark visited',
+              onPressed: onToggleCompleted,
+              icon: Icon(
+                completed
+                    ? Icons.check_circle_rounded
+                    : Icons.radio_button_unchecked_rounded,
+              ),
+            ),
+        ],
       ),
     );
   }

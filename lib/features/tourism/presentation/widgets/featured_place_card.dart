@@ -187,14 +187,16 @@ class FeaturedPlaceCard extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                        ],
+                      ),
+                      const SizedBox(height: 7),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: [
                           if (place.isFree)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: AppColors.success.withOpacity(0.85),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
+                            _FeaturedInfoPill(
+                              color: AppColors.success.withOpacity(0.85),
                               child: const Text(
                                 'Free',
                                 style: TextStyle(
@@ -204,15 +206,10 @@ class FeaturedPlaceCard extends StatelessWidget {
                                 ),
                               ),
                             ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.35),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
+                          _FeaturedInfoPill(
+                            color: Colors.black.withOpacity(0.35),
                             child: Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 const Icon(
                                   Icons.favorite_rounded,
@@ -241,6 +238,28 @@ class FeaturedPlaceCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _FeaturedInfoPill extends StatelessWidget {
+  const _FeaturedInfoPill({
+    required this.color,
+    required this.child,
+  });
+
+  final Color color;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: child,
     );
   }
 }

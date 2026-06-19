@@ -7,6 +7,7 @@ import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
 import 'package:unisafex/features/auth/presentation/providers/auth_provider.dart';
 import 'package:unisafex/features/profile/domain/entities/user_profile.dart';
+import 'package:unisafex/features/profile/domain/profile_completion.dart';
 import 'package:unisafex/features/profile/presentation/providers/profile_provider.dart';
 import 'package:unisafex/features/heritage/data/heritage_repository.dart';
 
@@ -197,6 +198,7 @@ class _IdentityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final percent = profileCompletionPercent(profile);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
@@ -287,6 +289,28 @@ class _IdentityCard extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: LinearProgressIndicator(
+                          value: percent / 100,
+                          minHeight: 6,
+                          borderRadius: BorderRadius.circular(99),
+                          backgroundColor:
+                              AppColors.primary.withValues(alpha: 0.10),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '$percent%',
+                        style: Theme.of(context)
+                            .textTheme
+                            .labelMedium
+                            ?.copyWith(fontWeight: FontWeight.w800),
+                      ),
+                    ],
                   ),
                 ],
               ),

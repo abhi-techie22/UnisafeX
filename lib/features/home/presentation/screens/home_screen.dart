@@ -6,9 +6,11 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
+import 'package:unisafex/features/auth/presentation/providers/auth_provider.dart';
 import 'package:unisafex/features/guide/domain/guide_request.dart';
 import 'package:unisafex/features/guide/presentation/providers/guide_request_provider.dart';
 import 'package:unisafex/features/home/presentation/providers/location_provider.dart';
+import 'package:unisafex/features/profile/domain/profile_completion.dart';
 import 'package:unisafex/features/profile/presentation/providers/profile_provider.dart';
 import 'package:unisafex/features/tourism/domain/entities/tourism_place.dart';
 import 'package:unisafex/features/tourism/presentation/providers/tourism_provider.dart';
@@ -27,6 +29,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   Set<String> _dismissedGuideRequestKeys = const {};
   ProviderSubscription<List<GuideRequest>>? _guideRequestSubscription;
+  bool _tourCheckScheduled = false;
 
   @override
   void initState() {
@@ -47,6 +50,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final user = ref.watch(currentUserProvider);
     final profile = ref.watch(profileNotifierProvider);
     final location = ref.watch(locationProvider);
     final featured = ref.watch(featuredPlacesProvider);
@@ -69,6 +73,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           );
     final greeting = _getGreeting();
+    if (user != null && !_tourCheckScheduled) {
+      _tourCheckScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _maybeShowFeatureTour(user.id);
+      });
+    }
 
     return Scaffold(
       body: CustomScrollView(
@@ -208,12 +218,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
 
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 10),
-              child: _FirstTimeGuideCard(
-                onStartTour: _showFirstTimeGuide,
-                onOpenGuide: () => context.go(AppRoutes.guideRequest),
+            child: profile.when(
+              data: (p) => _ProfileCompletionPrompt(
+                percent: profileCompletionPercent(p),
+                onTap: () => context.push(AppRoutes.identityDetails),
               ),
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
             ),
           ),
 
@@ -707,59 +718,156 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  void _showFirstTimeGuide() {
-    showModalBottomSheet<void>(
+  Future<void> _maybeShowFeatureTour(String userId) async {
+    final preferences = await SharedPreferences.getInstance();
+    final key = _featureTourSeenKey(userId);
+    if (preferences.getBool(key) == true || !mounted) return;
+    await _showFeatureTour(userId);
+  }
+
+  Future<void> _markFeatureTourSeen(String userId) async {
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setBool(_featureTourSeenKey(userId), true);
+  }
+
+  Future<void> _showFeatureTour(String userId) async {
+    var page = 0;
+    final controller = PageController();
+    final steps = const [
+      _TourData(
+        icon: Icons.badge_outlined,
+        title: 'Step 1: Complete your travel identity',
+        text:
+            'Add nationality, visa and current city so UniSafeX can personalize safety and travel flows.',
+      ),
+      _TourData(
+        icon: Icons.flag_rounded,
+        title: 'Step 2: Build your bucket list',
+        text:
+            'Save places you want to visit, then mark them completed after your trip.',
+      ),
+      _TourData(
+        icon: Icons.support_agent_rounded,
+        title: 'Step 3: Use tools and guide support',
+        text:
+            'Open toolkit for planner, currency and phrases. Delhi travelers can request a verified guide.',
+      ),
+    ];
+
+    await showDialog<void>(
       context: context,
-      showDragHandle: true,
-      builder: (context) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'First time in UniSafeX?',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Use this quick tour to understand the main safety features '
-              'before you start exploring India.',
-            ),
-            const SizedBox(height: 16),
-            const _TourStep(
-              icon: Icons.near_me_rounded,
-              title: 'Nearby',
-              text:
-                  'See distance-aware places from your selected or GPS location.',
-            ),
-            const _TourStep(
-              icon: Icons.auto_awesome_rounded,
-              title: 'Travel toolkit',
-              text: 'Planner, currency, phrases and assistant live together.',
-            ),
-            const _TourStep(
-              icon: Icons.support_agent_rounded,
-              title: 'Guide request',
-              text:
-                  'Delhi guide requests are reviewed by UniSafeX within 7 days.',
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('got_it'.tr()),
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => Dialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 440, maxHeight: 560),
+            child: Padding(
+              padding: const EdgeInsets.all(22),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Welcome to UniSafeX',
+                          style: Theme.of(context).textTheme.headlineSmall,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () async {
+                          await _markFeatureTourSeen(userId);
+                          if (context.mounted) Navigator.pop(context);
+                        },
+                        child: const Text('Skip'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 290,
+                    child: PageView.builder(
+                      controller: controller,
+                      itemCount: steps.length,
+                      onPageChanged: (value) =>
+                          setDialogState(() => page = value),
+                      itemBuilder: (_, index) =>
+                          _FeatureTourPage(data: steps[index]),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(
+                      steps.length,
+                      (index) => AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        width: index == page ? 22 : 8,
+                        height: 8,
+                        margin: const EdgeInsets.symmetric(horizontal: 3),
+                        decoration: BoxDecoration(
+                          color: index == page
+                              ? AppColors.primary
+                              : AppColors.grey300,
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      if (page > 0)
+                        TextButton(
+                          onPressed: () => controller.previousPage(
+                            duration: const Duration(milliseconds: 240),
+                            curve: Curves.easeOut,
+                          ),
+                          child: const Text('Back'),
+                        )
+                      else
+                        const Spacer(),
+                      const Spacer(),
+                      FilledButton.icon(
+                        onPressed: () async {
+                          if (page == steps.length - 1) {
+                            await _markFeatureTourSeen(userId);
+                            if (context.mounted) Navigator.pop(context);
+                          } else {
+                            await controller.nextPage(
+                              duration: const Duration(milliseconds: 240),
+                              curve: Curves.easeOut,
+                            );
+                          }
+                        },
+                        icon: Icon(
+                          page == steps.length - 1
+                              ? Icons.check_rounded
+                              : Icons.arrow_forward_rounded,
+                        ),
+                        label: Text(
+                          page == steps.length - 1 ? 'Start exploring' : 'Next',
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
+    controller.dispose();
   }
 }
 
 const _dismissedGuideRequestsKey = 'dismissed_home_guide_requests_v1';
+const _featureTourSeenPrefix = 'home_feature_tour_seen_v2';
+
+String _featureTourSeenKey(String userId) => '$_featureTourSeenPrefix:$userId';
 
 String _guideDismissKey(GuideRequest request) {
   return '${request.id}:${request.status.name}';
@@ -774,68 +882,8 @@ class _AvatarShimmer extends StatelessWidget {
   }
 }
 
-class _FirstTimeGuideCard extends StatelessWidget {
-  const _FirstTimeGuideCard({
-    required this.onStartTour,
-    required this.onOpenGuide,
-  });
-
-  final VoidCallback onStartTour;
-  final VoidCallback onOpenGuide;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.16)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child:
-                const Icon(Icons.touch_app_rounded, color: AppColors.primary),
-          ),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'First time here?',
-                  style: TextStyle(fontWeight: FontWeight.w800),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  'Take a quick feature tour or request a Delhi guide.',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          TextButton(onPressed: onStartTour, child: const Text('Tour')),
-          IconButton(
-            tooltip: 'Guide',
-            onPressed: onOpenGuide,
-            icon: const Icon(Icons.support_agent_rounded),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TourStep extends StatelessWidget {
-  const _TourStep({
+class _TourData {
+  const _TourData({
     required this.icon,
     required this.title,
     required this.text,
@@ -844,31 +892,96 @@ class _TourStep extends StatelessWidget {
   final IconData icon;
   final String title;
   final String text;
+}
+
+class _FeatureTourPage extends StatelessWidget {
+  const _FeatureTourPage({required this.data});
+
+  final _TourData data;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-            foregroundColor: AppColors.primary,
-            child: Icon(icon),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 2),
-                Text(text),
-              ],
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          width: 92,
+          height: 92,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [AppColors.primaryDark, AppColors.primary],
             ),
+            borderRadius: BorderRadius.circular(28),
           ),
-        ],
+          child: Icon(data.icon, color: Colors.white, size: 42),
+        ),
+        const SizedBox(height: 22),
+        Text(
+          data.title,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        const SizedBox(height: 10),
+        Text(
+          data.text,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.45),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileCompletionPrompt extends StatelessWidget {
+  const _ProfileCompletionPrompt({
+    required this.percent,
+    required this.onTap,
+  });
+
+  final int percent;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    if (percent >= 100) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Ink(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.warning.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.warning.withValues(alpha: 0.2)),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.person_pin_rounded, color: AppColors.warning),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Profile $percent% complete',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: 7),
+                    LinearProgressIndicator(
+                      value: percent / 100,
+                      minHeight: 6,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(Icons.chevron_right_rounded),
+            ],
+          ),
+        ),
       ),
     );
   }

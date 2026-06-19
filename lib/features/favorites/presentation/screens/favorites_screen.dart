@@ -20,6 +20,7 @@ class FavoritesScreen extends ConsumerWidget {
         ? ref.watch(popularPlacesProvider)
         : ref.watch(favoritePlacesProvider);
     final localIds = ref.watch(savedPlacesProvider);
+    final completedIds = ref.watch(bucketListCompletedProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -48,12 +49,20 @@ class FavoritesScreen extends ConsumerWidget {
           if (visible.isEmpty) {
             return _EmptySavedState(isOffline: user == null);
           }
+          final completedCount =
+              visible.where((place) => completedIds.contains(place.id)).length;
           return ListView.separated(
             padding: const EdgeInsets.all(16),
-            itemCount: visible.length,
+            itemCount: visible.length + 1,
             separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
-              final place = visible[index];
+              if (index == 0) {
+                return _BucketProgressCard(
+                  completed: completedCount,
+                  total: visible.length,
+                );
+              }
+              final place = visible[index - 1];
               return Dismissible(
                 key: ValueKey(
                     '${user == null ? 'local' : 'remote'}-${place.id}'),
@@ -79,12 +88,21 @@ class FavoritesScreen extends ConsumerWidget {
                         .removeFavorite(place.id);
                     ref.invalidate(favoritePlacesProvider);
                   }
+                  await ref
+                      .read(bucketListCompletedProvider.notifier)
+                      .setCompleted(place.id, false);
                 },
                 child: InkWell(
                   borderRadius: BorderRadius.circular(16),
                   onTap: () =>
                       context.push(AppRoutes.placeDetail, extra: place),
-                  child: _SavedPlaceCard(place: place),
+                  child: _SavedPlaceCard(
+                    place: place,
+                    completed: completedIds.contains(place.id),
+                    onToggleCompleted: () => ref
+                        .read(bucketListCompletedProvider.notifier)
+                        .toggleCompleted(place.id),
+                  ),
                 ),
               );
             },
@@ -147,10 +165,72 @@ class _EmptySavedState extends StatelessWidget {
   }
 }
 
+class _BucketProgressCard extends StatelessWidget {
+  const _BucketProgressCard({
+    required this.completed,
+    required this.total,
+  });
+
+  final int completed;
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = total == 0 ? 0.0 : completed / total;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.primary.withValues(alpha: 0.12),
+            AppColors.success.withValues(alpha: 0.10),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.14)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.flag_rounded, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Bucket list progress',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              Text('$completed/$total'),
+            ],
+          ),
+          const SizedBox(height: 10),
+          LinearProgressIndicator(
+            value: progress,
+            minHeight: 7,
+            borderRadius: BorderRadius.circular(99),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Save places you want to visit, then mark them completed after the trip.',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SavedPlaceCard extends StatelessWidget {
   final TourismPlace place;
+  final bool completed;
+  final VoidCallback onToggleCompleted;
 
-  const _SavedPlaceCard({required this.place});
+  const _SavedPlaceCard({
+    required this.place,
+    required this.completed,
+    required this.onToggleCompleted,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -175,7 +255,7 @@ class _SavedPlaceCard extends StatelessWidget {
           ),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -189,14 +269,32 @@ class _SavedPlaceCard extends StatelessWidget {
                   Text('${place.city}, ${place.state}',
                       style: Theme.of(context).textTheme.bodySmall),
                   const SizedBox(height: 12),
-                  Row(
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      const Icon(Icons.star_rounded,
-                          size: 15, color: AppColors.accent),
-                      Text(' ${place.rating.toStringAsFixed(1)}'),
-                      const Spacer(),
-                      const Icon(Icons.bookmark_rounded,
-                          color: AppColors.primary, size: 19),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.star_rounded,
+                              size: 15, color: AppColors.accent),
+                          Text(' ${place.rating.toStringAsFixed(1)}'),
+                        ],
+                      ),
+                      ActionChip(
+                        avatar: Icon(
+                          completed
+                              ? Icons.check_circle_rounded
+                              : Icons.radio_button_unchecked_rounded,
+                          size: 17,
+                          color:
+                              completed ? AppColors.success : AppColors.primary,
+                        ),
+                        label: Text(completed ? 'Completed' : 'Mark visited'),
+                        onPressed: onToggleCompleted,
+                        visualDensity: VisualDensity.compact,
+                      ),
                     ],
                   ),
                 ],

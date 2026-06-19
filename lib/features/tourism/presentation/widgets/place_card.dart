@@ -22,7 +22,7 @@ class PlaceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final imageHeight = width * 0.65;
+    final imageHeight = width * 0.52;
     final safetyScore = SafetyScoreService.calculate(place);
 
     return GestureDetector(
@@ -158,9 +158,10 @@ class PlaceCard extends StatelessWidget {
 
             // Info
             Padding(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     place.name,
@@ -195,7 +196,7 @@ class PlaceCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 5),
                   Row(
                     children: [
                       const Icon(
