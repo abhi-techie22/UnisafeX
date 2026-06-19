@@ -299,6 +299,103 @@ class TourismRepository {
     return response;
   }
 
+  Future<List<TourismPlace>> getAdminPlaces({
+    String search = '',
+    int page = 0,
+  }) async {
+    try {
+      var query = _client.from('tourism_places').select();
+      final trimmed = search.trim().replaceAll(',', ' ');
+
+      if (trimmed.isNotEmpty) {
+        query = query.or(
+          'place_name.ilike.%$trimmed%,city.ilike.%$trimmed%,'
+          'district.ilike.%$trimmed%,state.ilike.%$trimmed%,'
+          'category.ilike.%$trimmed%,subcategory.ilike.%$trimmed%',
+        );
+      }
+
+      final from = page * AppConstants.pageSize;
+      final to = from + AppConstants.pageSize - 1;
+      final response = await query
+          .order('featured', ascending: false)
+          .order('is_popular', ascending: false)
+          .order('rating', ascending: false)
+          .range(from, to);
+
+      return _placesFrom(response);
+    } catch (e) {
+      print('Admin places error: $e');
+      return [];
+    }
+  }
+
+  Future<void> saveAdminPlace({
+    String? id,
+    required String name,
+    required String description,
+    required String state,
+    required String city,
+    required String category,
+    String? district,
+    String? subcategory,
+    required double latitude,
+    required double longitude,
+    required List<String> images,
+    required double entryFeeIndian,
+    required double entryFeeForeigner,
+    String? timings,
+    String? bestSeason,
+    required List<String> bestMonths,
+    required List<String> safetyGuidelines,
+    required List<String> touristTips,
+    required int tier,
+    required bool featured,
+    required double rating,
+    required bool isPopular,
+    required int likesCount,
+    int? visitDurationMinutes,
+    String? address,
+  }) async {
+    final data = <String, dynamic>{
+      'place_name': name.trim(),
+      'description': _emptyToNull(description),
+      'state': state.trim(),
+      'district': _emptyToNull(district),
+      'city': city.trim(),
+      'category': category.trim().isEmpty ? 'Historical' : category.trim(),
+      'subcategory': _emptyToNull(subcategory),
+      'latitude': latitude,
+      'longitude': longitude,
+      'images': images,
+      'entry_fee_indian': entryFeeIndian,
+      'entry_fee_foreigner': entryFeeForeigner,
+      'timings': _emptyToNull(timings),
+      'best_season': _emptyToNull(bestSeason),
+      'best_months': bestMonths,
+      'safety_guidelines': safetyGuidelines,
+      'tourist_tips': touristTips,
+      'tier': tier.clamp(1, 3),
+      'featured': featured,
+      'rating': rating.clamp(0, 5),
+      'is_popular': isPopular,
+      'likes_count': likesCount < 0 ? 0 : likesCount,
+      'visit_duration_minutes': visitDurationMinutes,
+      'address': _emptyToNull(address),
+    };
+
+    if (id == null || id.trim().isEmpty) {
+      await _client.from('tourism_places').insert(data);
+    } else {
+      await _client.from('tourism_places').update(data).eq('place_id', id);
+    }
+  }
+
+  String? _emptyToNull(String? value) {
+    final trimmed = value?.trim();
+    return trimmed == null || trimmed.isEmpty ? null : trimmed;
+  }
+
   Future<List<TourismPlace>> getPlacesWithFilters({
     String? category,
     bool? isFree,
@@ -633,6 +730,36 @@ final nearbyPlacesProvider =
           latitude: params.lat,
           longitude: params.lng,
           radiusKm: params.radiusKm,
+        );
+  },
+);
+
+class AdminTourismPlacesParams {
+  final String search;
+  final int page;
+
+  const AdminTourismPlacesParams({
+    this.search = '',
+    this.page = 0,
+  });
+
+  @override
+  bool operator ==(Object other) {
+    return other is AdminTourismPlacesParams &&
+        other.search == search &&
+        other.page == page;
+  }
+
+  @override
+  int get hashCode => Object.hash(search, page);
+}
+
+final adminTourismPlacesProvider =
+    FutureProvider.family<List<TourismPlace>, AdminTourismPlacesParams>(
+  (ref, params) {
+    return ref.read(tourismRepositoryProvider).getAdminPlaces(
+          search: params.search,
+          page: params.page,
         );
   },
 );

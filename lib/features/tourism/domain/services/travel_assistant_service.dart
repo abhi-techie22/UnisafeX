@@ -40,6 +40,50 @@ class TravelAssistantService {
       );
     }
 
+    if (_containsAny(query, ['scam', 'overcharge', 'fraud', 'avoid'])) {
+      return const TravelAssistantReply(
+        text: 'Common tourist risk points in India are unofficial guides, '
+            'overpriced taxis, fake “closed today” claims, and cash-only ticket '
+            'pressure. Use official counters, registered transport, digital '
+            'payments where possible, and verify opening times before leaving.',
+      );
+    }
+
+    if (_containsAny(query, ['taxi', 'metro', 'transport', 'cab', 'uber'])) {
+      final target = place ?? (scoped.isNotEmpty ? scoped.first : null);
+      return TravelAssistantReply(
+        text: target == null
+            ? 'For city travel, prefer metro where available, prepaid airport '
+                'taxis, hotel-arranged cabs, or trusted ride-hailing apps. '
+                'Share your live location during late travel.'
+            : 'For ${target.name}, plan transport before you leave. Prefer '
+                'metro/prepaid taxi/trusted ride-hailing where available, and '
+                'open the map card for coordinates and route distance.',
+        places: target == null ? const [] : [target],
+      );
+    }
+
+    if (_containsAny(
+        query, ['hotel', 'stay', 'accommodation', 'nearby hotel'])) {
+      final picks = scoped.take(3).toList();
+      return TravelAssistantReply(
+        text: 'Hotel booking is not connected to a live partner API yet. For '
+            'now, choose stays near well-connected areas, check recent foreign '
+            'traveler reviews, confirm passport/visa check-in rules, and keep '
+            'your first night flexible. I can still shortlist safe destination '
+            'areas from UniSafeX data.',
+        places: picks,
+      );
+    }
+
+    if (_containsAny(query, ['food', 'eat', 'restaurant', 'water'])) {
+      return const TravelAssistantReply(
+        text: 'For food safety, prefer busy restaurants, sealed bottled water, '
+            'freshly cooked meals, and card/UPI-friendly places. Be careful '
+            'with raw salads, ice, and very spicy street food on your first day.',
+      );
+    }
+
     if (place != null &&
         _containsAny(query, ['fee', 'cost', 'price', 'ticket'])) {
       return TravelAssistantReply(
@@ -80,6 +124,26 @@ class TravelAssistantService {
             'Safety scores are guidance, not a guarantee.',
         places: recommendations,
       );
+    }
+
+    if (_containsAny(query, ['compare', 'vs', 'versus', 'better'])) {
+      final candidates = allPlaces
+          .where((item) => query.contains(item.name.toLowerCase()))
+          .take(2)
+          .toList();
+      if (candidates.length >= 2) {
+        final a = candidates[0];
+        final b = candidates[1];
+        return TravelAssistantReply(
+          text: '${a.name} is better for ${a.category.toLowerCase()} lovers, '
+              '${a.formattedEntryFee} entry, and about '
+              '${_duration(a.visitDurationMinutes)}. ${b.name} is better for '
+              '${b.category.toLowerCase()} interest, ${b.formattedEntryFee} '
+              'entry, and about ${_duration(b.visitDurationMinutes)}. Choose '
+              'the higher safety-score place for a first solo visit.',
+          places: candidates,
+        );
+      }
     }
 
     if (_containsAny(query, ['best time', 'season', 'month', 'weather'])) {
@@ -144,8 +208,8 @@ class TravelAssistantService {
     return TravelAssistantReply(
       text: 'Top UniSafeX recommendations for $location are '
           '${recommendations.map((item) => item.name).join(', ')}. Ask me '
-          'about safety, entry fees, timings, best season, free places, or a '
-          '1–5 day itinerary.',
+          'about safety, scams, taxi/metro advice, entry fees, timings, best '
+          'season, free places, hotels, food safety, or a 1–5 day itinerary.',
       places: recommendations,
     );
   }

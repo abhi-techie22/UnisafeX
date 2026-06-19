@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
+import 'package:unisafex/features/tourism/domain/entities/tourism_filters.dart';
 import 'package:unisafex/features/tourism/domain/entities/trip_plan.dart';
 import 'package:unisafex/features/tourism/domain/services/trip_planner_service.dart';
 import 'package:unisafex/features/tourism/presentation/providers/tourism_provider.dart';
@@ -23,7 +24,7 @@ class _TripPlannerScreenState extends ConsumerState<TripPlannerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final places = ref.watch(popularPlacesProvider);
+    final places = ref.watch(explorerPlacesProvider(const TourismFilters()));
     return Scaffold(
       appBar: AppBar(title: Text('smart_trip_planner'.tr())),
       body: places.when(
@@ -225,6 +226,27 @@ class _DayCard extends StatelessWidget {
                             ),
                             const SizedBox(height: 7),
                             Text(stop.reason),
+                            const SizedBox(height: 10),
+                            Wrap(
+                              spacing: 7,
+                              runSpacing: 7,
+                              children: [
+                                _MiniInfoChip(
+                                  icon: Icons.confirmation_number_outlined,
+                                  label: stop.place.formattedEntryFee,
+                                ),
+                                if (stop.place.timings?.isNotEmpty == true)
+                                  _MiniInfoChip(
+                                    icon: Icons.schedule_rounded,
+                                    label: stop.place.timings!,
+                                  ),
+                                if (stop.place.safetyGuidelines.isNotEmpty)
+                                  const _MiniInfoChip(
+                                    icon: Icons.shield_outlined,
+                                    label: 'Safety tips ready',
+                                  ),
+                              ],
+                            ),
                           ],
                         ),
                       ),
@@ -243,5 +265,42 @@ class _DayCard extends StatelessWidget {
     if (minutes == null) return 'Flexible visit';
     if (minutes < 60) return '$minutes min';
     return '${(minutes / 60).toStringAsFixed(minutes % 60 == 0 ? 0 : 1)} hr';
+  }
+}
+
+class _MiniInfoChip extends StatelessWidget {
+  const _MiniInfoChip({
+    required this.icon,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: AppColors.primary),
+          const SizedBox(width: 5),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 170),
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelSmall,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

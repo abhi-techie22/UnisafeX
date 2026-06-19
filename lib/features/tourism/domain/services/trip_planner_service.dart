@@ -58,21 +58,36 @@ class TripPlannerService {
       TravelStyle.balanced => place.isPopular ? 1.5 : 1,
       TravelStyle.luxury => place.featured ? 2.0 : 1,
     };
-    return place.rating * 2 + styleBoost + (place.isPopular ? 1 : 0);
+    final detailBoost = [
+      place.timings?.isNotEmpty == true,
+      place.bestSeason?.isNotEmpty == true,
+      place.safetyGuidelines.isNotEmpty,
+      place.touristTips.isNotEmpty,
+      place.visitDurationMinutes != null,
+    ].where((value) => value).length;
+    return place.rating * 2 +
+        styleBoost +
+        detailBoost * 0.35 +
+        (place.isPopular ? 1 : 0) +
+        (place.featured ? 0.8 : 0);
   }
 
   String _reason(TourismPlace place, TravelStyle style) {
     if (place.isFree && style == TravelStyle.budget) {
-      return 'A highly rated experience that keeps the day affordable.';
+      return 'Free entry keeps this day affordable, and the app has enough '
+          'visitor details to plan it with confidence.';
     }
     if (place.featured) {
-      return 'An iconic highlight with strong visitor information.';
+      return 'A featured UniSafeX highlight with strong visitor information.';
     }
     if (place.category == 'Nature') {
-      return 'A refreshing change of pace and excellent photo opportunity.';
+      return 'A refreshing change of pace with strong photo value.';
     }
     if (place.safetyGuidelines.isNotEmpty) {
       return 'Well documented for international visitors and easy to plan.';
+    }
+    if (place.bestSeason?.isNotEmpty == true) {
+      return 'Good seasonal information makes this stop easier to schedule.';
     }
     return 'A well-rated stop that adds variety to your day.';
   }

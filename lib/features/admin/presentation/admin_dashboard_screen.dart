@@ -3,14 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:unisafex/core/constants/app_constants.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
 import 'package:unisafex/features/auth/presentation/providers/auth_provider.dart';
 import 'package:unisafex/features/guide/domain/guide_request.dart';
 import 'package:unisafex/features/guide/presentation/providers/guide_request_provider.dart';
 import 'package:unisafex/features/heritage/data/heritage_repository.dart';
-import 'package:unisafex/features/heritage/domain/heritage_monument.dart';
 import 'package:unisafex/features/maps/data/map_access_config_provider.dart';
+import 'package:unisafex/features/tourism/domain/entities/tourism_place.dart';
+import 'package:unisafex/features/tourism/presentation/providers/tourism_provider.dart';
 
 class AdminDashboardScreen extends ConsumerStatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -55,9 +57,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         ),
         floatingActionButton: access.value == true
             ? FloatingActionButton.extended(
-                onPressed: () => _editMonument(),
+                onPressed: () => _editPlace(),
                 icon: const Icon(Icons.add_rounded),
-                label: Text('add_monument'.tr()),
+                label: const Text('Add place'),
               )
             : null,
         body: access.when(
@@ -67,15 +69,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             if (!allowed) {
               return Center(child: Text('admin_access_denied'.tr()));
             }
-            final query = HeritageQuery(
-              search: _search.text,
-              page: _page,
-              includeInactive: true,
+            final places = ref.watch(
+              adminTourismPlacesProvider(
+                AdminTourismPlacesParams(search: _search.text, page: _page),
+              ),
             );
-            final monuments = ref.watch(heritageMonumentsProvider(query));
             return TabBarView(
               children: [
-                _buildPlacesTab(monuments),
+                _buildPlacesTab(places),
                 const _GuideRequestsAdminTab(),
                 const _MapAccessAdminTab(),
               ],
@@ -86,7 +87,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildPlacesTab(AsyncValue<List<HeritageMonument>> monuments) {
+  Widget _buildPlacesTab(AsyncValue<List<TourismPlace>> places) {
     return Column(
       children: [
         Container(
@@ -125,7 +126,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         ),
         const SizedBox(height: 8),
         Expanded(
-          child: monuments.when(
+          child: places.when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (error, _) => Center(child: Text('$error')),
             data: (items) => ListView.builder(
@@ -146,7 +147,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                         child: Text('${_page + 1}'),
                       ),
                       IconButton.filled(
-                        onPressed: items.length == HeritageRepository.pageSize
+                        onPressed: items.length == AppConstants.pageSize
                             ? () => setState(() => _page++)
                             : null,
                         icon: const Icon(Icons.chevron_right_rounded),
@@ -154,24 +155,25 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     ],
                   );
                 }
-                final monument = items[index];
+                final place = items[index];
                 return Card(
                   child: ListTile(
-                    leading: Icon(
-                      monument.isActive
-                          ? Icons.visibility_rounded
-                          : Icons.visibility_off_rounded,
-                      color: monument.isActive
-                          ? AppColors.success
-                          : AppColors.grey500,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
                     ),
-                    title: Text(monument.name),
+                    leading: _AdminPlaceThumb(place: place),
+                    title: Text(place.name),
                     subtitle: Text(
-                      '${monument.state} · '
-                      '${monument.monumentType ?? 'category'.tr()}',
+                      '${place.city}, ${place.state} · ${place.category}\n'
+                      'Rating ${place.rating.toStringAsFixed(1)} · '
+                      '${place.formattedLikes} likes · '
+                      '${place.featured ? 'Featured' : place.isPopular ? 'Popular' : 'Standard'}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     trailing: const Icon(Icons.edit_outlined),
-                    onTap: () => _editMonument(monument),
+                    onTap: () => _editPlace(place),
                   ),
                 );
               },
@@ -182,23 +184,42 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
-  Future<void> _editMonument([HeritageMonument? monument]) async {
-    final name = TextEditingController(text: monument?.name);
-    final state = TextEditingController(text: monument?.state);
-    final locality = TextEditingController(text: monument?.locality);
-    final district = TextEditingController(text: monument?.district);
-    final type = TextEditingController(text: monument?.monumentType);
-    final description = TextEditingController(text: monument?.description);
-    final imageUrl = TextEditingController(text: monument?.imageUrl);
-    final timings = TextEditingController(text: monument?.timings);
+  Future<void> _editPlace([TourismPlace? place]) async {
+    final name = TextEditingController(text: place?.name);
+    final description = TextEditingController(text: place?.description);
+    final state = TextEditingController(text: place?.state);
+    final city = TextEditingController(text: place?.city);
+    final district = TextEditingController(text: place?.district);
+    final category = TextEditingController(text: place?.category);
+    final subcategory = TextEditingController(text: place?.subcategory);
+    final latitude = TextEditingController(text: place?.latitude.toString());
+    final longitude = TextEditingController(text: place?.longitude.toString());
+    final images = TextEditingController(text: _adminListToText(place?.images));
+    final timings = TextEditingController(text: place?.timings);
+    final bestSeason = TextEditingController(text: place?.bestSeason);
+    final bestMonths =
+        TextEditingController(text: _adminListToText(place?.bestMonths));
+    final safety = TextEditingController(
+      text: _adminListToText(place?.safetyGuidelines),
+    );
+    final tips = TextEditingController(
+      text: _adminListToText(place?.touristTips),
+    );
     final indianFee = TextEditingController(
-      text: monument?.entryFeeIndian?.toString(),
+      text: place?.entryFeeIndian.toString(),
     );
     final foreignerFee = TextEditingController(
-      text: monument?.entryFeeForeigner?.toString(),
+      text: place?.entryFeeForeigner.toString(),
     );
-    var active = monument?.isActive ?? true;
-    var featured = monument?.featured ?? false;
+    final rating = TextEditingController(text: place?.rating.toString());
+    final likes = TextEditingController(text: place?.likesCount.toString());
+    final tier = TextEditingController(text: place?.tier.toString());
+    final duration = TextEditingController(
+      text: place?.visitDurationMinutes?.toString(),
+    );
+    final address = TextEditingController(text: place?.address);
+    var featured = place?.featured ?? false;
+    var popular = place?.isPopular ?? false;
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -215,8 +236,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  monument == null ? 'add_monument'.tr() : 'edit_monument'.tr(),
+                  place == null ? 'Add destination' : 'Edit destination',
                   style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Update exactly what users see in Home, details, planner and AI.',
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: 16),
                 TextField(
@@ -224,34 +250,89 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   decoration: InputDecoration(labelText: 'name'.tr()),
                 ),
                 TextField(
+                  controller: description,
+                  maxLines: 4,
+                  decoration: InputDecoration(labelText: 'about'.tr()),
+                ),
+                TextField(
                   controller: state,
                   decoration: InputDecoration(labelText: 'state'.tr()),
                 ),
                 TextField(
-                  controller: locality,
-                  decoration: InputDecoration(labelText: 'locality'.tr()),
+                  controller: city,
+                  decoration: const InputDecoration(labelText: 'City'),
                 ),
                 TextField(
                   controller: district,
                   decoration: InputDecoration(labelText: 'district'.tr()),
                 ),
                 TextField(
-                  controller: type,
+                  controller: category,
                   decoration: InputDecoration(labelText: 'category'.tr()),
                 ),
                 TextField(
-                  controller: description,
-                  maxLines: 3,
-                  decoration: InputDecoration(labelText: 'about'.tr()),
+                  controller: subcategory,
+                  decoration: const InputDecoration(labelText: 'Subcategory'),
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: latitude,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                          signed: true,
+                        ),
+                        decoration:
+                            const InputDecoration(labelText: 'Latitude'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextField(
+                        controller: longitude,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                          signed: true,
+                        ),
+                        decoration:
+                            const InputDecoration(labelText: 'Longitude'),
+                      ),
+                    ),
+                  ],
                 ),
                 TextField(
-                  controller: imageUrl,
-                  keyboardType: TextInputType.url,
-                  decoration: const InputDecoration(labelText: 'Image URL'),
+                  controller: address,
+                  maxLines: 2,
+                  decoration: InputDecoration(labelText: 'address'.tr()),
                 ),
+                TextField(
+                  controller: images,
+                  minLines: 2,
+                  maxLines: 5,
+                  keyboardType: TextInputType.url,
+                  decoration: const InputDecoration(
+                    labelText: 'Photo URLs',
+                    hintText: 'Paste one image URL per line',
+                  ),
+                ),
+                const SizedBox(height: 6),
+                _AdminPhotoPreview(controller: images),
                 TextField(
                   controller: timings,
                   decoration: InputDecoration(labelText: 'timings'.tr()),
+                ),
+                TextField(
+                  controller: bestSeason,
+                  decoration: InputDecoration(labelText: 'best_season'.tr()),
+                ),
+                TextField(
+                  controller: bestMonths,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'Best months',
+                    hintText: 'October\\nNovember\\nDecember',
+                  ),
                 ),
                 Row(
                   children: [
@@ -276,15 +357,78 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     ),
                   ],
                 ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: rating,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        decoration:
+                            const InputDecoration(labelText: 'Rating 0-5'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextField(
+                        controller: likes,
+                        keyboardType: TextInputType.number,
+                        decoration:
+                            const InputDecoration(labelText: 'Likes count'),
+                      ),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: tier,
+                        keyboardType: TextInputType.number,
+                        decoration:
+                            const InputDecoration(labelText: 'Tier 1-3'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextField(
+                        controller: duration,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Duration minutes',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                TextField(
+                  controller: safety,
+                  minLines: 2,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: 'Safety guidelines',
+                    hintText: 'One guideline per line',
+                  ),
+                ),
+                TextField(
+                  controller: tips,
+                  minLines: 2,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: 'Tourist tips',
+                    hintText: 'One tip per line',
+                  ),
+                ),
                 SwitchListTile(
                   value: featured,
                   title: Text('featured_destinations'.tr()),
                   onChanged: (value) => setSheetState(() => featured = value),
                 ),
                 SwitchListTile(
-                  value: active,
-                  title: Text('published'.tr()),
-                  onChanged: (value) => setSheetState(() => active = value),
+                  value: popular,
+                  title: const Text('Popular place'),
+                  onChanged: (value) => setSheetState(() => popular = value),
                 ),
                 const SizedBox(height: 10),
                 SizedBox(
@@ -292,24 +436,54 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   child: FilledButton(
                     onPressed: () async {
                       if (name.text.trim().isEmpty ||
-                          state.text.trim().isEmpty) {
+                          state.text.trim().isEmpty ||
+                          city.text.trim().isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Name, city and state are required.'),
+                          ),
+                        );
                         return;
                       }
-                      await ref.read(heritageRepositoryProvider).saveMonument(
-                            id: monument?.id,
+                      final parsedLatitude = double.tryParse(latitude.text);
+                      final parsedLongitude = double.tryParse(longitude.text);
+                      if (parsedLatitude == null || parsedLongitude == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content:
+                                Text('Valid latitude and longitude required.'),
+                          ),
+                        );
+                        return;
+                      }
+                      await ref.read(tourismRepositoryProvider).saveAdminPlace(
+                            id: place?.id,
                             name: name.text,
-                            state: state.text,
-                            locality: locality.text,
-                            district: district.text,
-                            type: type.text,
                             description: description.text,
-                            imageUrl: imageUrl.text,
-                            timings: timings.text,
-                            entryFeeIndian: double.tryParse(indianFee.text),
+                            state: state.text,
+                            city: city.text,
+                            category: category.text,
+                            district: district.text,
+                            subcategory: subcategory.text,
+                            latitude: parsedLatitude,
+                            longitude: parsedLongitude,
+                            images: _adminLines(images.text),
+                            entryFeeIndian:
+                                double.tryParse(indianFee.text) ?? 0,
                             entryFeeForeigner:
-                                double.tryParse(foreignerFee.text),
+                                double.tryParse(foreignerFee.text) ?? 0,
+                            timings: timings.text,
+                            bestSeason: bestSeason.text,
+                            bestMonths: _adminLines(bestMonths.text),
+                            safetyGuidelines: _adminLines(safety.text),
+                            touristTips: _adminLines(tips.text),
+                            tier: int.tryParse(tier.text) ?? 2,
                             featured: featured,
-                            isActive: active,
+                            rating: double.tryParse(rating.text) ?? 4.2,
+                            isPopular: popular,
+                            likesCount: int.tryParse(likes.text) ?? 1000,
+                            visitDurationMinutes: int.tryParse(duration.text),
+                            address: address.text,
                           );
                       if (context.mounted) Navigator.pop(context, true);
                     },
@@ -323,18 +497,34 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       ),
     );
     name.dispose();
-    state.dispose();
-    locality.dispose();
-    district.dispose();
-    type.dispose();
     description.dispose();
-    imageUrl.dispose();
+    state.dispose();
+    city.dispose();
+    district.dispose();
+    category.dispose();
+    subcategory.dispose();
+    latitude.dispose();
+    longitude.dispose();
+    images.dispose();
     timings.dispose();
+    bestSeason.dispose();
+    bestMonths.dispose();
+    safety.dispose();
+    tips.dispose();
     indianFee.dispose();
     foreignerFee.dispose();
+    rating.dispose();
+    likes.dispose();
+    tier.dispose();
+    duration.dispose();
+    address.dispose();
     if (saved == true) {
-      ref.invalidate(heritageMonumentsProvider);
-      ref.invalidate(heritageFilterOptionsProvider);
+      ref.invalidate(adminTourismPlacesProvider);
+      ref.invalidate(featuredPlacesProvider);
+      ref.invalidate(popularPlacesProvider);
+      ref.invalidate(trendingPlacesProvider);
+      ref.invalidate(mustVisitPlacesProvider);
+      ref.invalidate(explorerPlacesProvider);
     }
   }
 
@@ -359,6 +549,113 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             label: Text('sign_out'.tr()),
           ),
         ],
+      ),
+    );
+  }
+}
+
+String _adminListToText(List<String>? values) {
+  if (values == null || values.isEmpty) return '';
+  return values.join('\n');
+}
+
+List<String> _adminLines(String value) {
+  return value
+      .split(RegExp(r'[\n,]'))
+      .map((line) => line.trim())
+      .where((line) => line.isNotEmpty)
+      .toList();
+}
+
+class _AdminPlaceThumb extends StatelessWidget {
+  const _AdminPlaceThumb({required this.place});
+
+  final TourismPlace place;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox(
+        width: 56,
+        height: 56,
+        child: place.primaryImage.isEmpty
+            ? Container(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                child: const Icon(Icons.image_outlined),
+              )
+            : Image.network(
+                place.primaryImage,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  child: const Icon(Icons.image_not_supported_outlined),
+                ),
+              ),
+      ),
+    );
+  }
+}
+
+class _AdminPhotoPreview extends StatefulWidget {
+  const _AdminPhotoPreview({required this.controller});
+
+  final TextEditingController controller;
+
+  @override
+  State<_AdminPhotoPreview> createState() => _AdminPhotoPreviewState();
+}
+
+class _AdminPhotoPreviewState extends State<_AdminPhotoPreview> {
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_refresh);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_refresh);
+    super.dispose();
+  }
+
+  void _refresh() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final urls = _adminLines(widget.controller.text);
+    if (urls.isEmpty) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          'No photos added yet.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      );
+    }
+    return SizedBox(
+      height: 76,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: urls.take(8).length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) => ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.network(
+            urls[index],
+            width: 76,
+            height: 76,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Container(
+              width: 76,
+              height: 76,
+              color: AppColors.grey200,
+              child: const Icon(Icons.broken_image_outlined),
+            ),
+          ),
+        ),
       ),
     );
   }

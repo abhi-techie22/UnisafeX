@@ -188,71 +188,79 @@ class _OnboardingPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 32),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Icon container
-          Container(
-            width: 100,
-            height: 100,
-            decoration: BoxDecoration(
-              color: AppColors.white.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(28),
-              border: Border.all(
-                color: AppColors.white.withOpacity(0.2),
-                width: 1.5,
-              ),
-            ),
-            child: Icon(
-              data.icon,
-              color: AppColors.white,
-              size: 52,
-            ),
-          )
-              .animate()
-              .scale(
-                begin: const Offset(0.7, 0.7),
-                duration: 500.ms,
-                curve: Curves.elasticOut,
-              )
-              .fadeIn(),
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight - 32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Icon container
+                Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: AppColors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(
+                      color: AppColors.white.withOpacity(0.2),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Icon(
+                    data.icon,
+                    color: AppColors.white,
+                    size: 52,
+                  ),
+                )
+                    .animate()
+                    .scale(
+                      begin: const Offset(0.7, 0.7),
+                      duration: 500.ms,
+                      curve: Curves.elasticOut,
+                    )
+                    .fadeIn(),
 
-          const SizedBox(height: 48),
+                const SizedBox(height: 48),
 
-          Text(
-            data.title.tr(),
-            style: const TextStyle(
-              fontSize: 40,
-              fontWeight: FontWeight.w800,
-              color: AppColors.white,
-              height: 1.1,
-              letterSpacing: -0.5,
+                Text(
+                  data.title.tr(),
+                  style: const TextStyle(
+                    fontSize: 40,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.white,
+                    height: 1.1,
+                    letterSpacing: -0.5,
+                  ),
+                ).animate().slideY(
+                      begin: 0.2,
+                      duration: 500.ms,
+                      delay: 100.ms,
+                      curve: Curves.easeOutCubic,
+                    ),
+
+                const SizedBox(height: 20),
+
+                Text(
+                  data.subtitle.tr(),
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w400,
+                    color: AppColors.white.withOpacity(0.85),
+                    height: 1.55,
+                  ),
+                ).animate().slideY(
+                      begin: 0.2,
+                      duration: 500.ms,
+                      delay: 200.ms,
+                      curve: Curves.easeOutCubic,
+                    ),
+              ],
             ),
-          ).animate().slideY(
-                begin: 0.2,
-                duration: 500.ms,
-                delay: 100.ms,
-                curve: Curves.easeOutCubic,
-              ),
-
-          const SizedBox(height: 20),
-
-          Text(
-            data.subtitle.tr(),
-            style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w400,
-              color: AppColors.white.withOpacity(0.85),
-              height: 1.55,
-            ),
-          ).animate().slideY(
-                begin: 0.2,
-                duration: 500.ms,
-                delay: 200.ms,
-                curve: Curves.easeOutCubic,
-              ),
-        ],
+          ),
+        ),
       ),
     );
   }

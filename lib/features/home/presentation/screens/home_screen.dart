@@ -4,7 +4,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:unisafex/core/constants/app_constants.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
 import 'package:unisafex/features/guide/domain/guide_request.dart';
@@ -13,7 +12,6 @@ import 'package:unisafex/features/home/presentation/providers/location_provider.
 import 'package:unisafex/features/profile/presentation/providers/profile_provider.dart';
 import 'package:unisafex/features/tourism/domain/entities/tourism_place.dart';
 import 'package:unisafex/features/tourism/presentation/providers/tourism_provider.dart';
-import 'package:unisafex/features/tourism/presentation/widgets/category_chip.dart';
 import 'package:unisafex/features/tourism/presentation/widgets/featured_place_card.dart';
 import 'package:unisafex/features/tourism/presentation/widgets/place_card.dart';
 import 'package:unisafex/features/tourism/presentation/widgets/section_header.dart';
@@ -27,7 +25,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  String? _selectedCategory;
   Set<String> _dismissedGuideRequestKeys = const {};
   ProviderSubscription<List<GuideRequest>>? _guideRequestSubscription;
 
@@ -212,6 +209,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
           SliverToBoxAdapter(
             child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 10),
+              child: _FirstTimeGuideCard(
+                onStartTour: _showFirstTimeGuide,
+                onOpenGuide: () => context.go(AppRoutes.guideRequest),
+              ),
+            ),
+          ),
+
+          SliverToBoxAdapter(
+            child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
               child: InkWell(
                 borderRadius: BorderRadius.circular(18),
@@ -268,39 +275,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
             ),
-          ),
-
-          // Categories
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  children: [
-                    CategoryChip(
-                      label: 'All',
-                      isSelected: _selectedCategory == null,
-                      onTap: () => setState(() => _selectedCategory = null),
-                    ),
-                    ...AppConstants.placeCategories.map((cat) => CategoryChip(
-                          label: cat,
-                          isSelected: _selectedCategory == cat,
-                          onTap: () => setState(() {
-                            _selectedCategory =
-                                _selectedCategory == cat ? null : cat;
-                          }),
-                          categoryColor: _getCategoryColor(cat),
-                        )),
-                  ],
-                ),
-              ),
-            ).animate().slideX(
-                  begin: -0.1,
-                  duration: 400.ms,
-                  delay: 100.ms,
-                ),
           ),
 
           // Featured
@@ -466,11 +440,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           SliverToBoxAdapter(
             child: popular.when(
               data: (places) {
-                final filtered = _selectedCategory == null
-                    ? places
-                    : places
-                        .where((p) => p.category == _selectedCategory)
-                        .toList();
+                final filtered = places;
 
                 return filtered.isEmpty
                     ? _buildEmptyState()
@@ -500,6 +470,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               },
               loading: () => _buildVerticalShimmer(),
               error: (e, _) => const SizedBox.shrink(),
+            ),
+          ),
+
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+              child: _HomeBottomDiscoveryCard(
+                onToolkit: () => context.push(AppRoutes.travelToolkit),
+                onAssistant: () => context.push(AppRoutes.aiAssistant),
+                onAllPlaces: () => context.push(
+                  '${AppRoutes.placesList}?title=All Destinations',
+                ),
+              ),
             ),
           ),
 
@@ -574,31 +557,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         .runes
         .map((r) => String.fromCharCode(r + 127397))
         .join('');
-  }
-
-  Color _getCategoryColor(String category) {
-    switch (category) {
-      case 'Historical':
-        return AppColors.historical;
-      case 'Archaeological':
-        return AppColors.archaeological;
-      case 'Nature':
-        return AppColors.nature;
-      case 'Spiritual':
-        return AppColors.spiritual;
-      case 'Adventure':
-        return AppColors.adventure;
-      case 'Photography':
-        return AppColors.photography;
-      case 'Food':
-        return AppColors.food;
-      case 'Shopping':
-        return AppColors.shopping;
-      case 'Wildlife':
-        return AppColors.wildlife;
-      default:
-        return AppColors.primary;
-    }
   }
 
   Widget _buildHorizontalShimmer({required double height}) {
@@ -748,6 +706,57 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return;
     }
   }
+
+  void _showFirstTimeGuide() {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'First time in UniSafeX?',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Use this quick tour to understand the main safety features '
+              'before you start exploring India.',
+            ),
+            const SizedBox(height: 16),
+            const _TourStep(
+              icon: Icons.near_me_rounded,
+              title: 'Nearby',
+              text:
+                  'See distance-aware places from your selected or GPS location.',
+            ),
+            const _TourStep(
+              icon: Icons.auto_awesome_rounded,
+              title: 'Travel toolkit',
+              text: 'Planner, currency, phrases and assistant live together.',
+            ),
+            const _TourStep(
+              icon: Icons.support_agent_rounded,
+              title: 'Guide request',
+              text:
+                  'Delhi guide requests are reviewed by UniSafeX within 7 days.',
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('got_it'.tr()),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 const _dismissedGuideRequestsKey = 'dismissed_home_guide_requests_v1';
@@ -762,6 +771,179 @@ class _AvatarShimmer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ShimmerLoader(width: 48, height: 48, borderRadius: 14);
+  }
+}
+
+class _FirstTimeGuideCard extends StatelessWidget {
+  const _FirstTimeGuideCard({
+    required this.onStartTour,
+    required this.onOpenGuide,
+  });
+
+  final VoidCallback onStartTour;
+  final VoidCallback onOpenGuide;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.16)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child:
+                const Icon(Icons.touch_app_rounded, color: AppColors.primary),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'First time here?',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Take a quick feature tour or request a Delhi guide.',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          TextButton(onPressed: onStartTour, child: const Text('Tour')),
+          IconButton(
+            tooltip: 'Guide',
+            onPressed: onOpenGuide,
+            icon: const Icon(Icons.support_agent_rounded),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TourStep extends StatelessWidget {
+  const _TourStep({
+    required this.icon,
+    required this.title,
+    required this.text,
+  });
+
+  final IconData icon;
+  final String title;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+            foregroundColor: AppColors.primary,
+            child: Icon(icon),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 2),
+                Text(text),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeBottomDiscoveryCard extends StatelessWidget {
+  const _HomeBottomDiscoveryCard({
+    required this.onToolkit,
+    required this.onAssistant,
+    required this.onAllPlaces,
+  });
+
+  final VoidCallback onToolkit;
+  final VoidCallback onAssistant;
+  final VoidCallback onAllPlaces;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.primary.withValues(alpha: 0.12),
+            AppColors.accent.withValues(alpha: 0.10),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.14)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.explore_rounded, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Make today’s plan stronger',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Compare safe places, ask the assistant, and browse every destination '
+            'when you want a deeper India itinerary.',
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilledButton.tonalIcon(
+                onPressed: onToolkit,
+                icon: const Icon(Icons.widgets_rounded, size: 18),
+                label: const Text('Toolkit'),
+              ),
+              FilledButton.tonalIcon(
+                onPressed: onAssistant,
+                icon: const Icon(Icons.auto_awesome_rounded, size: 18),
+                label: const Text('Ask AI'),
+              ),
+              OutlinedButton.icon(
+                onPressed: onAllPlaces,
+                icon: const Icon(Icons.account_balance_rounded, size: 18),
+                label: const Text('All places'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
 

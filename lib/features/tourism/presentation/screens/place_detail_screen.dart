@@ -86,7 +86,7 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
             pinned: true,
             leading: IconButton(
               icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-              onPressed: () => context.pop(),
+              onPressed: _goBack,
             ),
             actions: [
               IconButton(
@@ -346,6 +346,14 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
             : _locationLabel(widget.place),
       ),
     );
+  }
+
+  void _goBack() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go(AppRoutes.home);
+    }
   }
 
   Widget _imageFallback() {

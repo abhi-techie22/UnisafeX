@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
 import 'package:unisafex/features/auth/presentation/providers/auth_provider.dart';
@@ -46,6 +47,7 @@ class ProfileScreen extends ConsumerWidget {
               _IdentityCard(
                 profile: profile,
                 onTap: () => context.push(AppRoutes.identityDetails),
+                onEditPhoto: () => _pickProfilePhoto(context, ref),
               ),
               const SizedBox(height: 16),
               _ActionCard(
@@ -152,16 +154,46 @@ class ProfileScreen extends ConsumerWidget {
       ),
     );
   }
+
+  Future<void> _pickProfilePhoto(BuildContext context, WidgetRef ref) async {
+    try {
+      final image = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 82,
+        maxWidth: 1200,
+      );
+      if (image == null) return;
+      final bytes = await image.readAsBytes();
+      final extension = image.name.contains('.')
+          ? image.name.split('.').last.toLowerCase()
+          : 'jpg';
+      await ref.read(profileNotifierProvider.notifier).uploadImageBytes(
+            bytes: bytes,
+            extension: extension,
+          );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile photo updated.')),
+      );
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not update profile photo. $error')),
+      );
+    }
+  }
 }
 
 class _IdentityCard extends StatelessWidget {
   const _IdentityCard({
     required this.profile,
     required this.onTap,
+    required this.onEditPhoto,
   });
 
   final UserProfile? profile;
   final VoidCallback onTap;
+  final VoidCallback onEditPhoto;
 
   @override
   Widget build(BuildContext context) {
@@ -177,24 +209,49 @@ class _IdentityCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Container(
-              width: 64,
-              height: 64,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(18),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: profile?.profileImageUrl?.isNotEmpty == true
-                  ? Image.network(
-                      profile!.profileImageUrl!,
-                      width: 64,
-                      height: 64,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _initials(),
-                    )
-                  : _initials(),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 64,
+                  height: 64,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: profile?.profileImageUrl?.isNotEmpty == true
+                      ? Image.network(
+                          profile!.profileImageUrl!,
+                          width: 64,
+                          height: 64,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _initials(),
+                        )
+                      : _initials(),
+                ),
+                Positioned(
+                  right: -6,
+                  bottom: -6,
+                  child: Material(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(99),
+                    child: InkWell(
+                      onTap: onEditPhoto,
+                      borderRadius: BorderRadius.circular(99),
+                      child: const Padding(
+                        padding: EdgeInsets.all(7),
+                        child: Icon(
+                          Icons.camera_alt_rounded,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(width: 14),
             Expanded(

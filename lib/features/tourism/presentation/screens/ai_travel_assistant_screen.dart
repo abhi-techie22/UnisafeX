@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
+import 'package:unisafex/features/tourism/domain/entities/tourism_filters.dart';
 import 'package:unisafex/features/tourism/domain/entities/tourism_place.dart';
 import 'package:unisafex/features/tourism/domain/services/travel_assistant_service.dart';
 import 'package:unisafex/features/tourism/presentation/providers/tourism_provider.dart';
@@ -23,16 +24,16 @@ class _AiTravelAssistantScreenState
   final List<_ChatMessage> _messages = [
     const _ChatMessage(
       text: 'Namaste! I’m your UniSafeX travel assistant. Ask me about safe '
-          'places, entry fees, timings, seasons, free attractions, emergencies '
-          'or a 1–5 day India itinerary.',
+          'places, entry fees, timings, seasons, scams, transport, hotels, '
+          'food safety, emergencies or a 1–5 day India itinerary.',
       isUser: false,
     ),
   ];
 
   static const _prompts = [
     'Plan 2 days in Delhi',
-    'Which places are safest?',
-    'Show me free places',
+    'How do I avoid taxi scams?',
+    'Food safety tips for India',
     'What is the best time to visit Jaipur?',
   ];
 
@@ -71,7 +72,8 @@ class _AiTravelAssistantScreenState
 
   @override
   Widget build(BuildContext context) {
-    final placesState = ref.watch(popularPlacesProvider);
+    final placesState =
+        ref.watch(explorerPlacesProvider(const TourismFilters()));
     final places = placesState.valueOrNull ?? const <TourismPlace>[];
 
     return Scaffold(
@@ -107,6 +109,7 @@ class _AiTravelAssistantScreenState
       body: Column(
         children: [
           if (placesState.isLoading) const LinearProgressIndicator(),
+          _AssistantCapabilityStrip(count: places.length),
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
@@ -189,6 +192,38 @@ class _ChatMessage {
   final String text;
   final bool isUser;
   final List<TourismPlace> places;
+}
+
+class _AssistantCapabilityStrip extends StatelessWidget {
+  const _AssistantCapabilityStrip({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.12)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.verified_rounded, color: AppColors.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Uses $count UniSafeX places for itinerary, safety, fees, timing '
+              'and travel advice. No paid AI API connected yet.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _MessageBubble extends StatelessWidget {

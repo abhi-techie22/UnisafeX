@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -49,6 +50,24 @@ class ProfileRepository {
     await _client.storage.from('user-media').upload(
           fileName,
           imageFile,
+          fileOptions: const FileOptions(upsert: true),
+        );
+
+    return _client.storage.from('user-media').getPublicUrl(fileName);
+  }
+
+  Future<String> uploadProfileImageBytes({
+    required String userId,
+    required Uint8List bytes,
+    required String extension,
+  }) async {
+    _requireMatchingAuthenticatedUser(userId);
+    final normalizedExtension = extension.isEmpty ? 'jpg' : extension;
+    final fileName = 'profiles/$userId/avatar.$normalizedExtension';
+
+    await _client.storage.from('user-media').uploadBinary(
+          fileName,
+          bytes,
           fileOptions: const FileOptions(upsert: true),
         );
 
@@ -139,6 +158,29 @@ class ProfileNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
     if (current == null) return;
 
     final url = await _repo.uploadProfileImage(userId, imageFile);
+    final updated = current.copyWith(profileImageUrl: url);
+    final saved = await _repo.upsertProfile(updated);
+    state = AsyncValue.data(saved);
+  }
+
+  Future<void> uploadImageBytes({
+    required Uint8List bytes,
+    required String extension,
+  }) async {
+    final userId = _userId;
+    if (userId == null) {
+      throw const AuthException(
+        'You must be signed in before uploading a profile image.',
+      );
+    }
+    final current = state.value;
+    if (current == null) return;
+
+    final url = await _repo.uploadProfileImageBytes(
+      userId: userId,
+      bytes: bytes,
+      extension: extension,
+    );
     final updated = current.copyWith(profileImageUrl: url);
     final saved = await _repo.upsertProfile(updated);
     state = AsyncValue.data(saved);
