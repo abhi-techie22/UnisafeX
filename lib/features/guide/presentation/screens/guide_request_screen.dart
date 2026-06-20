@@ -530,25 +530,11 @@ class _RequestForm extends StatelessWidget {
               'Choose the place, number of travelers and any special requirement.',
             ),
             const SizedBox(height: 16),
-            DropdownButtonFormField<TourismPlace>(
-              initialValue: selectedPlace,
-              isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Delhi place',
-                prefixIcon: Icon(Icons.account_balance_rounded),
-              ),
-              items: places
-                  .map(
-                    (place) => DropdownMenuItem(
-                      value: place,
-                      child: Text(
-                        '${place.name} · ${place.city}',
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  )
-                  .toList(),
-              onChanged: submitting || !enabled ? null : onPlaceChanged,
+            _GuidePlaceSearchField(
+              places: places,
+              selectedPlace: selectedPlace,
+              enabled: !submitting && enabled,
+              onSelected: onPlaceChanged,
             ),
             const SizedBox(height: 14),
             Row(
@@ -615,6 +601,128 @@ class _RequestForm extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _GuidePlaceSearchField extends StatelessWidget {
+  const _GuidePlaceSearchField({
+    required this.places,
+    required this.selectedPlace,
+    required this.enabled,
+    required this.onSelected,
+  });
+
+  final List<TourismPlace> places;
+  final TourismPlace? selectedPlace;
+  final bool enabled;
+  final ValueChanged<TourismPlace?> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Autocomplete<TourismPlace>(
+      displayStringForOption: _placeLabel,
+      initialValue: TextEditingValue(
+        text: selectedPlace == null ? '' : _placeLabel(selectedPlace!),
+      ),
+      optionsBuilder: (value) {
+        final query = value.text.trim().toLowerCase();
+        if (query.isEmpty) return places.take(12);
+        return places.where((place) {
+          final searchable = [
+            place.name,
+            place.city,
+            place.district,
+            place.state,
+            place.category,
+            place.address,
+          ].whereType<String>().join(' ').toLowerCase();
+          return searchable.contains(query);
+        }).take(20);
+      },
+      onSelected: enabled ? onSelected : (_) {},
+      fieldViewBuilder: (
+        context,
+        controller,
+        focusNode,
+        onFieldSubmitted,
+      ) {
+        return TextField(
+          controller: controller,
+          focusNode: focusNode,
+          enabled: enabled,
+          decoration: InputDecoration(
+            labelText: 'Search Delhi place',
+            hintText: 'Type monument, area, city or category',
+            prefixIcon: const Icon(Icons.search_rounded),
+            suffixIcon: controller.text.isEmpty
+                ? null
+                : IconButton(
+                    tooltip: 'Clear',
+                    onPressed: () {
+                      controller.clear();
+                      onSelected(null);
+                    },
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+          ),
+        );
+      },
+      optionsViewBuilder: (context, onSelectedOption, options) {
+        final results = options.toList();
+        return Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            elevation: 10,
+            borderRadius: BorderRadius.circular(18),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 320, maxWidth: 760),
+              child: results.isEmpty
+                  ? const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text('No Delhi guide place found.'),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      shrinkWrap: true,
+                      itemCount: results.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final place = results[index];
+                        return ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor:
+                                AppColors.primary.withValues(alpha: 0.10),
+                            foregroundColor: AppColors.primary,
+                            child: const Icon(Icons.location_on_outlined),
+                          ),
+                          title: Text(
+                            place.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: Text(
+                            [
+                              if (place.city.isNotEmpty) place.city,
+                              if (place.district?.isNotEmpty == true)
+                                place.district!,
+                              place.category,
+                            ].join(' · '),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          onTap: () => onSelectedOption(place),
+                        );
+                      },
+                    ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  static String _placeLabel(TourismPlace place) {
+    return '${place.name} · ${place.city.isEmpty ? 'Delhi' : place.city}';
   }
 }
 

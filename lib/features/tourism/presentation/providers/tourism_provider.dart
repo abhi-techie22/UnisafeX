@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -433,6 +434,38 @@ class TourismRepository {
     } else {
       await _client.from('tourism_places').update(data).eq('place_id', id);
     }
+  }
+
+  Future<String> uploadAdminPlaceImageBytes({
+    required Uint8List bytes,
+    required String extension,
+    String? placeName,
+  }) async {
+    final normalizedExtension = extension.trim().isEmpty
+        ? 'jpg'
+        : extension.trim().toLowerCase().replaceAll('.', '');
+    final safeName = (placeName ?? 'destination')
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+        .replaceAll(RegExp(r'^-+|-+$'), '');
+    final fileName =
+        'places/${safeName.isEmpty ? 'destination' : safeName}-${DateTime.now().millisecondsSinceEpoch}.$normalizedExtension';
+    final contentType = normalizedExtension == 'png'
+        ? 'image/png'
+        : normalizedExtension == 'webp'
+            ? 'image/webp'
+            : 'image/jpeg';
+
+    await _client.storage.from('tourism-media').uploadBinary(
+          fileName,
+          bytes,
+          fileOptions: FileOptions(
+            upsert: false,
+            contentType: contentType,
+          ),
+        );
+
+    return _client.storage.from('tourism-media').getPublicUrl(fileName);
   }
 
   String? _emptyToNull(String? value) {

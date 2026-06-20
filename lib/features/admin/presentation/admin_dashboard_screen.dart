@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:unisafex/core/constants/app_constants.dart';
 import 'package:unisafex/core/router/app_router.dart';
@@ -238,6 +239,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     final address = TextEditingController(text: place?.address);
     var featured = place?.featured ?? false;
     var popular = place?.isPopular ?? false;
+    var uploadingImage = false;
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -249,266 +251,409 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             20,
             MediaQuery.viewInsetsOf(context).bottom + 24,
           ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  place == null ? 'Add destination' : 'Edit destination',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Update exactly what users see in Home, details, planner and AI.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: name,
-                  decoration: InputDecoration(labelText: 'name'.tr()),
-                ),
-                TextField(
-                  controller: description,
-                  maxLines: 4,
-                  decoration: InputDecoration(labelText: 'about'.tr()),
-                ),
-                TextField(
-                  controller: state,
-                  decoration: InputDecoration(labelText: 'state'.tr()),
-                ),
-                TextField(
-                  controller: city,
-                  decoration: const InputDecoration(labelText: 'City'),
-                ),
-                TextField(
-                  controller: district,
-                  decoration: InputDecoration(labelText: 'district'.tr()),
-                ),
-                TextField(
-                  controller: category,
-                  decoration: InputDecoration(labelText: 'category'.tr()),
-                ),
-                TextField(
-                  controller: subcategory,
-                  decoration: const InputDecoration(labelText: 'Subcategory'),
-                ),
-                Row(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 780),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Expanded(
-                      child: TextField(
-                        controller: latitude,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                          signed: true,
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [AppColors.primaryDark, AppColors.primary],
                         ),
-                        decoration:
-                            const InputDecoration(labelText: 'Latitude'),
+                        borderRadius: BorderRadius.circular(22),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: TextField(
-                        controller: longitude,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                          signed: true,
-                        ),
-                        decoration:
-                            const InputDecoration(labelText: 'Longitude'),
-                      ),
-                    ),
-                  ],
-                ),
-                TextField(
-                  controller: address,
-                  maxLines: 2,
-                  decoration: InputDecoration(labelText: 'address'.tr()),
-                ),
-                TextField(
-                  controller: images,
-                  minLines: 2,
-                  maxLines: 5,
-                  keyboardType: TextInputType.url,
-                  decoration: const InputDecoration(
-                    labelText: 'Photo URLs',
-                    hintText: 'Paste one image URL per line',
-                  ),
-                ),
-                const SizedBox(height: 6),
-                _AdminPhotoPreview(controller: images),
-                TextField(
-                  controller: timings,
-                  decoration: InputDecoration(labelText: 'timings'.tr()),
-                ),
-                TextField(
-                  controller: bestSeason,
-                  decoration: InputDecoration(labelText: 'best_season'.tr()),
-                ),
-                TextField(
-                  controller: bestMonths,
-                  maxLines: 2,
-                  decoration: const InputDecoration(
-                    labelText: 'Best months',
-                    hintText: 'October\\nNovember\\nDecember',
-                  ),
-                ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: indianFee,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Indian fee',
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: TextField(
-                        controller: foreignerFee,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Foreigner fee',
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: rating,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        decoration:
-                            const InputDecoration(labelText: 'Rating 0-5'),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: TextField(
-                        controller: likes,
-                        keyboardType: TextInputType.number,
-                        decoration:
-                            const InputDecoration(labelText: 'Likes count'),
-                      ),
-                    ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: tier,
-                        keyboardType: TextInputType.number,
-                        decoration:
-                            const InputDecoration(labelText: 'Tier 1-3'),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: TextField(
-                        controller: duration,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Duration minutes',
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                TextField(
-                  controller: safety,
-                  minLines: 2,
-                  maxLines: 4,
-                  decoration: const InputDecoration(
-                    labelText: 'Safety guidelines',
-                    hintText: 'One guideline per line',
-                  ),
-                ),
-                TextField(
-                  controller: tips,
-                  minLines: 2,
-                  maxLines: 4,
-                  decoration: const InputDecoration(
-                    labelText: 'Tourist tips',
-                    hintText: 'One tip per line',
-                  ),
-                ),
-                SwitchListTile(
-                  value: featured,
-                  title: Text('featured_destinations'.tr()),
-                  onChanged: (value) => setSheetState(() => featured = value),
-                ),
-                SwitchListTile(
-                  value: popular,
-                  title: const Text('Popular place'),
-                  onChanged: (value) => setSheetState(() => popular = value),
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: () async {
-                      if (name.text.trim().isEmpty ||
-                          state.text.trim().isEmpty ||
-                          city.text.trim().isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Name, city and state are required.'),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            place == null
+                                ? 'Add destination'
+                                : 'Edit destination',
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineSmall
+                                ?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                ),
                           ),
-                        );
-                        return;
-                      }
-                      final parsedLatitude = double.tryParse(latitude.text);
-                      final parsedLongitude = double.tryParse(longitude.text);
-                      if (parsedLatitude == null || parsedLongitude == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content:
-                                Text('Valid latitude and longitude required.'),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Update Home cards, details, planner, AI and guide listings from one place.',
+                            style:
+                                TextStyle(color: Colors.white70, height: 1.35),
                           ),
-                        );
-                        return;
-                      }
-                      await ref.read(tourismRepositoryProvider).saveAdminPlace(
-                            id: place?.id,
-                            name: name.text,
-                            description: description.text,
-                            state: state.text,
-                            city: city.text,
-                            category: category.text,
-                            district: district.text,
-                            subcategory: subcategory.text,
-                            latitude: parsedLatitude,
-                            longitude: parsedLongitude,
-                            images: _adminLines(images.text),
-                            entryFeeIndian:
-                                double.tryParse(indianFee.text) ?? 0,
-                            entryFeeForeigner:
-                                double.tryParse(foreignerFee.text) ?? 0,
-                            timings: timings.text,
-                            bestSeason: bestSeason.text,
-                            bestMonths: _adminLines(bestMonths.text),
-                            safetyGuidelines: _adminLines(safety.text),
-                            touristTips: _adminLines(tips.text),
-                            tier: int.tryParse(tier.text) ?? 2,
-                            featured: featured,
-                            rating: double.tryParse(rating.text) ?? 4.2,
-                            isPopular: popular,
-                            likesCount: int.tryParse(likes.text) ?? 1000,
-                            visitDurationMinutes: int.tryParse(duration.text),
-                            address: address.text,
-                          );
-                      if (context.mounted) Navigator.pop(context, true);
-                    },
-                    child: Text('save'.tr()),
-                  ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _AdminEditorSection(
+                      title: 'Basic Details',
+                      subtitle: 'Main content shown to travelers.',
+                      icon: Icons.edit_location_alt_outlined,
+                      children: [
+                        TextField(
+                          controller: name,
+                          decoration: InputDecoration(labelText: 'name'.tr()),
+                        ),
+                        TextField(
+                          controller: description,
+                          maxLines: 4,
+                          decoration: InputDecoration(labelText: 'about'.tr()),
+                        ),
+                        _AdminTwoColumnFields(
+                          left: TextField(
+                            controller: state,
+                            decoration:
+                                InputDecoration(labelText: 'state'.tr()),
+                          ),
+                          right: TextField(
+                            controller: city,
+                            decoration:
+                                const InputDecoration(labelText: 'City'),
+                          ),
+                        ),
+                        _AdminTwoColumnFields(
+                          left: TextField(
+                            controller: district,
+                            decoration:
+                                InputDecoration(labelText: 'district'.tr()),
+                          ),
+                          right: TextField(
+                            controller: category,
+                            decoration:
+                                InputDecoration(labelText: 'category'.tr()),
+                          ),
+                        ),
+                        TextField(
+                          controller: subcategory,
+                          decoration:
+                              const InputDecoration(labelText: 'Subcategory'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    _AdminEditorSection(
+                      title: 'Location',
+                      subtitle:
+                          'Coordinates power map, nearby distance and route.',
+                      icon: Icons.map_outlined,
+                      children: [
+                        _AdminTwoColumnFields(
+                          left: TextField(
+                              controller: latitude,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                decimal: true,
+                                signed: true,
+                              ),
+                              decoration:
+                                  const InputDecoration(labelText: 'Latitude')),
+                          right: TextField(
+                              controller: longitude,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                decimal: true,
+                                signed: true,
+                              ),
+                              decoration: const InputDecoration(
+                                  labelText: 'Longitude')),
+                        ),
+                        TextField(
+                          controller: address,
+                          maxLines: 2,
+                          decoration:
+                              InputDecoration(labelText: 'address'.tr()),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    _AdminEditorSection(
+                      title: 'Photos',
+                      subtitle:
+                          'Pick from your folder or paste existing public image URLs.',
+                      icon: Icons.photo_library_outlined,
+                      children: [
+                        _AdminPhotoPreview(controller: images),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: uploadingImage
+                                    ? null
+                                    : () async {
+                                        final picker = ImagePicker();
+                                        final file = await picker.pickImage(
+                                          source: ImageSource.gallery,
+                                          imageQuality: 88,
+                                          maxWidth: 1800,
+                                        );
+                                        if (file == null) return;
+                                        setSheetState(
+                                            () => uploadingImage = true);
+                                        try {
+                                          final bytes =
+                                              await file.readAsBytes();
+                                          final extension =
+                                              file.name.split('.').last;
+                                          final url = await ref
+                                              .read(tourismRepositoryProvider)
+                                              .uploadAdminPlaceImageBytes(
+                                                bytes: bytes,
+                                                extension: extension,
+                                                placeName: name.text,
+                                              );
+                                          final next = _adminLines(images.text)
+                                            ..add(url);
+                                          images.text = next.join('\n');
+                                        } catch (error) {
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  'Could not upload image. Apply the tourism-media storage migration first. $error',
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                        } finally {
+                                          if (context.mounted) {
+                                            setSheetState(
+                                              () => uploadingImage = false,
+                                            );
+                                          }
+                                        }
+                                      },
+                                icon: uploadingImage
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(Icons.upload_file_outlined),
+                                label: Text(
+                                  uploadingImage
+                                      ? 'Uploading image...'
+                                      : 'Upload from folder',
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            IconButton.filledTonal(
+                              tooltip: 'Clear photos',
+                              onPressed: images.text.trim().isEmpty
+                                  ? null
+                                  : () => images.clear(),
+                              icon: const Icon(Icons.delete_sweep_outlined),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: images,
+                          minLines: 2,
+                          maxLines: 5,
+                          keyboardType: TextInputType.url,
+                          decoration: const InputDecoration(
+                            labelText: 'Photo URLs / uploaded image URLs',
+                            hintText:
+                                'Upload from folder or paste one public image URL per line',
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    _AdminEditorSection(
+                      title: 'Visitor Information',
+                      subtitle: 'Fees, timing, season and duration.',
+                      icon: Icons.confirmation_number_outlined,
+                      children: [
+                        TextField(
+                          controller: timings,
+                          decoration:
+                              InputDecoration(labelText: 'timings'.tr()),
+                        ),
+                        _AdminTwoColumnFields(
+                          left: TextField(
+                            controller: bestSeason,
+                            decoration:
+                                InputDecoration(labelText: 'best_season'.tr()),
+                          ),
+                          right: TextField(
+                            controller: duration,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Duration minutes',
+                            ),
+                          ),
+                        ),
+                        TextField(
+                          controller: bestMonths,
+                          maxLines: 2,
+                          decoration: const InputDecoration(
+                            labelText: 'Best months',
+                            hintText: 'October\\nNovember\\nDecember',
+                          ),
+                        ),
+                        _AdminTwoColumnFields(
+                          left: TextField(
+                            controller: indianFee,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Indian fee',
+                            ),
+                          ),
+                          right: TextField(
+                            controller: foreignerFee,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Foreigner fee',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    _AdminEditorSection(
+                      title: 'Ranking & Guidance',
+                      subtitle:
+                          'Control popularity, safety, tips and Home groups.',
+                      icon: Icons.auto_graph_outlined,
+                      children: [
+                        _AdminTwoColumnFields(
+                          left: TextField(
+                            controller: rating,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            decoration:
+                                const InputDecoration(labelText: 'Rating 0-5'),
+                          ),
+                          right: TextField(
+                            controller: likes,
+                            keyboardType: TextInputType.number,
+                            decoration:
+                                const InputDecoration(labelText: 'Likes count'),
+                          ),
+                        ),
+                        TextField(
+                          controller: tier,
+                          keyboardType: TextInputType.number,
+                          decoration:
+                              const InputDecoration(labelText: 'Tier 1-3'),
+                        ),
+                        TextField(
+                          controller: safety,
+                          minLines: 2,
+                          maxLines: 4,
+                          decoration: const InputDecoration(
+                            labelText: 'Safety guidelines',
+                            hintText: 'One guideline per line',
+                          ),
+                        ),
+                        TextField(
+                          controller: tips,
+                          minLines: 2,
+                          maxLines: 4,
+                          decoration: const InputDecoration(
+                            labelText: 'Tourist tips',
+                            hintText: 'One tip per line',
+                          ),
+                        ),
+                        SwitchListTile(
+                          value: featured,
+                          contentPadding: EdgeInsets.zero,
+                          title: Text('featured_destinations'.tr()),
+                          onChanged: (value) =>
+                              setSheetState(() => featured = value),
+                        ),
+                        SwitchListTile(
+                          value: popular,
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Popular place'),
+                          onChanged: (value) =>
+                              setSheetState(() => popular = value),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: () async {
+                          if (name.text.trim().isEmpty ||
+                              state.text.trim().isEmpty ||
+                              city.text.trim().isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content:
+                                    Text('Name, city and state are required.'),
+                              ),
+                            );
+                            return;
+                          }
+                          final parsedLatitude = double.tryParse(latitude.text);
+                          final parsedLongitude =
+                              double.tryParse(longitude.text);
+                          if (parsedLatitude == null ||
+                              parsedLongitude == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                    'Valid latitude and longitude required.'),
+                              ),
+                            );
+                            return;
+                          }
+                          await ref
+                              .read(tourismRepositoryProvider)
+                              .saveAdminPlace(
+                                id: place?.id,
+                                name: name.text,
+                                description: description.text,
+                                state: state.text,
+                                city: city.text,
+                                category: category.text,
+                                district: district.text,
+                                subcategory: subcategory.text,
+                                latitude: parsedLatitude,
+                                longitude: parsedLongitude,
+                                images: _adminLines(images.text),
+                                entryFeeIndian:
+                                    double.tryParse(indianFee.text) ?? 0,
+                                entryFeeForeigner:
+                                    double.tryParse(foreignerFee.text) ?? 0,
+                                timings: timings.text,
+                                bestSeason: bestSeason.text,
+                                bestMonths: _adminLines(bestMonths.text),
+                                safetyGuidelines: _adminLines(safety.text),
+                                touristTips: _adminLines(tips.text),
+                                tier: int.tryParse(tier.text) ?? 2,
+                                featured: featured,
+                                rating: double.tryParse(rating.text) ?? 4.2,
+                                isPopular: popular,
+                                likesCount: int.tryParse(likes.text) ?? 1000,
+                                visitDurationMinutes:
+                                    int.tryParse(duration.text),
+                                address: address.text,
+                              );
+                          if (context.mounted) Navigator.pop(context, true);
+                        },
+                        child: Text('save'.tr()),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
@@ -611,6 +756,108 @@ class _AdminPlaceThumb extends StatelessWidget {
                 ),
               ),
       ),
+    );
+  }
+}
+
+class _AdminEditorSection extends StatelessWidget {
+  const _AdminEditorSection({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.children,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.cardDark : AppColors.cardLight,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.05),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                foregroundColor: AppColors.primary,
+                child: Icon(icon, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 2),
+                    Text(subtitle,
+                        style: Theme.of(context).textTheme.bodySmall),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ...children.expand((child) sync* {
+            yield child;
+            if (child != children.last) yield const SizedBox(height: 10);
+          }),
+        ],
+      ),
+    );
+  }
+}
+
+class _AdminTwoColumnFields extends StatelessWidget {
+  const _AdminTwoColumnFields({
+    required this.left,
+    required this.right,
+  });
+
+  final Widget left;
+  final Widget right;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 560) {
+          return Column(
+            children: [
+              left,
+              const SizedBox(height: 10),
+              right,
+            ],
+          );
+        }
+        return Row(
+          children: [
+            Expanded(child: left),
+            const SizedBox(width: 10),
+            Expanded(child: right),
+          ],
+        );
+      },
     );
   }
 }
