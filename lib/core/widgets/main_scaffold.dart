@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
+import 'package:unisafex/features/admin/data/admin_remote_config_repository.dart';
+import 'package:unisafex/features/auth/presentation/providers/auth_provider.dart';
 
 final bottomNavIndexProvider = StateProvider<int>((ref) => 0);
 
@@ -55,6 +57,10 @@ class MainScaffold extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final activeIndex = _getActiveIndex(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final user = ref.watch(currentUserProvider);
+    final supportAttention = user == null
+        ? false
+        : (ref.watch(supportNeedsAttentionProvider).valueOrNull ?? false);
 
     return Scaffold(
       body: child,
@@ -86,15 +92,39 @@ class MainScaffold extends ConsumerWidget {
                         children: [
                           AnimatedSwitcher(
                             duration: const Duration(milliseconds: 200),
-                            child: Icon(
-                              isActive ? item.activeIcon : item.icon,
-                              key: ValueKey(isActive),
-                              color: isActive
-                                  ? AppColors.primary
-                                  : (isDark
-                                      ? AppColors.grey600
-                                      : AppColors.grey400),
-                              size: 23,
+                            child: Stack(
+                              key: ValueKey('$isActive-$supportAttention'),
+                              clipBehavior: Clip.none,
+                              children: [
+                                Icon(
+                                  isActive ? item.activeIcon : item.icon,
+                                  color: isActive
+                                      ? AppColors.primary
+                                      : (isDark
+                                          ? AppColors.grey600
+                                          : AppColors.grey400),
+                                  size: 23,
+                                ),
+                                if (index == 4 && supportAttention)
+                                  Positioned(
+                                    right: -5,
+                                    top: -5,
+                                    child: Container(
+                                      width: 9,
+                                      height: 9,
+                                      decoration: BoxDecoration(
+                                        color: AppColors.error,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: isDark
+                                              ? AppColors.cardDark
+                                              : AppColors.cardLight,
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
                           const SizedBox(height: 3),

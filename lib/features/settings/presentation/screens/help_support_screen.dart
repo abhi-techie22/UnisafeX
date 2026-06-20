@@ -331,20 +331,49 @@ class _TicketStatusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final resolved = ticket.status == 'resolved' || ticket.status == 'closed';
+    final progress = switch (ticket.status) {
+      'open' => 0.25,
+      'in_progress' => 0.55,
+      'waiting_user' => 0.75,
+      'resolved' => 1.0,
+      'closed' => 1.0,
+      _ => 0.2,
+    };
     return Card(
-      child: ListTile(
-        leading: Icon(
-          resolved ? Icons.check_circle_rounded : Icons.pending_actions_rounded,
-          color: resolved ? AppColors.success : AppColors.primary,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(4, 4, 4, 10),
+        child: Column(
+          children: [
+            ListTile(
+              leading: Icon(
+                resolved
+                    ? Icons.check_circle_rounded
+                    : Icons.pending_actions_rounded,
+                color: resolved ? AppColors.success : AppColors.primary,
+              ),
+              title: Text(ticket.title),
+              subtitle: Text(
+                '${ticket.status.replaceAll('_', ' ')} · ${ticket.category}\n'
+                '${ticket.adminResponse?.isNotEmpty == true ? ticket.adminResponse! : ticket.message}',
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+              ),
+              isThreeLine: true,
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(99),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  minHeight: 6,
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.10),
+                  color: resolved ? AppColors.success : AppColors.primary,
+                ),
+              ),
+            ),
+          ],
         ),
-        title: Text(ticket.title),
-        subtitle: Text(
-          '${ticket.status.replaceAll('_', ' ')} · ${ticket.category}\n'
-          '${ticket.adminResponse?.isNotEmpty == true ? ticket.adminResponse! : ticket.message}',
-          maxLines: 4,
-          overflow: TextOverflow.ellipsis,
-        ),
-        isThreeLine: true,
       ),
     );
   }

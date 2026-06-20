@@ -599,5 +599,20 @@ final adminSupportTicketsProvider = FutureProvider<List<SupportTicket>>((ref) {
 });
 
 final mySupportTicketsProvider = FutureProvider<List<SupportTicket>>((ref) {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return const <SupportTicket>[];
   return ref.watch(adminRemoteConfigRepositoryProvider).getSupportTickets();
+});
+
+final supportNeedsAttentionProvider = FutureProvider<bool>((ref) async {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return false;
+  final tickets =
+      await ref.watch(adminRemoteConfigRepositoryProvider).getSupportTickets();
+  return tickets.any((ticket) {
+    final hasReply = ticket.adminResponse?.trim().isNotEmpty == true;
+    final needsUser = ticket.status == 'waiting_user';
+    final resolved = ticket.status == 'resolved' || ticket.status == 'closed';
+    return hasReply || needsUser || resolved;
+  });
 });

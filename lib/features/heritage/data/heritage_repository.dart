@@ -164,7 +164,7 @@ class HeritageRepository {
   }
 
   Future<bool> isAdmin() async {
-    final value = await _client.rpc('is_unisafex_admin');
+    final value = await _client.rpc('is_admin');
     return value == true;
   }
 

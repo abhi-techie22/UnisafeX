@@ -418,6 +418,16 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                           final next = _adminLines(images.text)
                                             ..add(url);
                                           images.text = next.join('\n');
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Image uploaded and added. Press Save to update this destination.',
+                                                ),
+                                              ),
+                                            );
+                                          }
                                         } catch (error) {
                                           if (context.mounted) {
                                             ScaffoldMessenger.of(context)
@@ -694,6 +704,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       ref.invalidate(trendingPlacesProvider);
       ref.invalidate(mustVisitPlacesProvider);
       ref.invalidate(explorerPlacesProvider);
+      ref.invalidate(plannerPlacesProvider);
+      ref.invalidate(placesByCategoryProvider);
+      ref.invalidate(placesByCityProvider);
+      ref.invalidate(searchPlacesProvider);
+      ref.invalidate(nearbyPlacesProvider);
     }
   }
 

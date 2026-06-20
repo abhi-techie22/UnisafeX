@@ -381,7 +381,7 @@ bool _requiresSignedInUser(String location) {
 
 Future<bool> _isAdminUser() async {
   try {
-    final value = await Supabase.instance.client.rpc('is_unisafex_admin');
+    final value = await Supabase.instance.client.rpc('is_admin');
     return value == true;
   } catch (_) {
     return false;

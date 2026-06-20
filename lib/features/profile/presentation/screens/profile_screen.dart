@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
+import 'package:unisafex/features/admin/data/admin_remote_config_repository.dart';
 import 'package:unisafex/features/auth/presentation/providers/auth_provider.dart';
 import 'package:unisafex/features/profile/domain/entities/user_profile.dart';
 import 'package:unisafex/features/profile/domain/profile_completion.dart';
@@ -19,6 +20,8 @@ class ProfileScreen extends ConsumerWidget {
     final isGuest = ref.watch(isGuestProvider);
     final profileState = ref.watch(profileNotifierProvider);
     final isAdmin = ref.watch(isAdminProvider).value ?? false;
+    final supportAttention =
+        ref.watch(supportNeedsAttentionProvider).valueOrNull ?? false;
 
     if (isGuest) return const _GuestProfile();
 
@@ -88,7 +91,11 @@ class ProfileScreen extends ConsumerWidget {
                   _ProfileAction(
                     icon: Icons.help_outline_rounded,
                     label: 'help_support'.tr(),
-                    subtitle: 'help_subtitle'.tr(),
+                    subtitle: supportAttention
+                        ? 'Support has an update for you'
+                        : 'help_subtitle'.tr(),
+                    highlight: supportAttention,
+                    badgeLabel: supportAttention ? 'Update' : null,
                     onTap: () => context.push(AppRoutes.helpSupport),
                   ),
                   _ProfileAction(
@@ -375,6 +382,9 @@ class _ActionCard extends StatelessWidget {
           ),
           ...actions.map(
             (action) => ListTile(
+              tileColor: action.highlight
+                  ? AppColors.primary.withValues(alpha: 0.08)
+                  : null,
               leading: Container(
                 width: 40,
                 height: 40,
@@ -386,7 +396,26 @@ class _ActionCard extends StatelessWidget {
               ),
               title: Text(action.label),
               subtitle: Text(action.subtitle),
-              trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 13),
+              trailing: action.badgeLabel == null
+                  ? const Icon(Icons.arrow_forward_ios_rounded, size: 13)
+                  : Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                      child: Text(
+                        action.badgeLabel!,
+                        style: const TextStyle(
+                          color: AppColors.error,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
               onTap: action.onTap,
             ),
           ),
@@ -403,12 +432,16 @@ class _ProfileAction {
     required this.label,
     required this.subtitle,
     required this.onTap,
+    this.highlight = false,
+    this.badgeLabel,
   });
 
   final IconData icon;
   final String label;
   final String subtitle;
   final VoidCallback onTap;
+  final bool highlight;
+  final String? badgeLabel;
 }
 
 class _GuestProfile extends StatelessWidget {
