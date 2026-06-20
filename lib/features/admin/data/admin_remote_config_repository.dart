@@ -142,7 +142,7 @@ class AdminRemoteConfigRepository {
         .from('app_feature_flags')
         .select('key, enabled, description')
         .order('key');
-    return rows.map(AppFeatureFlag.fromJson).toList();
+    return _rows(rows).map(AppFeatureFlag.fromJson).toList();
   }
 
   Future<FeatureFlags> getPublicFeatureFlags() async {
@@ -163,7 +163,7 @@ class AdminRemoteConfigRepository {
     dynamic query = _client.from('home_banners').select();
     if (!admin) query = query.eq('is_active', true);
     final rows = await query.order('priority').order('created_at');
-    return rows.map(HomeBanner.fromJson).toList();
+    return _rows(rows).map(HomeBanner.fromJson).toList();
   }
 
   Future<void> saveHomeBanner({
@@ -204,7 +204,7 @@ class AdminRemoteConfigRepository {
     dynamic query = _client.from('travel_alerts').select();
     if (!admin) query = query.eq('is_active', true);
     final rows = await query.order('created_at', ascending: false);
-    return rows.map(TravelAlert.fromJson).toList();
+    return _rows(rows).map(TravelAlert.fromJson).toList();
   }
 
   Future<void> saveTravelAlert({
@@ -239,7 +239,7 @@ class AdminRemoteConfigRepository {
         .select()
         .order('created_at', ascending: false)
         .limit(200);
-    return rows.map(UserProfile.fromJson).toList();
+    return _rows(rows).map(UserProfile.fromJson).toList();
   }
 
   Future<AdminDashboardStats> getDashboardStats() async {
@@ -266,6 +266,12 @@ class AdminRemoteConfigRepository {
   String? _emptyToNull(String? value) {
     final trimmed = value?.trim();
     return trimmed == null || trimmed.isEmpty ? null : trimmed;
+  }
+
+  List<Map<String, dynamic>> _rows(Object? rows) {
+    return (rows as List)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList();
   }
 }
 
