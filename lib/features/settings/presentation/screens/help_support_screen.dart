@@ -1,13 +1,36 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
+import 'package:unisafex/features/admin/data/admin_remote_config_repository.dart';
+import 'package:unisafex/features/auth/presentation/providers/auth_provider.dart';
 
-class HelpSupportScreen extends StatelessWidget {
+class HelpSupportScreen extends ConsumerStatefulWidget {
   const HelpSupportScreen({super.key});
 
   @override
+  ConsumerState<HelpSupportScreen> createState() => _HelpSupportScreenState();
+}
+
+class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
+  final _title = TextEditingController();
+  final _message = TextEditingController();
+  var _category = 'general';
+  var _priority = 'normal';
+  var _submitting = false;
+
+  @override
+  void dispose() {
+    _title.dispose();
+    _message.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final user = ref.watch(currentUserProvider);
+    final tickets = user == null ? null : ref.watch(mySupportTicketsProvider);
     return Scaffold(
       appBar: AppBar(title: Text('help_support'.tr())),
       body: ListView(
@@ -43,6 +66,50 @@ class HelpSupportScreen extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(height: 22),
+          _SupportTicketForm(
+            titleController: _title,
+            messageController: _message,
+            category: _category,
+            priority: _priority,
+            submitting: _submitting,
+            signedIn: user != null,
+            onCategoryChanged: (value) =>
+                setState(() => _category = value ?? _category),
+            onPriorityChanged: (value) =>
+                setState(() => _priority = value ?? _priority),
+            onSubmit: _submitTicket,
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Your support tickets',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 8),
+          if (tickets == null)
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Text('Sign in to view support ticket history.'),
+              ),
+            )
+          else
+            tickets.when(
+              loading: () => const LinearProgressIndicator(),
+              error: (error, _) => Text('Could not load tickets: $error'),
+              data: (items) => items.isEmpty
+                  ? const Card(
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Text('No support tickets yet.'),
+                      ),
+                    )
+                  : Column(
+                      children: items
+                          .map((ticket) => _TicketStatusCard(ticket: ticket))
+                          .toList(),
+                    ),
+            ),
           const SizedBox(height: 22),
           Text('quick_help'.tr(),
               style: Theme.of(context).textTheme.titleLarge),
@@ -93,6 +160,38 @@ class HelpSupportScreen extends StatelessWidget {
     );
   }
 
+  Future<void> _submitTicket() async {
+    if (_title.text.trim().isEmpty || _message.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Title and message are required.')),
+      );
+      return;
+    }
+    setState(() => _submitting = true);
+    try {
+      await ref.read(adminRemoteConfigRepositoryProvider).createSupportTicket(
+            title: _title.text,
+            message: _message.text,
+            category: _category,
+            priority: _priority,
+          );
+      _title.clear();
+      _message.clear();
+      ref.invalidate(mySupportTicketsProvider);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Support ticket sent to UniSafeX team.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not submit ticket: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
   Future<void> _launch(BuildContext context, Uri uri) async {
     final opened = await launchUrl(uri);
     if (!opened && context.mounted) {
@@ -100,6 +199,154 @@ class HelpSupportScreen extends StatelessWidget {
         SnackBar(content: Text('action_unavailable'.tr())),
       );
     }
+  }
+}
+
+class _SupportTicketForm extends StatelessWidget {
+  const _SupportTicketForm({
+    required this.titleController,
+    required this.messageController,
+    required this.category,
+    required this.priority,
+    required this.submitting,
+    required this.signedIn,
+    required this.onCategoryChanged,
+    required this.onPriorityChanged,
+    required this.onSubmit,
+  });
+
+  final TextEditingController titleController;
+  final TextEditingController messageController;
+  final String category;
+  final String priority;
+  final bool submitting;
+  final bool signedIn;
+  final ValueChanged<String?> onCategoryChanged;
+  final ValueChanged<String?> onPriorityChanged;
+  final VoidCallback onSubmit;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Contact UniSafeX support',
+                style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 6),
+            const Text(
+              'Send app problems to the admin team. You can track status and replies here.',
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: titleController,
+              enabled: signedIn && !submitting,
+              decoration: const InputDecoration(
+                labelText: 'Problem title',
+                prefixIcon: Icon(Icons.title_rounded),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: messageController,
+              enabled: signedIn && !submitting,
+              minLines: 3,
+              maxLines: 5,
+              decoration: const InputDecoration(
+                labelText: 'Explain the problem',
+                hintText: 'What happened, where, and what should happen?',
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    initialValue: category,
+                    decoration: const InputDecoration(labelText: 'Category'),
+                    items: const [
+                      DropdownMenuItem(
+                          value: 'general', child: Text('General')),
+                      DropdownMenuItem(
+                          value: 'profile', child: Text('Profile')),
+                      DropdownMenuItem(value: 'places', child: Text('Places')),
+                      DropdownMenuItem(value: 'guide', child: Text('Guide')),
+                      DropdownMenuItem(value: 'map', child: Text('Map')),
+                      DropdownMenuItem(value: 'bug', child: Text('Bug')),
+                    ],
+                    onChanged:
+                        signedIn && !submitting ? onCategoryChanged : null,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    initialValue: priority,
+                    decoration: const InputDecoration(labelText: 'Priority'),
+                    items: const [
+                      DropdownMenuItem(value: 'low', child: Text('Low')),
+                      DropdownMenuItem(value: 'normal', child: Text('Normal')),
+                      DropdownMenuItem(value: 'high', child: Text('High')),
+                      DropdownMenuItem(value: 'urgent', child: Text('Urgent')),
+                    ],
+                    onChanged:
+                        signedIn && !submitting ? onPriorityChanged : null,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: signedIn && !submitting ? onSubmit : null,
+                icon: submitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.send_rounded),
+                label: Text(signedIn
+                    ? submitting
+                        ? 'Submitting...'
+                        : 'Send to support'
+                    : 'Sign in to contact support'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TicketStatusCard extends StatelessWidget {
+  const _TicketStatusCard({required this.ticket});
+
+  final SupportTicket ticket;
+
+  @override
+  Widget build(BuildContext context) {
+    final resolved = ticket.status == 'resolved' || ticket.status == 'closed';
+    return Card(
+      child: ListTile(
+        leading: Icon(
+          resolved ? Icons.check_circle_rounded : Icons.pending_actions_rounded,
+          color: resolved ? AppColors.success : AppColors.primary,
+        ),
+        title: Text(ticket.title),
+        subtitle: Text(
+          '${ticket.status.replaceAll('_', ' ')} · ${ticket.category}\n'
+          '${ticket.adminResponse?.isNotEmpty == true ? ticket.adminResponse! : ticket.message}',
+          maxLines: 4,
+          overflow: TextOverflow.ellipsis,
+        ),
+        isThreeLine: true,
+      ),
+    );
   }
 }
 

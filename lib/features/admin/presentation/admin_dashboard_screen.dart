@@ -39,7 +39,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   Widget build(BuildContext context) {
     final access = ref.watch(isAdminProvider);
     return DefaultTabController(
-      length: 8,
+      length: 11,
       child: Scaffold(
         appBar: AppBar(
           title: Text('admin_console'.tr()),
@@ -59,6 +59,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               Tab(icon: Icon(Icons.tune_rounded), text: 'Flags'),
               Tab(icon: Icon(Icons.warning_amber_rounded), text: 'Alerts'),
               Tab(icon: Icon(Icons.people_alt_rounded), text: 'Users'),
+              Tab(icon: Icon(Icons.group_add_rounded), text: 'Team'),
+              Tab(icon: Icon(Icons.support_rounded), text: 'Support'),
+              Tab(icon: Icon(Icons.timeline_rounded), text: 'Activity'),
               Tab(icon: Icon(Icons.support_agent_rounded), text: 'Guides'),
               Tab(icon: Icon(Icons.map_rounded), text: 'Maps'),
             ],
@@ -84,6 +87,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 const _FeatureFlagsAdminTab(),
                 const _TravelAlertsAdminTab(),
                 const _UsersAdminTab(),
+                const _TeamAdminTab(),
+                const _SupportTicketsAdminTab(),
+                const _ActivityAdminTab(),
                 const _GuideRequestsAdminTab(),
                 const _MapAccessAdminTab(),
               ],
@@ -1954,6 +1960,410 @@ Color _alertColor(String severity) {
     'warning' => AppColors.warning,
     _ => AppColors.primary,
   };
+}
+
+String _adminDate(DateTime? value) {
+  if (value == null) return 'Unknown time';
+  return DateFormat('dd MMM, HH:mm').format(value.toLocal());
+}
+
+class _TeamAdminTab extends ConsumerWidget {
+  const _TeamAdminTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final members = ref.watch(adminTeamMembersProvider);
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+      children: [
+        _AdminSectionHeader(
+          title: 'Team Members',
+          subtitle:
+              'Add trusted team accounts so they can manage places, alerts, guides and support.',
+          actionLabel: 'Add member',
+          onAction: () => _addMember(context, ref),
+        ),
+        members.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) => _AdminErrorCard(error: error),
+          data: (items) => items.isEmpty
+              ? const _AdminEmptyCard(text: 'No team members yet.')
+              : Column(
+                  children: items
+                      .map(
+                        (member) => Card(
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor:
+                                  AppColors.primary.withValues(alpha: 0.12),
+                              foregroundColor: AppColors.primary,
+                              child: Text(
+                                member.email.isEmpty
+                                    ? '?'
+                                    : member.email[0].toUpperCase(),
+                              ),
+                            ),
+                            title: Text(member.email),
+                            subtitle: Text(
+                              '${member.role.toUpperCase()} · ${member.isActive ? 'active' : 'disabled'}\n'
+                              'Updated ${_adminDate(member.updatedAt)}',
+                            ),
+                            isThreeLine: true,
+                            trailing: PopupMenuButton<String>(
+                              onSelected: (value) async {
+                                if (value == 'disable') {
+                                  await _updateMember(context, ref, member,
+                                      active: false);
+                                } else if (value == 'enable') {
+                                  await _updateMember(context, ref, member,
+                                      active: true);
+                                } else {
+                                  await _updateMember(context, ref, member,
+                                      role: value);
+                                }
+                              },
+                              itemBuilder: (context) => [
+                                const PopupMenuItem(
+                                  value: 'editor',
+                                  child: Text('Make editor'),
+                                ),
+                                const PopupMenuItem(
+                                  value: 'admin',
+                                  child: Text('Make admin'),
+                                ),
+                                if (member.role != 'owner')
+                                  PopupMenuItem(
+                                    value:
+                                        member.isActive ? 'disable' : 'enable',
+                                    child: Text(member.isActive
+                                        ? 'Disable access'
+                                        : 'Enable access'),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _addMember(BuildContext context, WidgetRef ref) async {
+    final email = TextEditingController();
+    var role = 'editor';
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheetState) => _AdminFormSheet(
+          title: 'Add team member',
+          children: [
+            const Text(
+              'Team member must already have a UniSafeX account with this email.',
+            ),
+            TextField(
+              controller: email,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: 'Member email',
+                prefixIcon: Icon(Icons.email_outlined),
+              ),
+            ),
+            DropdownButtonFormField<String>(
+              initialValue: role,
+              decoration: const InputDecoration(labelText: 'Role'),
+              items: const [
+                DropdownMenuItem(value: 'editor', child: Text('Editor')),
+                DropdownMenuItem(value: 'admin', child: Text('Admin')),
+              ],
+              onChanged: (value) => setSheetState(() => role = value ?? role),
+            ),
+            FilledButton.icon(
+              onPressed: () async {
+                if (email.text.trim().isEmpty) return;
+                await ref
+                    .read(adminRemoteConfigRepositoryProvider)
+                    .addTeamMember(
+                      email: email.text,
+                      role: role,
+                    );
+                if (context.mounted) Navigator.pop(context, true);
+              },
+              icon: const Icon(Icons.person_add_alt_rounded),
+              label: const Text('Add member'),
+            ),
+          ],
+        ),
+      ),
+    );
+    email.dispose();
+    if (saved == true) {
+      ref.invalidate(adminTeamMembersProvider);
+      ref.invalidate(adminActivityLogProvider);
+    }
+  }
+
+  Future<void> _updateMember(
+    BuildContext context,
+    WidgetRef ref,
+    AdminTeamMember member, {
+    String? role,
+    bool? active,
+  }) async {
+    await ref.read(adminRemoteConfigRepositoryProvider).updateTeamMember(
+          AdminTeamMember(
+            userId: member.userId,
+            email: member.email,
+            role: role ?? member.role,
+            isActive: active ?? member.isActive,
+            createdAt: member.createdAt,
+            updatedAt: member.updatedAt,
+          ),
+        );
+    ref.invalidate(adminTeamMembersProvider);
+    ref.invalidate(adminActivityLogProvider);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Team member updated.')),
+    );
+  }
+}
+
+class _SupportTicketsAdminTab extends ConsumerStatefulWidget {
+  const _SupportTicketsAdminTab();
+
+  @override
+  ConsumerState<_SupportTicketsAdminTab> createState() =>
+      _SupportTicketsAdminTabState();
+}
+
+class _SupportTicketsAdminTabState
+    extends ConsumerState<_SupportTicketsAdminTab> {
+  final _search = TextEditingController();
+  String _status = 'all';
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tickets = ref.watch(adminSupportTicketsProvider);
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+      children: [
+        const _AdminSectionHeader(
+          title: 'Support Center',
+          subtitle:
+              'Resolve user problems from inside the admin panel. Replies show in Help & Support.',
+        ),
+        tickets.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) => _AdminErrorCard(error: error),
+          data: (items) {
+            final filtered = _filter(items);
+            return Column(
+              children: [
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      children: [
+                        TextField(
+                          controller: _search,
+                          onChanged: (_) => setState(() {}),
+                          decoration: const InputDecoration(
+                            hintText: 'Search ticket, email, category...',
+                            prefixIcon: Icon(Icons.search_rounded),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          children: [
+                            for (final status in const [
+                              'all',
+                              'open',
+                              'in_progress',
+                              'waiting_user',
+                              'resolved',
+                              'closed',
+                            ])
+                              ChoiceChip(
+                                selected: _status == status,
+                                label: Text(status.replaceAll('_', ' ')),
+                                onSelected: (_) =>
+                                    setState(() => _status = status),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                if (items.isEmpty)
+                  const _AdminEmptyCard(text: 'No support tickets yet.')
+                else if (filtered.isEmpty)
+                  const _AdminEmptyCard(text: 'No ticket matches the filter.')
+                else
+                  ...filtered.map(
+                    (ticket) => Card(
+                      child: ListTile(
+                        leading: Icon(
+                          ticket.priority == 'urgent'
+                              ? Icons.priority_high_rounded
+                              : Icons.support_agent_rounded,
+                          color: ticket.priority == 'urgent'
+                              ? AppColors.error
+                              : AppColors.primary,
+                        ),
+                        title: Text(ticket.title),
+                        subtitle: Text(
+                          '${ticket.status} · ${ticket.category} · ${ticket.userEmail ?? 'unknown user'}\n'
+                          '${ticket.message}',
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        isThreeLine: true,
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () => _editTicket(context, ticket),
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  List<SupportTicket> _filter(List<SupportTicket> items) {
+    final query = _search.text.trim().toLowerCase();
+    return items.where((ticket) {
+      if (_status != 'all' && ticket.status != _status) return false;
+      if (query.isEmpty) return true;
+      return [
+        ticket.title,
+        ticket.message,
+        ticket.category,
+        ticket.priority,
+        ticket.status,
+        ticket.userEmail,
+      ].whereType<String>().join(' ').toLowerCase().contains(query);
+    }).toList();
+  }
+
+  Future<void> _editTicket(BuildContext context, SupportTicket ticket) async {
+    final response = TextEditingController(text: ticket.adminResponse);
+    var status = ticket.status;
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheetState) => _AdminFormSheet(
+          title: ticket.title,
+          children: [
+            Text('${ticket.userEmail ?? 'Unknown user'} · ${ticket.category}'),
+            Text(ticket.message),
+            DropdownButtonFormField<String>(
+              initialValue: status,
+              decoration: const InputDecoration(labelText: 'Status'),
+              items: const [
+                DropdownMenuItem(value: 'open', child: Text('Open')),
+                DropdownMenuItem(
+                    value: 'in_progress', child: Text('In progress')),
+                DropdownMenuItem(
+                    value: 'waiting_user', child: Text('Waiting user')),
+                DropdownMenuItem(value: 'resolved', child: Text('Resolved')),
+                DropdownMenuItem(value: 'closed', child: Text('Closed')),
+              ],
+              onChanged: (value) =>
+                  setSheetState(() => status = value ?? status),
+            ),
+            TextField(
+              controller: response,
+              minLines: 3,
+              maxLines: 5,
+              decoration: const InputDecoration(
+                labelText: 'Admin response',
+                hintText: 'Explain what was fixed or what user should do next',
+              ),
+            ),
+            FilledButton.icon(
+              onPressed: () async {
+                await ref
+                    .read(adminRemoteConfigRepositoryProvider)
+                    .updateSupportTicket(
+                      id: ticket.id,
+                      status: status,
+                      adminResponse: response.text,
+                    );
+                if (context.mounted) Navigator.pop(context, true);
+              },
+              icon: const Icon(Icons.done_rounded),
+              label: const Text('Save response'),
+            ),
+          ],
+        ),
+      ),
+    );
+    response.dispose();
+    if (saved == true) {
+      ref.invalidate(adminSupportTicketsProvider);
+      ref.invalidate(adminActivityLogProvider);
+    }
+  }
+}
+
+class _ActivityAdminTab extends ConsumerWidget {
+  const _ActivityAdminTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final activity = ref.watch(adminActivityLogProvider);
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+      children: [
+        const _AdminSectionHeader(
+          title: 'Team Progress',
+          subtitle: 'See recent admin changes and who changed app content.',
+        ),
+        activity.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) => _AdminErrorCard(error: error),
+          data: (items) => items.isEmpty
+              ? const _AdminEmptyCard(text: 'No activity recorded yet.')
+              : Column(
+                  children: items
+                      .map(
+                        (item) => Card(
+                          child: ListTile(
+                            leading: const Icon(
+                              Icons.history_rounded,
+                              color: AppColors.primary,
+                            ),
+                            title: Text(item.action),
+                            subtitle: Text(
+                              '${item.entityType} · ${item.title}\n'
+                              '${_adminDate(item.createdAt)} · ${item.actorUserId ?? 'system'}',
+                            ),
+                            isThreeLine: true,
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+        ),
+      ],
+    );
+  }
 }
 
 enum _AdminGuideFilter {

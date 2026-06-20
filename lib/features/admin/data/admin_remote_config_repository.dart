@@ -118,6 +118,125 @@ class TravelAlert {
   }
 }
 
+class AdminTeamMember {
+  const AdminTeamMember({
+    required this.userId,
+    required this.email,
+    required this.role,
+    required this.isActive,
+    this.createdAt,
+    this.updatedAt,
+  });
+
+  final String userId;
+  final String email;
+  final String role;
+  final bool isActive;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
+  factory AdminTeamMember.fromJson(Map<String, dynamic> json) {
+    return AdminTeamMember(
+      userId: json['user_id']?.toString() ?? '',
+      email: json['email'] as String? ?? '',
+      role: json['role'] as String? ?? 'admin',
+      isActive: json['is_active'] as bool? ?? true,
+      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? ''),
+      updatedAt: DateTime.tryParse(json['updated_at']?.toString() ?? ''),
+    );
+  }
+}
+
+class AdminActivityLog {
+  const AdminActivityLog({
+    required this.id,
+    this.actorUserId,
+    required this.entityType,
+    this.entityId,
+    required this.action,
+    this.afterData,
+    this.createdAt,
+  });
+
+  final String id;
+  final String? actorUserId;
+  final String entityType;
+  final String? entityId;
+  final String action;
+  final Map<String, dynamic>? afterData;
+  final DateTime? createdAt;
+
+  String get title =>
+      afterData?['title']?.toString() ??
+      afterData?['name']?.toString() ??
+      afterData?['email']?.toString() ??
+      entityType;
+
+  factory AdminActivityLog.fromJson(Map<String, dynamic> json) {
+    return AdminActivityLog(
+      id: json['id']?.toString() ?? '',
+      actorUserId: json['actor_user_id']?.toString(),
+      entityType: json['entity_type'] as String? ?? '',
+      entityId: json['entity_id']?.toString(),
+      action: json['action'] as String? ?? '',
+      afterData: json['after_data'] is Map
+          ? Map<String, dynamic>.from(json['after_data'] as Map)
+          : null,
+      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? ''),
+    );
+  }
+}
+
+class SupportTicket {
+  const SupportTicket({
+    required this.id,
+    this.userId,
+    this.userEmail,
+    required this.title,
+    required this.message,
+    required this.category,
+    required this.priority,
+    required this.status,
+    this.adminResponse,
+    this.assignedTo,
+    this.createdAt,
+    this.updatedAt,
+    this.resolvedAt,
+  });
+
+  final String id;
+  final String? userId;
+  final String? userEmail;
+  final String title;
+  final String message;
+  final String category;
+  final String priority;
+  final String status;
+  final String? adminResponse;
+  final String? assignedTo;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final DateTime? resolvedAt;
+
+  factory SupportTicket.fromJson(Map<String, dynamic> json) {
+    return SupportTicket(
+      id: json['id']?.toString() ?? '',
+      userId: json['user_id']?.toString(),
+      userEmail: json['user_email'] as String?,
+      title: json['title'] as String? ?? '',
+      message: json['message'] as String? ?? '',
+      category: json['category'] as String? ?? 'general',
+      priority: json['priority'] as String? ?? 'normal',
+      status: json['status'] as String? ?? 'open',
+      adminResponse: json['admin_response'] as String?,
+      assignedTo: json['assigned_to']?.toString(),
+      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? ''),
+      updatedAt: DateTime.tryParse(json['updated_at']?.toString() ?? ''),
+      resolvedAt: DateTime.tryParse(json['resolved_at']?.toString() ?? ''),
+    );
+  }
+}
+
 class AdminDashboardStats {
   const AdminDashboardStats({
     required this.places,
@@ -157,6 +276,12 @@ class AdminRemoteConfigRepository {
       'description': flag.description,
       'updated_by': _client.auth.currentUser?.id,
     });
+    await logActivity(
+      entityType: 'feature_flag',
+      entityId: flag.key,
+      action: 'updated feature flag',
+      afterData: {'title': flag.key, 'enabled': flag.enabled},
+    );
   }
 
   Future<List<HomeBanner>> getHomeBanners({bool admin = false}) async {
@@ -198,11 +323,22 @@ class AdminRemoteConfigRepository {
     } else {
       await _client.from('home_banners').update(data).eq('id', id);
     }
+    await logActivity(
+      entityType: 'home_banner',
+      entityId: id,
+      action: id == null || id.isEmpty ? 'created banner' : 'updated banner',
+      afterData: {'title': title.trim(), 'type': bannerType},
+    );
   }
 
   Future<void> deleteHomeBanner(String id) async {
     if (id.trim().isEmpty) return;
     await _client.from('home_banners').delete().eq('id', id);
+    await logActivity(
+      entityType: 'home_banner',
+      entityId: id,
+      action: 'deleted banner',
+    );
   }
 
   Future<List<TravelAlert>> getTravelAlerts({bool admin = false}) async {
@@ -236,11 +372,22 @@ class AdminRemoteConfigRepository {
     } else {
       await _client.from('travel_alerts').update(data).eq('id', id);
     }
+    await logActivity(
+      entityType: 'travel_alert',
+      entityId: id,
+      action: id == null || id.isEmpty ? 'created alert' : 'updated alert',
+      afterData: {'title': title.trim(), 'severity': severity},
+    );
   }
 
   Future<void> deleteTravelAlert(String id) async {
     if (id.trim().isEmpty) return;
     await _client.from('travel_alerts').delete().eq('id', id);
+    await logActivity(
+      entityType: 'travel_alert',
+      entityId: id,
+      action: 'deleted alert',
+    );
   }
 
   Future<List<UserProfile>> getProfiles() async {
@@ -262,6 +409,117 @@ class AdminRemoteConfigRepository {
       banners: banners,
       alerts: alerts,
       users: users,
+    );
+  }
+
+  Future<List<AdminTeamMember>> getTeamMembers() async {
+    final rows =
+        await _client.from('admin_users').select().order('role').order('email');
+    return _rows(rows).map(AdminTeamMember.fromJson).toList();
+  }
+
+  Future<void> addTeamMember({
+    required String email,
+    required String role,
+  }) async {
+    await _client.rpc(
+      'add_admin_by_email',
+      params: {'p_email': email.trim().toLowerCase(), 'p_role': role},
+    );
+    await logActivity(
+      entityType: 'admin_user',
+      entityId: email.trim().toLowerCase(),
+      action: 'added team member',
+      afterData: {'email': email.trim().toLowerCase(), 'role': role},
+    );
+  }
+
+  Future<void> updateTeamMember(AdminTeamMember member) async {
+    await _client.from('admin_users').update({
+      'role': member.role,
+      'is_active': member.isActive,
+    }).eq('user_id', member.userId);
+    await logActivity(
+      entityType: 'admin_user',
+      entityId: member.userId,
+      action: member.isActive ? 'updated team member' : 'deactivated member',
+      afterData: {'email': member.email, 'role': member.role},
+    );
+  }
+
+  Future<List<AdminActivityLog>> getActivityLog() async {
+    final rows = await _client
+        .from('tourism_content_audit_log')
+        .select()
+        .order('created_at', ascending: false)
+        .limit(100);
+    return _rows(rows).map(AdminActivityLog.fromJson).toList();
+  }
+
+  Future<void> logActivity({
+    required String entityType,
+    String? entityId,
+    required String action,
+    Map<String, dynamic>? afterData,
+  }) async {
+    try {
+      await _client.from('tourism_content_audit_log').insert({
+        'actor_user_id': _client.auth.currentUser?.id,
+        'entity_type': entityType,
+        'entity_id': entityId,
+        'action': action,
+        'after_data': afterData,
+      });
+    } catch (_) {
+      // Activity should never block the primary admin action.
+    }
+  }
+
+  Future<List<SupportTicket>> getSupportTickets({bool admin = false}) async {
+    dynamic query = _client.from('support_tickets').select();
+    if (!admin) {
+      query = query.eq('user_id', _client.auth.currentUser?.id ?? '');
+    }
+    final rows = await query.order('updated_at', ascending: false).limit(200);
+    return _rows(rows).map(SupportTicket.fromJson).toList();
+  }
+
+  Future<void> createSupportTicket({
+    required String title,
+    required String message,
+    required String category,
+    required String priority,
+  }) async {
+    final user = _client.auth.currentUser;
+    await _client.from('support_tickets').insert({
+      'user_id': user?.id,
+      'user_email': user?.email,
+      'title': title.trim(),
+      'message': message.trim(),
+      'category': category,
+      'priority': priority,
+    });
+  }
+
+  Future<void> updateSupportTicket({
+    required String id,
+    required String status,
+    String? adminResponse,
+    String? assignedTo,
+  }) async {
+    await _client.from('support_tickets').update({
+      'status': status,
+      'admin_response': _emptyToNull(adminResponse),
+      'assigned_to': _emptyToNull(assignedTo),
+      'updated_by': _client.auth.currentUser?.id,
+      if (status == 'resolved' || status == 'closed')
+        'resolved_at': DateTime.now().toIso8601String(),
+    }).eq('id', id);
+    await logActivity(
+      entityType: 'support_ticket',
+      entityId: id,
+      action: 'updated support ticket',
+      afterData: {'title': id, 'status': status},
     );
   }
 
@@ -324,4 +582,22 @@ final adminProfilesProvider = FutureProvider<List<UserProfile>>((ref) {
 
 final adminDashboardStatsProvider = FutureProvider<AdminDashboardStats>((ref) {
   return ref.watch(adminRemoteConfigRepositoryProvider).getDashboardStats();
+});
+
+final adminTeamMembersProvider = FutureProvider<List<AdminTeamMember>>((ref) {
+  return ref.watch(adminRemoteConfigRepositoryProvider).getTeamMembers();
+});
+
+final adminActivityLogProvider = FutureProvider<List<AdminActivityLog>>((ref) {
+  return ref.watch(adminRemoteConfigRepositoryProvider).getActivityLog();
+});
+
+final adminSupportTicketsProvider = FutureProvider<List<SupportTicket>>((ref) {
+  return ref.watch(adminRemoteConfigRepositoryProvider).getSupportTickets(
+        admin: true,
+      );
+});
+
+final mySupportTicketsProvider = FutureProvider<List<SupportTicket>>((ref) {
+  return ref.watch(adminRemoteConfigRepositoryProvider).getSupportTickets();
 });

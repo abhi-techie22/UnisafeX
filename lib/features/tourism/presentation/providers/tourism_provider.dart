@@ -434,6 +434,14 @@ class TourismRepository {
     } else {
       await _client.from('tourism_places').update(data).eq('place_id', id);
     }
+    await _logAdminActivity(
+      entityType: 'tourism_place',
+      entityId: id,
+      action: id == null || id.trim().isEmpty
+          ? 'created destination'
+          : 'updated destination',
+      afterData: {'name': name.trim(), 'city': city.trim()},
+    );
   }
 
   Future<String> uploadAdminPlaceImageBytes({
@@ -466,6 +474,25 @@ class TourismRepository {
         );
 
     return _client.storage.from('tourism-media').getPublicUrl(fileName);
+  }
+
+  Future<void> _logAdminActivity({
+    required String entityType,
+    String? entityId,
+    required String action,
+    Map<String, dynamic>? afterData,
+  }) async {
+    try {
+      await _client.from('tourism_content_audit_log').insert({
+        'actor_user_id': _client.auth.currentUser?.id,
+        'entity_type': entityType,
+        'entity_id': entityId,
+        'action': action,
+        'after_data': afterData,
+      });
+    } catch (_) {
+      // Admin audit logging should not block destination saves.
+    }
   }
 
   String? _emptyToNull(String? value) {
