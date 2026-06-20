@@ -12,6 +12,7 @@ import 'package:unisafex/features/guide/domain/guide_request.dart';
 import 'package:unisafex/features/guide/presentation/providers/guide_request_provider.dart';
 import 'package:unisafex/features/heritage/data/heritage_repository.dart';
 import 'package:unisafex/features/maps/data/map_access_config_provider.dart';
+import 'package:unisafex/features/profile/domain/entities/user_profile.dart';
 import 'package:unisafex/features/tourism/domain/entities/tourism_place.dart';
 import 'package:unisafex/features/tourism/presentation/providers/tourism_provider.dart';
 
@@ -1015,11 +1016,39 @@ class _FeatureFlagsAdminTab extends ConsumerWidget {
   }
 }
 
-class _TravelAlertsAdminTab extends ConsumerWidget {
+enum _AdminAlertFilter {
+  all('All'),
+  active('Active'),
+  hidden('Hidden'),
+  info('Info'),
+  warning('Warning'),
+  emergency('Emergency');
+
+  const _AdminAlertFilter(this.label);
+
+  final String label;
+}
+
+class _TravelAlertsAdminTab extends ConsumerStatefulWidget {
   const _TravelAlertsAdminTab();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_TravelAlertsAdminTab> createState() =>
+      _TravelAlertsAdminTabState();
+}
+
+class _TravelAlertsAdminTabState extends ConsumerState<_TravelAlertsAdminTab> {
+  final _search = TextEditingController();
+  _AdminAlertFilter _filter = _AdminAlertFilter.active;
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final alerts = ref.watch(adminTravelAlertsProvider);
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
@@ -1033,32 +1062,80 @@ class _TravelAlertsAdminTab extends ConsumerWidget {
         alerts.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, _) => _AdminErrorCard(error: error),
-          data: (items) => items.isEmpty
-              ? const _AdminEmptyCard(text: 'No alerts yet.')
-              : Column(
-                  children: items
-                      .map(
-                        (alert) => Card(
-                          child: ListTile(
-                            leading: Icon(
-                              _alertIcon(alert.severity),
-                              color: _alertColor(alert.severity),
-                            ),
-                            title: Text(alert.title),
-                            subtitle: Text(
-                              '${alert.severity} · ${alert.city ?? alert.state ?? 'India'} · '
-                              '${alert.isActive ? 'active' : 'hidden'}',
-                            ),
-                            trailing: const Icon(Icons.edit_outlined),
-                            onTap: () => _editAlert(context, ref, alert),
-                          ),
-                        ),
-                      )
-                      .toList(),
+          data: (items) {
+            final filtered = _filterAlerts(items);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _AdminSearchFilterCard<_AdminAlertFilter>(
+                  controller: _search,
+                  hintText: 'Search title, message, city, state...',
+                  total: filtered.length,
+                  values: _AdminAlertFilter.values,
+                  selected: _filter,
+                  labelFor: (filter) => filter.label,
+                  onChanged: () => setState(() {}),
+                  onSelected: (filter) => setState(() => _filter = filter),
                 ),
+                const SizedBox(height: 12),
+                if (items.isEmpty)
+                  const _AdminEmptyCard(text: 'No alerts yet.')
+                else if (filtered.isEmpty)
+                  const _AdminEmptyCard(
+                    text: 'No alerts match this search or filter.',
+                  )
+                else
+                  ...filtered.map(
+                    (alert) => Card(
+                      child: ListTile(
+                        leading: Icon(
+                          _alertIcon(alert.severity),
+                          color: _alertColor(alert.severity),
+                        ),
+                        title: Text(alert.title),
+                        subtitle: Text(
+                          '${alert.severity} · ${alert.city ?? alert.state ?? 'India'} · '
+                          '${alert.isActive ? 'visible on Home' : 'hidden'}\n'
+                          '${alert.message}',
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        isThreeLine: true,
+                        trailing: const Icon(Icons.edit_outlined),
+                        onTap: () => _editAlert(context, ref, alert),
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
       ],
     );
+  }
+
+  List<TravelAlert> _filterAlerts(List<TravelAlert> items) {
+    final query = _search.text.trim().toLowerCase();
+    return items.where((alert) {
+      final filterMatches = switch (_filter) {
+        _AdminAlertFilter.all => true,
+        _AdminAlertFilter.active => alert.isActive,
+        _AdminAlertFilter.hidden => !alert.isActive,
+        _AdminAlertFilter.info => alert.severity == 'info',
+        _AdminAlertFilter.warning => alert.severity == 'warning',
+        _AdminAlertFilter.emergency => alert.severity == 'emergency',
+      };
+      if (!filterMatches) return false;
+      if (query.isEmpty) return true;
+      final text = [
+        alert.title,
+        alert.message,
+        alert.severity,
+        alert.city,
+        alert.state,
+      ].whereType<String>().join(' ').toLowerCase();
+      return text.contains(query);
+    }).toList();
   }
 
   Future<void> _editAlert(
@@ -1145,11 +1222,38 @@ class _TravelAlertsAdminTab extends ConsumerWidget {
   }
 }
 
-class _UsersAdminTab extends ConsumerWidget {
+enum _AdminUserFilter {
+  all('All'),
+  completed('Complete'),
+  incomplete('Incomplete'),
+  hasEmail('Has email'),
+  missingEmail('Missing email'),
+  hasLocation('Has location');
+
+  const _AdminUserFilter(this.label);
+
+  final String label;
+}
+
+class _UsersAdminTab extends ConsumerStatefulWidget {
   const _UsersAdminTab();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_UsersAdminTab> createState() => _UsersAdminTabState();
+}
+
+class _UsersAdminTabState extends ConsumerState<_UsersAdminTab> {
+  final _search = TextEditingController();
+  _AdminUserFilter _filter = _AdminUserFilter.all;
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final profiles = ref.watch(adminProfilesProvider);
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
@@ -1162,30 +1266,175 @@ class _UsersAdminTab extends ConsumerWidget {
         profiles.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, _) => _AdminErrorCard(error: error),
-          data: (items) => items.isEmpty
-              ? const _AdminEmptyCard(text: 'No profiles yet.')
-              : Column(
-                  children: items
-                      .map(
-                        (profile) => Card(
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              child: Text(profile.initials),
-                            ),
-                            title: Text(profile.displayName),
-                            subtitle: Text(
-                              '${profile.email ?? 'No email'}\n'
-                              '${profile.currentLocation ?? 'No location'} · '
-                              '${profile.visaType ?? 'No visa'}',
-                            ),
-                            isThreeLine: true,
-                          ),
-                        ),
-                      )
-                      .toList(),
+          data: (items) {
+            final filtered = _filterUsers(items);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _AdminSearchFilterCard<_AdminUserFilter>(
+                  controller: _search,
+                  hintText: 'Search name, email, country, city, visa...',
+                  total: filtered.length,
+                  values: _AdminUserFilter.values,
+                  selected: _filter,
+                  labelFor: (filter) => filter.label,
+                  onChanged: () => setState(() {}),
+                  onSelected: (filter) => setState(() => _filter = filter),
                 ),
+                const SizedBox(height: 12),
+                if (items.isEmpty)
+                  const _AdminEmptyCard(text: 'No profiles yet.')
+                else if (filtered.isEmpty)
+                  const _AdminEmptyCard(
+                    text: 'No users match this search or filter.',
+                  )
+                else
+                  ...filtered.map(
+                    (profile) => Card(
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          child: Text(profile.initials),
+                        ),
+                        title: Row(
+                          children: [
+                            Expanded(child: Text(profile.displayName)),
+                            _InfoChip(
+                              icon: profile.isProfileComplete
+                                  ? Icons.verified_rounded
+                                  : Icons.pending_actions_rounded,
+                              label: profile.isProfileComplete
+                                  ? 'Complete'
+                                  : 'Incomplete',
+                            ),
+                          ],
+                        ),
+                        subtitle: Text(
+                          '${profile.email ?? 'No email'}\n'
+                          '${profile.currentLocation ?? 'No location'} · '
+                          '${profile.country ?? profile.nationality ?? 'No country'} · '
+                          '${profile.visaType ?? 'No visa'}',
+                        ),
+                        isThreeLine: true,
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
       ],
+    );
+  }
+
+  List<UserProfile> _filterUsers(List<UserProfile> items) {
+    final query = _search.text.trim().toLowerCase();
+    return items.where((profile) {
+      final filterMatches = switch (_filter) {
+        _AdminUserFilter.all => true,
+        _AdminUserFilter.completed => profile.isProfileComplete,
+        _AdminUserFilter.incomplete => !profile.isProfileComplete,
+        _AdminUserFilter.hasEmail => profile.email?.trim().isNotEmpty == true,
+        _AdminUserFilter.missingEmail =>
+          profile.email?.trim().isNotEmpty != true,
+        _AdminUserFilter.hasLocation =>
+          profile.currentLocation?.trim().isNotEmpty == true,
+      };
+      if (!filterMatches) return false;
+      if (query.isEmpty) return true;
+      final text = [
+        profile.fullName,
+        profile.email,
+        profile.currentLocation,
+        profile.country,
+        profile.nationality,
+        profile.visaType,
+        profile.travelPurpose,
+      ].whereType<String>().join(' ').toLowerCase();
+      return text.contains(query);
+    }).toList();
+  }
+}
+
+class _AdminSearchFilterCard<T> extends StatelessWidget {
+  const _AdminSearchFilterCard({
+    required this.controller,
+    required this.hintText,
+    required this.total,
+    required this.values,
+    required this.selected,
+    required this.labelFor,
+    required this.onChanged,
+    required this.onSelected,
+  });
+
+  final TextEditingController controller;
+  final String hintText;
+  final int total;
+  final List<T> values;
+  final T selected;
+  final String Function(T value) labelFor;
+  final VoidCallback onChanged;
+  final ValueChanged<T> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Filter results',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                _InfoChip(icon: Icons.filter_alt_rounded, label: '$total'),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              onChanged: (_) => onChanged(),
+              decoration: InputDecoration(
+                hintText: hintText,
+                prefixIcon: const Icon(Icons.search_rounded),
+                suffixIcon: controller.text.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: 'Clear',
+                        onPressed: () {
+                          controller.clear();
+                          onChanged();
+                        },
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: values
+                    .map(
+                      (value) => Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ChoiceChip(
+                          selected: value == selected,
+                          label: Text(labelFor(value)),
+                          onSelected: (_) => onSelected(value),
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
