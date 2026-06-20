@@ -15,7 +15,8 @@ class TourismRepository {
   List<TourismPlace> _placesFrom(dynamic response) {
     final unique = <String, TourismPlace>{};
     for (final row in response as List) {
-      final place = TourismPlace.fromJson(row as Map<String, dynamic>);
+      final place =
+          TourismPlace.fromJson(Map<String, dynamic>.from(row as Map));
       final key = '${place.name.toLowerCase()}|${place.city.toLowerCase()}';
       final existing = unique[key];
       if (existing == null || _isBetterDuplicate(place, existing)) {
@@ -287,6 +288,49 @@ class TourismRepository {
       print(
         'Explorer places error: $e',
       );
+      return [];
+    }
+  }
+
+  Future<List<TourismPlace>> getPlannerPlaces() async {
+    try {
+      const batchSize = 1000;
+      final all = <TourismPlace>[];
+
+      for (var page = 0; page < 8; page++) {
+        final from = page * batchSize;
+        final to = from + batchSize - 1;
+        final response = await _client
+            .from('tourism_places')
+            .select()
+            .order('state')
+            .order('city')
+            .order('featured', ascending: false)
+            .order('is_popular', ascending: false)
+            .order('rating', ascending: false)
+            .range(from, to);
+        final batch = _placesFrom(response);
+        all.addAll(batch);
+        if ((response as List).length < batchSize) break;
+      }
+
+      final unique = <String, TourismPlace>{};
+      for (final place in all) {
+        final key = '${place.name.toLowerCase()}|${place.city.toLowerCase()}';
+        final existing = unique[key];
+        if (existing == null || _isBetterDuplicate(place, existing)) {
+          unique[key] = place;
+        }
+      }
+
+      return unique.values.toList()
+        ..sort((a, b) {
+          final city = a.city.compareTo(b.city);
+          if (city != 0) return city;
+          return b.rating.compareTo(a.rating);
+        });
+    } catch (e) {
+      print('Planner places error: $e');
       return [];
     }
   }
@@ -618,6 +662,10 @@ final explorerPlacesProvider =
     return ref.read(tourismRepositoryProvider).getExplorerPlaces(filters);
   },
 );
+
+final plannerPlacesProvider = FutureProvider<List<TourismPlace>>((ref) {
+  return ref.read(tourismRepositoryProvider).getPlannerPlaces();
+});
 
 final likePlaceProvider = FutureProvider.family<int, String>((ref, placeId) {
   return ref.read(tourismRepositoryProvider).likePlace(placeId);

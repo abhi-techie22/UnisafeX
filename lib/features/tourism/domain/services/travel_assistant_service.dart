@@ -1,5 +1,7 @@
 import 'package:unisafex/features/tourism/domain/entities/tourism_place.dart';
+import 'package:unisafex/features/tourism/domain/entities/trip_plan.dart';
 import 'package:unisafex/features/tourism/domain/services/safety_score_service.dart';
+import 'package:unisafex/features/tourism/domain/services/trip_planner_service.dart';
 
 class TravelAssistantReply {
   const TravelAssistantReply({
@@ -30,13 +32,23 @@ class TravelAssistantService {
     final requestedLocation = _requestedLocation(query);
     final place = _findPlace(query, allPlaces);
     final scoped = _scopedPlaces(city, allPlaces);
+    final category = _findCategory(query, allPlaces);
 
     if (_containsAny(query, ['emergency', 'police', 'ambulance', 'danger'])) {
       return const TravelAssistantReply(
         text: 'For an immediate emergency in India, call 112. For police call '
             '100, ambulance 108, and the tourist helpline 1363. Move to a '
             'well-lit public place and share your live location with someone '
-            'you trust.',
+            'you trust. Keep your hotel address, passport copy, and live map '
+            'location ready before moving.',
+      );
+    }
+
+    if (place != null &&
+        _containsAny(query, ['summarize', 'about', 'details', 'explain'])) {
+      return TravelAssistantReply(
+        text: _placeBrief(place),
+        places: [place],
       );
     }
 
@@ -47,6 +59,34 @@ class TravelAssistantService {
             'pressure. Use official counters, registered transport, digital '
             'payments where possible, and verify opening times before leaving.',
       );
+    }
+
+    if (_containsAny(query, ['hidden gem', 'less crowded', 'quiet'])) {
+      final gems = scoped.where((item) => item.isHiddenGem).take(5).toList();
+      if (gems.isNotEmpty) {
+        return TravelAssistantReply(
+          text:
+              'Less-crowded UniSafeX picks${city == null ? '' : ' in $city'}: '
+              '${gems.map((item) => item.name).join(', ')}. Visit in daylight, '
+              'pre-book transport, and check local conditions before choosing '
+              'a very quiet site.',
+          places: gems,
+        );
+      }
+    }
+
+    if (category != null &&
+        _containsAny(query, ['best', 'top', 'recommend', 'show', 'find'])) {
+      final picks =
+          scoped.where((item) => item.category == category).take(5).toList();
+      if (picks.isNotEmpty) {
+        return TravelAssistantReply(
+          text: 'Best $category places${city == null ? '' : ' in $city'} from '
+              'UniSafeX are ${picks.map((item) => item.name).join(', ')}. '
+              'I ranked them by rating, popularity and available visitor data.',
+          places: picks,
+        );
+      }
     }
 
     if (_containsAny(query, ['taxi', 'metro', 'transport', 'cab', 'uber'])) {
@@ -121,7 +161,8 @@ class TravelAssistantService {
         text: 'For $location, the strongest safety-aware options in UniSafeX '
             'are $names. Prefer daylight visits, use registered transport, '
             'avoid isolated areas after dark, and call 112 in an emergency. '
-            'Safety scores are guidance, not a guarantee.',
+            'Safety scores are guidance, not a guarantee.\n\n'
+            '${_safetyChecklist()}',
         places: recommendations,
       );
     }
@@ -183,21 +224,37 @@ class TravelAssistantService {
         );
       }
       final count = (days ?? 2).clamp(1, 5);
-      final picks = scoped.take(count * 2).toList();
-      if (picks.isNotEmpty) {
-        final lines = <String>[];
-        for (var day = 0; day < count; day++) {
-          final dayPlaces = picks.skip(day * 2).take(2).toList();
-          if (dayPlaces.isNotEmpty) {
-            lines.add(
-              'Day ${day + 1}: ${dayPlaces.map((item) => item.name).join(' → ')}',
-            );
-          }
+      final planCity = city ?? (scoped.isNotEmpty ? scoped.first.city : null);
+      if (planCity != null) {
+        final style = _styleFromQuery(query);
+        final plan = const TripPlannerService().generate(
+          city: planCity,
+          days: count,
+          style: style,
+          places: allPlaces,
+        );
+        final lines = plan.itinerary
+            .where((day) => day.stops.isNotEmpty)
+            .map(
+              (day) =>
+                  'Day ${day.day}: ${day.stops.map((stop) => stop.place.name).join(' → ')}',
+            )
+            .toList();
+        final picks = plan.itinerary
+            .expand((day) => day.stops)
+            .map((stop) => stop.place)
+            .toList();
+        if (lines.isEmpty) {
+          return const TravelAssistantReply(
+            text: 'I need more city data to build that plan.',
+          );
         }
         return TravelAssistantReply(
-          text: 'Here is a practical $count-day starting plan'
-              '${city == null ? '' : ' for $city'}:\n${lines.join('\n')}\n'
-              'Open a place card for fees, timings, safety tips and directions.',
+          text: 'Here is a smart ${style.label.toLowerCase()} $count-day plan '
+              'for $planCity using the full UniSafeX catalog:\n'
+              '${lines.join('\n')}\n\n'
+              'Open cards for fees, timings, safety tips and map directions. '
+              'For a richer day-by-day view, open Smart Trip Planner.',
           places: picks,
         );
       }
@@ -205,11 +262,14 @@ class TravelAssistantService {
 
     final recommendations = scoped.take(4).toList();
     final location = city ?? 'India';
+    final cityCount = allPlaces.map((item) => item.city).toSet().length;
     return TravelAssistantReply(
       text: 'Top UniSafeX recommendations for $location are '
           '${recommendations.map((item) => item.name).join(', ')}. Ask me '
           'about safety, scams, taxi/metro advice, entry fees, timings, best '
-          'season, free places, hotels, food safety, or a 1–5 day itinerary.',
+          'season, free places, hidden gems, hotels, food safety, categories, '
+          'or a 1–5 day itinerary. I can reason over ${allPlaces.length} '
+          'places across $cityCount cities.',
       places: recommendations,
     );
   }
@@ -268,6 +328,26 @@ class TravelAssistantService {
     return null;
   }
 
+  String? _findCategory(String query, List<TourismPlace> places) {
+    final categories = places.map((item) => item.category).toSet().toList()
+      ..sort((a, b) => b.length.compareTo(a.length));
+    for (final category in categories) {
+      if (category.isEmpty) continue;
+      if (query.contains(category.toLowerCase())) return category;
+    }
+    return null;
+  }
+
+  TravelStyle _styleFromQuery(String query) {
+    if (_containsAny(query, ['budget', 'cheap', 'free'])) {
+      return TravelStyle.budget;
+    }
+    if (_containsAny(query, ['luxury', 'premium', 'comfortable'])) {
+      return TravelStyle.luxury;
+    }
+    return TravelStyle.balanced;
+  }
+
   int? _extractDays(String query) {
     final match = RegExp(r'\b([1-5])\s*(?:day|days)\b').firstMatch(query);
     return int.tryParse(match?.group(1) ?? '');
@@ -275,6 +355,23 @@ class TravelAssistantService {
 
   bool _containsAny(String value, List<String> terms) =>
       terms.any(value.contains);
+
+  String _placeBrief(TourismPlace place) {
+    final safetyScore = SafetyScoreService.calculate(place);
+    return '${place.name} is a ${place.category.toLowerCase()} destination in '
+        '${place.city}, ${place.state}. Entry: ${place.formattedEntryFee}. '
+        'Timing: ${place.timings ?? 'not listed'}. Recommended duration: '
+        '${_duration(place.visitDurationMinutes)}. Safety score: '
+        '$safetyScore/100.\n\n'
+        'Why visit: ${place.description.isEmpty ? 'Strong local heritage value.' : place.description}\n\n'
+        'Tourist tip: ${place.touristTips.isNotEmpty ? place.touristTips.first : 'Carry ID, water, and confirm timings before leaving.'}';
+  }
+
+  String _safetyChecklist() {
+    return 'Quick safety checklist: share live location, keep passport copy '
+        'separate, use official ticket counters, avoid isolated night visits, '
+        'and prefer registered transport.';
+  }
 
   String _duration(int? minutes) {
     if (minutes == null) return 'about 1–2 hours';

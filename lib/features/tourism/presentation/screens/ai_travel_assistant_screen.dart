@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
-import 'package:unisafex/features/tourism/domain/entities/tourism_filters.dart';
 import 'package:unisafex/features/tourism/domain/entities/tourism_place.dart';
 import 'package:unisafex/features/tourism/domain/services/travel_assistant_service.dart';
 import 'package:unisafex/features/tourism/presentation/providers/tourism_provider.dart';
@@ -31,10 +30,12 @@ class _AiTravelAssistantScreenState
   ];
 
   static const _prompts = [
-    'Plan 2 days in Delhi',
+    'Plan 2 budget days in Delhi',
+    'Safest places for solo women in Jaipur',
+    'Show hidden gems in Agra',
+    'Best historical places in Delhi',
+    'Summarize Taj Mahal details',
     'How do I avoid taxi scams?',
-    'Food safety tips for India',
-    'What is the best time to visit Jaipur?',
   ];
 
   @override
@@ -72,8 +73,7 @@ class _AiTravelAssistantScreenState
 
   @override
   Widget build(BuildContext context) {
-    final placesState =
-        ref.watch(explorerPlacesProvider(const TourismFilters()));
+    final placesState = ref.watch(plannerPlacesProvider);
     final places = placesState.valueOrNull ?? const <TourismPlace>[];
 
     return Scaffold(
@@ -89,6 +89,11 @@ class _AiTravelAssistantScreenState
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: 'Open smart planner',
+            onPressed: () => context.push(AppRoutes.tripPlanner),
+            icon: const Icon(Icons.route_rounded),
+          ),
           IconButton(
             tooltip: 'Clear conversation',
             onPressed: () => setState(() {
@@ -109,7 +114,11 @@ class _AiTravelAssistantScreenState
       body: Column(
         children: [
           if (placesState.isLoading) const LinearProgressIndicator(),
-          _AssistantCapabilityStrip(count: places.length),
+          _AssistantCapabilityStrip(
+            count: places.length,
+            cityCount: places.map((item) => item.city).toSet().length,
+            isLoading: placesState.isLoading,
+          ),
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
@@ -126,7 +135,7 @@ class _AiTravelAssistantScreenState
           ),
           if (_messages.length == 1)
             SizedBox(
-              height: 42,
+              height: 44,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -195,9 +204,15 @@ class _ChatMessage {
 }
 
 class _AssistantCapabilityStrip extends StatelessWidget {
-  const _AssistantCapabilityStrip({required this.count});
+  const _AssistantCapabilityStrip({
+    required this.count,
+    required this.cityCount,
+    required this.isLoading,
+  });
 
   final int count;
+  final int cityCount;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -211,12 +226,16 @@ class _AssistantCapabilityStrip extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.verified_rounded, color: AppColors.primary),
+          Icon(
+            isLoading ? Icons.sync_rounded : Icons.verified_rounded,
+            color: AppColors.primary,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Uses $count UniSafeX places for itinerary, safety, fees, timing '
-              'and travel advice. No paid AI API connected yet.',
+              isLoading
+                  ? 'Loading the full UniSafeX destination catalog for smarter answers...'
+                  : 'Uses $count UniSafeX places across $cityCount cities for itinerary, safety, fees, timing, hidden gems and travel advice. No paid AI API connected yet.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),

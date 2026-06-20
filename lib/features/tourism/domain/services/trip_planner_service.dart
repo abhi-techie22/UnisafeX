@@ -21,15 +21,14 @@ class TripPlannerService {
     final cityPlaces = uniquePlaces.values.toList()
       ..sort((a, b) => _score(b, style).compareTo(_score(a, style)));
 
-    final selected = cityPlaces.take(days * 3).toList();
+    final selected = _balancedSelection(cityPlaces, days * 3);
     final itinerary = <TripPlanDay>[];
 
     for (var day = 0; day < days; day++) {
       final stops = <TripPlanStop>[];
-      for (var index = day * 3;
-          index < selected.length && index < (day + 1) * 3;
-          index++) {
-        final place = selected[index];
+      final remaining = selected.skip(day * 3).take(3).toList();
+      final dayPlaces = _routeOrder(remaining);
+      for (final place in dayPlaces) {
         final previous = stops.isEmpty ? null : stops.last.place;
         stops.add(
           TripPlanStop(
@@ -51,6 +50,50 @@ class TripPlannerService {
     );
   }
 
+  List<TourismPlace> _balancedSelection(
+    List<TourismPlace> places,
+    int count,
+  ) {
+    final selected = <TourismPlace>[];
+    final usedCategories = <String, int>{};
+
+    for (final place in places) {
+      if (selected.length >= count) break;
+      final categoryUses = usedCategories[place.category] ?? 0;
+      final hasRoomForCategory =
+          categoryUses < 2 || selected.length > count / 2;
+      if (!hasRoomForCategory) continue;
+      selected.add(place);
+      usedCategories[place.category] = categoryUses + 1;
+    }
+
+    if (selected.length < count) {
+      for (final place in places) {
+        if (selected.length >= count) break;
+        if (selected.any((item) => item.id == place.id)) continue;
+        selected.add(place);
+      }
+    }
+
+    return selected;
+  }
+
+  List<TourismPlace> _routeOrder(List<TourismPlace> places) {
+    if (places.length <= 2) return places;
+    final remaining = [...places];
+    remaining.sort((a, b) => b.rating.compareTo(a.rating));
+    final ordered = <TourismPlace>[remaining.removeAt(0)];
+    while (remaining.isNotEmpty) {
+      remaining.sort(
+        (a, b) => _distance(ordered.last, a).compareTo(
+          _distance(ordered.last, b),
+        ),
+      );
+      ordered.add(remaining.removeAt(0));
+    }
+    return ordered;
+  }
+
   double _score(TourismPlace place, TravelStyle style) {
     final fee = place.entryFeeForeigner;
     final styleBoost = switch (style) {
@@ -64,12 +107,14 @@ class TripPlannerService {
       place.safetyGuidelines.isNotEmpty,
       place.touristTips.isNotEmpty,
       place.visitDurationMinutes != null,
+      place.latitude != 0 && place.longitude != 0,
     ].where((value) => value).length;
     return place.rating * 2 +
         styleBoost +
         detailBoost * 0.35 +
         (place.isPopular ? 1 : 0) +
-        (place.featured ? 0.8 : 0);
+        (place.featured ? 0.8 : 0) +
+        (place.likesCount / 100000).clamp(0, 1);
   }
 
   String _reason(TourismPlace place, TravelStyle style) {

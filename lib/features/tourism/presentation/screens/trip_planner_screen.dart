@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
-import 'package:unisafex/features/tourism/domain/entities/tourism_filters.dart';
 import 'package:unisafex/features/tourism/domain/entities/trip_plan.dart';
 import 'package:unisafex/features/tourism/domain/services/trip_planner_service.dart';
 import 'package:unisafex/features/tourism/presentation/providers/tourism_provider.dart';
@@ -24,7 +23,7 @@ class _TripPlannerScreenState extends ConsumerState<TripPlannerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final places = ref.watch(explorerPlacesProvider(const TourismFilters()));
+    final places = ref.watch(plannerPlacesProvider);
     return Scaffold(
       appBar: AppBar(title: Text('smart_trip_planner'.tr())),
       body: places.when(
@@ -40,10 +39,16 @@ class _TripPlannerScreenState extends ConsumerState<TripPlannerScreen> {
               (a, b) => cityCounts[b]!.length.compareTo(cityCounts[a]!.length),
             );
           if (_city == null && cities.isNotEmpty) _city = cities.first;
+          final selectedCityCount =
+              _city == null ? 0 : cityCounts[_city!]?.length ?? 0;
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
             children: [
-              _HeroCard(days: _days),
+              _HeroCard(
+                days: _days,
+                totalPlaces: items.length,
+                cityCount: cities.length,
+              ),
               const SizedBox(height: 24),
               DropdownButtonFormField<String>(
                 initialValue: _city,
@@ -52,10 +57,19 @@ class _TripPlannerScreenState extends ConsumerState<TripPlannerScreen> {
                   prefixIcon: Icon(Icons.location_city_outlined),
                 ),
                 items: cities
-                    .map((city) =>
-                        DropdownMenuItem(value: city, child: Text(city)))
+                    .map((city) => DropdownMenuItem(
+                          value: city,
+                          child: Text('$city (${cityCounts[city]!.length})'),
+                        ))
                     .toList(),
                 onChanged: (value) => setState(() => _city = value),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                selectedCityCount == 0
+                    ? 'Choose a city to build a route.'
+                    : '$selectedCityCount places available for $_city. The planner ranks them by rating, popularity, safety data, fees, timings and route distance.',
+                style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: 18),
               Text('number_of_days'.tr(),
@@ -106,6 +120,8 @@ class _TripPlannerScreenState extends ConsumerState<TripPlannerScreen> {
               ),
               if (_plan != null) ...[
                 const SizedBox(height: 28),
+                _PlanSummaryCard(plan: _plan!),
+                const SizedBox(height: 18),
                 ..._plan!.itinerary.map(
                   (day) => _DayCard(
                     day: day,
@@ -135,8 +151,14 @@ class _TripPlannerScreenState extends ConsumerState<TripPlannerScreen> {
 
 class _HeroCard extends StatelessWidget {
   final int days;
+  final int totalPlaces;
+  final int cityCount;
 
-  const _HeroCard({required this.days});
+  const _HeroCard({
+    required this.days,
+    required this.totalPlaces,
+    required this.cityCount,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -163,10 +185,86 @@ class _HeroCard extends StatelessWidget {
           const SizedBox(height: 8),
           const Text(
             'Balanced days, practical durations, and memorable places selected '
-            'from verified UniSafeX destination data.',
+            'from the full UniSafeX destination catalog.',
             style: TextStyle(color: Colors.white70, height: 1.5),
           ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _HeroPill(label: '$totalPlaces places loaded'),
+              _HeroPill(label: '$cityCount cities'),
+              _HeroPill(label: 'Smart route order'),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _HeroPill extends StatelessWidget {
+  const _HeroPill({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _PlanSummaryCard extends StatelessWidget {
+  const _PlanSummaryCard({required this.plan});
+
+  final TripPlan plan;
+
+  @override
+  Widget build(BuildContext context) {
+    final stops = plan.itinerary.fold<int>(
+      0,
+      (total, day) => total + day.stops.length,
+    );
+    final freeStops = plan.itinerary
+        .expand((day) => day.stops)
+        .where((stop) => stop.place.isFree)
+        .length;
+    final safetyReady = plan.itinerary
+        .expand((day) => day.stops)
+        .where((stop) => stop.place.safetyGuidelines.isNotEmpty)
+        .length;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            _MiniInfoChip(icon: Icons.route_rounded, label: '$stops stops'),
+            _MiniInfoChip(
+                icon: Icons.savings_outlined, label: '$freeStops free'),
+            _MiniInfoChip(
+              icon: Icons.shield_outlined,
+              label: '$safetyReady safety ready',
+            ),
+            _MiniInfoChip(icon: Icons.tune_rounded, label: plan.style.label),
+          ],
+        ),
       ),
     );
   }
