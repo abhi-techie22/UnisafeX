@@ -134,7 +134,7 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
             ),
           ),
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 168),
             sliver: SliverList.list(
               children: [
                 Row(
@@ -291,11 +291,10 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                   ),
                 _Section(
                   title: 'Continue Planning',
-                  child: _PlanningCard(
-                    icon: Icons.emergency_outlined,
-                    title: 'emergency_help'.tr(),
-                    subtitle: 'Essential India helplines',
-                    onTap: _showEmergencyHelp,
+                  child: _PlanningActions(
+                    onEmergency: _showEmergencyHelp,
+                    onTripPlanner: () => context.push(AppRoutes.tripPlanner),
+                    onAssistant: () => context.push(AppRoutes.aiAssistant),
                   ),
                 ),
                 _Section(
@@ -631,6 +630,63 @@ class _SafetyScoreCard extends StatelessWidget {
   }
 }
 
+class _PlanningActions extends StatelessWidget {
+  const _PlanningActions({
+    required this.onEmergency,
+    required this.onTripPlanner,
+    required this.onAssistant,
+  });
+
+  final VoidCallback onEmergency;
+  final VoidCallback onTripPlanner;
+  final VoidCallback onAssistant;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final twoColumns = constraints.maxWidth >= 560;
+        final cardWidth =
+            twoColumns ? (constraints.maxWidth - 12) / 2 : constraints.maxWidth;
+
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            SizedBox(
+              width: cardWidth,
+              child: _PlanningCard(
+                icon: Icons.emergency_outlined,
+                title: 'emergency_help'.tr(),
+                subtitle: 'Essential India helplines',
+                onTap: onEmergency,
+              ),
+            ),
+            SizedBox(
+              width: cardWidth,
+              child: _PlanningCard(
+                icon: Icons.route_outlined,
+                title: 'Smart Trip Planner',
+                subtitle: 'Add this place to a day-wise India itinerary',
+                onTap: onTripPlanner,
+              ),
+            ),
+            SizedBox(
+              width: cardWidth,
+              child: _PlanningCard(
+                icon: Icons.auto_awesome_outlined,
+                title: 'Ask Travel AI',
+                subtitle: 'Get timing, safety and route suggestions',
+                onTap: onAssistant,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
 class _PlanningCard extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -654,15 +710,29 @@ class _PlanningCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.primary.withValues(alpha: 0.07),
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.10)),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            Icon(icon, color: AppColors.primary),
-            const SizedBox(height: 12),
-            Text(title, style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 4),
-            Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+            CircleAvatar(
+              backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+              foregroundColor: AppColors.primary,
+              child: Icon(icon, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(title, style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 4),
+                  Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.chevron_right_rounded, color: AppColors.primary),
           ],
         ),
       ),

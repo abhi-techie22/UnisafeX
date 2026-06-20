@@ -832,7 +832,40 @@ class _HomeBannersAdminTab extends ConsumerWidget {
                               '${banner.bannerType} · priority ${banner.priority} · '
                               '${banner.isActive ? 'active' : 'hidden'}',
                             ),
-                            trailing: const Icon(Icons.edit_outlined),
+                            trailing: PopupMenuButton<String>(
+                              onSelected: (value) {
+                                if (value == 'edit') {
+                                  _editBanner(context, ref, banner);
+                                } else if (value == 'delete') {
+                                  _confirmDeleteBanner(context, ref, banner);
+                                }
+                              },
+                              itemBuilder: (context) => const [
+                                PopupMenuItem(
+                                  value: 'edit',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.edit_outlined),
+                                      SizedBox(width: 10),
+                                      Text('Edit'),
+                                    ],
+                                  ),
+                                ),
+                                PopupMenuItem(
+                                  value: 'delete',
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.delete_outline,
+                                        color: AppColors.error,
+                                      ),
+                                      SizedBox(width: 10),
+                                      Text('Delete'),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                             onTap: () => _editBanner(context, ref, banner),
                           ),
                         ),
@@ -841,6 +874,44 @@ class _HomeBannersAdminTab extends ConsumerWidget {
                 ),
         ),
       ],
+    );
+  }
+
+  Future<void> _confirmDeleteBanner(
+    BuildContext context,
+    WidgetRef ref,
+    HomeBanner banner,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete home banner?'),
+        content: Text(
+          'This will permanently remove "${banner.title}" from home banners.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await ref
+        .read(adminRemoteConfigRepositoryProvider)
+        .deleteHomeBanner(banner.id);
+    ref.invalidate(adminHomeBannersProvider);
+    ref.invalidate(activeHomeBannersProvider);
+    ref.invalidate(adminDashboardStatsProvider);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Home banner deleted.')),
     );
   }
 
@@ -954,6 +1025,7 @@ class _HomeBannersAdminTab extends ConsumerWidget {
     if (saved == true) {
       ref.invalidate(adminHomeBannersProvider);
       ref.invalidate(activeHomeBannersProvider);
+      ref.invalidate(adminDashboardStatsProvider);
     }
   }
 

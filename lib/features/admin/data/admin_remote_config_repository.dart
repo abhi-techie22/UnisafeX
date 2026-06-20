@@ -200,6 +200,11 @@ class AdminRemoteConfigRepository {
     }
   }
 
+  Future<void> deleteHomeBanner(String id) async {
+    if (id.trim().isEmpty) return;
+    await _client.from('home_banners').delete().eq('id', id);
+  }
+
   Future<List<TravelAlert>> getTravelAlerts({bool admin = false}) async {
     dynamic query = _client.from('travel_alerts').select();
     if (!admin) query = query.eq('is_active', true);
