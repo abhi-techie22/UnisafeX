@@ -1101,7 +1101,38 @@ class _TravelAlertsAdminTabState extends ConsumerState<_TravelAlertsAdminTab> {
                           overflow: TextOverflow.ellipsis,
                         ),
                         isThreeLine: true,
-                        trailing: const Icon(Icons.edit_outlined),
+                        trailing: PopupMenuButton<String>(
+                          onSelected: (value) {
+                            if (value == 'edit') {
+                              _editAlert(context, ref, alert);
+                            } else if (value == 'delete') {
+                              _confirmDeleteAlert(context, ref, alert);
+                            }
+                          },
+                          itemBuilder: (context) => const [
+                            PopupMenuItem(
+                              value: 'edit',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.edit_outlined),
+                                  SizedBox(width: 10),
+                                  Text('Edit'),
+                                ],
+                              ),
+                            ),
+                            PopupMenuItem(
+                              value: 'delete',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.delete_outline,
+                                      color: AppColors.error),
+                                  SizedBox(width: 10),
+                                  Text('Delete'),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                         onTap: () => _editAlert(context, ref, alert),
                       ),
                     ),
@@ -1136,6 +1167,45 @@ class _TravelAlertsAdminTabState extends ConsumerState<_TravelAlertsAdminTab> {
       ].whereType<String>().join(' ').toLowerCase();
       return text.contains(query);
     }).toList();
+  }
+
+  Future<void> _confirmDeleteAlert(
+    BuildContext context,
+    WidgetRef ref,
+    TravelAlert alert,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete travel alert?'),
+        content: Text(
+          'This will permanently remove "${alert.title}" from admin and Home.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.delete_outline),
+            label: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await ref.read(adminRemoteConfigRepositoryProvider).deleteTravelAlert(
+          alert.id,
+        );
+    ref.invalidate(adminTravelAlertsProvider);
+    ref.invalidate(activeTravelAlertsProvider);
+    ref.invalidate(adminDashboardStatsProvider);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Travel alert deleted.')),
+    );
   }
 
   Future<void> _editAlert(

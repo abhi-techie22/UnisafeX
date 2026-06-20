@@ -29,6 +29,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   Set<String> _dismissedGuideRequestKeys = const {};
+  Set<String> _dismissedAlertIds = const {};
   ProviderSubscription<List<GuideRequest>>? _guideRequestSubscription;
   bool _tourCheckScheduled = false;
 
@@ -36,6 +37,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void initState() {
     super.initState();
     _loadDismissedGuideRequests();
+    _loadDismissedAlerts();
     _guideRequestSubscription = ref.listenManual<List<GuideRequest>>(
       guideRequestsProvider,
       (previous, next) => _showHomeGuideStatusPopup(previous, next),
@@ -234,7 +236,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
 
           SliverToBoxAdapter(
-            child: _HomeTravelAlertsSection(alerts: travelAlerts),
+            child: _HomeTravelAlertsSection(
+              alerts: travelAlerts,
+              dismissedIds: _dismissedAlertIds,
+              onDismiss: _dismissAlert,
+            ),
           ),
 
           SliverToBoxAdapter(
@@ -682,6 +688,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     setState(() => _dismissedGuideRequestKeys = keys.toSet());
   }
 
+  Future<void> _loadDismissedAlerts() async {
+    final preferences = await SharedPreferences.getInstance();
+    final ids = preferences.getStringList(_dismissedTravelAlertsKey) ?? [];
+    if (!mounted) return;
+    setState(() => _dismissedAlertIds = ids.toSet());
+  }
+
   GuideRequest? _visibleGuideRequest(List<GuideRequest> requests) {
     for (final request in requests) {
       if (!_dismissedGuideRequestKeys.contains(_guideDismissKey(request))) {
@@ -696,6 +709,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     setState(() => _dismissedGuideRequestKeys = next);
     final preferences = await SharedPreferences.getInstance();
     await preferences.setStringList(_dismissedGuideRequestsKey, next.toList());
+  }
+
+  Future<void> _dismissAlert(TravelAlert alert) async {
+    final next = {..._dismissedAlertIds, alert.id};
+    setState(() => _dismissedAlertIds = next);
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setStringList(_dismissedTravelAlertsKey, next.toList());
   }
 
   void _showHomeGuideStatusPopup(
@@ -886,6 +906,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 }
 
 const _dismissedGuideRequestsKey = 'dismissed_home_guide_requests_v1';
+const _dismissedTravelAlertsKey = 'dismissed_home_travel_alerts_v1';
 const _featureTourSeenPrefix = 'home_feature_tour_seen_v2';
 
 String _featureTourSeenKey(String userId) => '$_featureTourSeenPrefix:$userId';
@@ -1009,9 +1030,15 @@ class _ProfileCompletionPrompt extends StatelessWidget {
 }
 
 class _HomeTravelAlertsSection extends StatelessWidget {
-  const _HomeTravelAlertsSection({required this.alerts});
+  const _HomeTravelAlertsSection({
+    required this.alerts,
+    required this.dismissedIds,
+    required this.onDismiss,
+  });
 
   final AsyncValue<List<TravelAlert>> alerts;
+  final Set<String> dismissedIds;
+  final ValueChanged<TravelAlert> onDismiss;
 
   @override
   Widget build(BuildContext context) {
@@ -1019,65 +1046,97 @@ class _HomeTravelAlertsSection extends StatelessWidget {
       loading: () => const SizedBox.shrink(),
       error: (_, __) => const SizedBox.shrink(),
       data: (items) {
-        if (items.isEmpty) return const SizedBox.shrink();
+        final visible = items
+            .where((alert) => !dismissedIds.contains(alert.id))
+            .toList()
+          ..sort((a, b) => _alertPriority(b).compareTo(_alertPriority(a)));
+        if (visible.isEmpty) return const SizedBox.shrink();
+        final alert = visible.first;
         return Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
-          child: Column(
-            children: items
-                .take(2)
-                .map((alert) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: _HomeTravelAlertCard(alert: alert),
-                    ))
-                .toList(),
+          padding: const EdgeInsets.fromLTRB(20, 2, 20, 8),
+          child: _HomeTravelAlertLine(
+            alert: alert,
+            hiddenCount: visible.length - 1,
+            onDismiss: () => onDismiss(alert),
           ),
         );
       },
     );
   }
+
+  int _alertPriority(TravelAlert alert) {
+    return switch (alert.severity) {
+      'emergency' => 3,
+      'warning' => 2,
+      _ => 1,
+    };
+  }
 }
 
-class _HomeTravelAlertCard extends StatelessWidget {
-  const _HomeTravelAlertCard({required this.alert});
+class _HomeTravelAlertLine extends StatelessWidget {
+  const _HomeTravelAlertLine({
+    required this.alert,
+    required this.hiddenCount,
+    required this.onDismiss,
+  });
 
   final TravelAlert alert;
+  final int hiddenCount;
+  final VoidCallback onDismiss;
 
   @override
   Widget build(BuildContext context) {
     final color = _homeAlertColor(alert.severity);
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        children: [
-          Icon(_homeAlertIcon(alert.severity), color: color, size: 22),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  alert.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleSmall,
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 42),
+        padding: const EdgeInsets.fromLTRB(10, 7, 6, 7),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
+        ),
+        child: Row(
+          children: [
+            Icon(_homeAlertIcon(alert.severity), color: color, size: 19),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: '${alert.title}: ',
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    TextSpan(text: alert.message),
+                    if (hiddenCount > 0)
+                      TextSpan(
+                        text: '  +$hiddenCount more',
+                        style: TextStyle(
+                          color: color,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                  ],
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  alert.message,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      height: 1.25,
+                    ),
+              ),
             ),
-          ),
-        ],
+            IconButton(
+              tooltip: 'Close alert',
+              visualDensity: VisualDensity.compact,
+              constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+              padding: EdgeInsets.zero,
+              onPressed: onDismiss,
+              icon: const Icon(Icons.close_rounded, size: 17),
+            ),
+          ],
+        ),
       ),
     );
   }

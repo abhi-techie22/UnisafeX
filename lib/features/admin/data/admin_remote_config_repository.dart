@@ -233,6 +233,11 @@ class AdminRemoteConfigRepository {
     }
   }
 
+  Future<void> deleteTravelAlert(String id) async {
+    if (id.trim().isEmpty) return;
+    await _client.from('travel_alerts').delete().eq('id', id);
+  }
+
   Future<List<UserProfile>> getProfiles() async {
     final rows = await _client
         .from('profiles')
