@@ -120,241 +120,260 @@ class _AuthSelectionScreenState extends ConsumerState<AuthSelectionScreen> {
           ),
 
           SafeArea(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(28, 40, 28, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: AppColors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: const Icon(
-                              Icons.shield_rounded,
-                              color: AppColors.white,
-                              size: 24,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          const Text(
-                            'UniSafeX',
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.white,
-                              letterSpacing: -0.3,
-                            ),
-                          ),
-                        ],
-                      ).animate().fadeIn(duration: 400.ms),
-                      const SizedBox(height: 48),
-                      Text(
-                        'welcome_india'.tr(),
-                        style: const TextStyle(
-                          fontSize: 40,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.white,
-                          height: 1.1,
-                          letterSpacing: -0.5,
-                        ),
-                      )
-                          .animate()
-                          .slideY(
-                            begin: 0.2,
-                            duration: 500.ms,
-                            delay: 100.ms,
-                            curve: Curves.easeOutCubic,
-                          )
-                          .fadeIn(duration: 400.ms, delay: 100.ms),
-                      const SizedBox(height: 14),
-                      Text(
-                        'trusted_companion'.tr(),
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w400,
-                          color: AppColors.white.withOpacity(0.85),
-                          height: 1.5,
-                        ),
-                      )
-                          .animate()
-                          .slideY(
-                            begin: 0.2,
-                            duration: 500.ms,
-                            delay: 200.ms,
-                            curve: Curves.easeOutCubic,
-                          )
-                          .fadeIn(duration: 400.ms, delay: 200.ms),
-                    ],
-                  ),
-                ),
-
-                const Spacer(),
-
-                // Bottom sheet card
-                Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.cardDark : AppColors.cardLight,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(32),
-                      topRight: Radius.circular(32),
-                    ),
-                  ),
-                  padding: const EdgeInsets.fromLTRB(28, 40, 28, 40),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'get_started'.tr(),
-                        style: Theme.of(context).textTheme.headlineMedium,
-                      ),
-
-                      const SizedBox(height: 8),
-
-                      Text(
-                        'unlock_experience'.tr(),
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: isDark
-                                  ? AppColors.grey400
-                                  : AppColors.grey600,
-                            ),
-                      ),
-
-                      const SizedBox(height: 32),
-
-                      // Email Login
-                      AppButton(
-                        label: 'continue_email'.tr(),
-                        onPressed: () => context.push(AppRoutes.login),
-                        icon: Icons.email_outlined,
-                        isFullWidth: true,
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      AppOutlinedButton(
-                        label: _isGoogleLoading
-                            ? 'opening_google'.tr()
-                            : 'continue_google'.tr(),
-                        onPressed: _isGoogleLoading ? null : _signInWithGoogle,
-                        icon: FontAwesomeIcons.google,
-                        isFullWidth: true,
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      // Register
-                      AppOutlinedButton(
-                        label: 'create_account'.tr(),
-                        onPressed: () => context.push(AppRoutes.register),
-                        icon: Icons.person_add_alt_1_outlined,
-                        isFullWidth: true,
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // Divider
-                      Row(
-                        children: [
-                          Expanded(
-                              child: Divider(
-                                  color: isDark
-                                      ? AppColors.borderDark
-                                      : AppColors.borderLight)),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Text(
-                              'or'.tr(),
-                              style: TextStyle(
-                                color: isDark
-                                    ? AppColors.grey600
-                                    : AppColors.grey400,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                              child: Divider(
-                                  color: isDark
-                                      ? AppColors.borderDark
-                                      : AppColors.borderLight)),
-                        ],
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // Guest button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: TextButton(
-                          onPressed: () => context.go(AppRoutes.home),
-                          style: TextButton.styleFrom(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
+            child: LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: IntrinsicHeight(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Header
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(28, 40, 28, 0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Icon(
-                                Icons.explore_outlined,
-                                size: 20,
-                                color: isDark
-                                    ? AppColors.grey400
-                                    : AppColors.grey600,
-                              ),
-                              const SizedBox(width: 8),
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.white.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                    child: const Icon(
+                                      Icons.shield_rounded,
+                                      color: AppColors.white,
+                                      size: 24,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  const Text(
+                                    'UniSafeX',
+                                    style: TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.white,
+                                      letterSpacing: -0.3,
+                                    ),
+                                  ),
+                                ],
+                              ).animate().fadeIn(duration: 400.ms),
+                              const SizedBox(height: 48),
                               Text(
-                                'explore_as_guest'.tr(),
+                                'welcome_india'.tr(),
+                                style: const TextStyle(
+                                  fontSize: 40,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.white,
+                                  height: 1.1,
+                                  letterSpacing: -0.5,
+                                ),
+                              )
+                                  .animate()
+                                  .slideY(
+                                    begin: 0.2,
+                                    duration: 500.ms,
+                                    delay: 100.ms,
+                                    curve: Curves.easeOutCubic,
+                                  )
+                                  .fadeIn(duration: 400.ms, delay: 100.ms),
+                              const SizedBox(height: 14),
+                              Text(
+                                'trusted_companion'.tr(),
                                 style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w500,
-                                  color: isDark
-                                      ? AppColors.grey400
-                                      : AppColors.grey600,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w400,
+                                  color: AppColors.white.withOpacity(0.85),
+                                  height: 1.5,
+                                ),
+                              )
+                                  .animate()
+                                  .slideY(
+                                    begin: 0.2,
+                                    duration: 500.ms,
+                                    delay: 200.ms,
+                                    curve: Curves.easeOutCubic,
+                                  )
+                                  .fadeIn(duration: 400.ms, delay: 200.ms),
+                            ],
+                          ),
+                        ),
+
+                        const Spacer(),
+
+                        // Bottom sheet card
+                        Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? AppColors.cardDark
+                                : AppColors.cardLight,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(32),
+                              topRight: Radius.circular(32),
+                            ),
+                          ),
+                          padding: const EdgeInsets.fromLTRB(28, 40, 28, 40),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'get_started'.tr(),
+                                style:
+                                    Theme.of(context).textTheme.headlineMedium,
+                              ),
+
+                              const SizedBox(height: 8),
+
+                              Text(
+                                'unlock_experience'.tr(),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(
+                                      color: isDark
+                                          ? AppColors.grey400
+                                          : AppColors.grey600,
+                                    ),
+                              ),
+
+                              const SizedBox(height: 32),
+
+                              // Email Login
+                              AppButton(
+                                label: 'continue_email'.tr(),
+                                onPressed: () => context.push(AppRoutes.login),
+                                icon: Icons.email_outlined,
+                                isFullWidth: true,
+                              ),
+
+                              const SizedBox(height: 12),
+
+                              AppOutlinedButton(
+                                label: _isGoogleLoading
+                                    ? 'opening_google'.tr()
+                                    : 'continue_google'.tr(),
+                                onPressed:
+                                    _isGoogleLoading ? null : _signInWithGoogle,
+                                icon: FontAwesomeIcons.google,
+                                isFullWidth: true,
+                              ),
+
+                              const SizedBox(height: 12),
+
+                              // Register
+                              AppOutlinedButton(
+                                label: 'create_account'.tr(),
+                                onPressed: () =>
+                                    context.push(AppRoutes.register),
+                                icon: Icons.person_add_alt_1_outlined,
+                                isFullWidth: true,
+                              ),
+
+                              const SizedBox(height: 20),
+
+                              // Divider
+                              Row(
+                                children: [
+                                  Expanded(
+                                      child: Divider(
+                                          color: isDark
+                                              ? AppColors.borderDark
+                                              : AppColors.borderLight)),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16),
+                                    child: Text(
+                                      'or'.tr(),
+                                      style: TextStyle(
+                                        color: isDark
+                                            ? AppColors.grey600
+                                            : AppColors.grey400,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                      child: Divider(
+                                          color: isDark
+                                              ? AppColors.borderDark
+                                              : AppColors.borderLight)),
+                                ],
+                              ),
+
+                              const SizedBox(height: 20),
+
+                              // Guest button
+                              SizedBox(
+                                width: double.infinity,
+                                height: 52,
+                                child: TextButton(
+                                  onPressed: () => context.go(AppRoutes.home),
+                                  style: TextButton.styleFrom(
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.explore_outlined,
+                                        size: 20,
+                                        color: isDark
+                                            ? AppColors.grey400
+                                            : AppColors.grey600,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'explore_as_guest'.tr(),
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w500,
+                                          color: isDark
+                                              ? AppColors.grey400
+                                              : AppColors.grey600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+
+                              const SizedBox(height: 16),
+
+                              // Terms
+                              Center(
+                                child: Text(
+                                  'terms_agreement'.tr(),
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isDark
+                                        ? AppColors.grey600
+                                        : AppColors.grey400,
+                                    height: 1.5,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // Terms
-                      Center(
-                        child: Text(
-                          'terms_agreement'.tr(),
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color:
-                                isDark ? AppColors.grey600 : AppColors.grey400,
-                            height: 1.5,
-                          ),
-                        ),
-                      ),
-                    ],
+                        )
+                            .animate()
+                            .slideY(
+                              begin: 0.3,
+                              duration: 500.ms,
+                              delay: 300.ms,
+                              curve: Curves.easeOutCubic,
+                            )
+                            .fadeIn(duration: 400.ms, delay: 300.ms),
+                      ],
+                    ),
                   ),
-                )
-                    .animate()
-                    .slideY(
-                      begin: 0.3,
-                      duration: 500.ms,
-                      delay: 300.ms,
-                      curve: Curves.easeOutCubic,
-                    )
-                    .fadeIn(duration: 400.ms, delay: 300.ms),
-              ],
+                ),
+              ),
             ),
           ),
         ],
