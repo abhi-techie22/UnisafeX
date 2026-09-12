@@ -86,6 +86,50 @@ class PlaceReview {
   }
 }
 
+class PlaceReviewReply {
+  const PlaceReviewReply({
+    required this.id,
+    required this.reviewId,
+    required this.placeId,
+    required this.userId,
+    this.replierName,
+    this.replierAvatarUrl,
+    required this.body,
+    this.status = 'approved',
+    required this.createdAt,
+  });
+
+  final String id;
+  final String reviewId;
+  final String placeId;
+  final String userId;
+  final String? replierName;
+  final String? replierAvatarUrl;
+  final String body;
+  final String status;
+  final DateTime createdAt;
+
+  factory PlaceReviewReply.fromJson(Map<String, dynamic> json) {
+    return PlaceReviewReply(
+      id: json['id']?.toString() ?? '',
+      reviewId: json['review_id']?.toString() ?? '',
+      placeId: json['place_id']?.toString() ?? '',
+      userId: json['user_id']?.toString() ?? '',
+      replierName: json['replier_name']?.toString(),
+      replierAvatarUrl: json['replier_avatar_url']?.toString(),
+      body: json['body']?.toString() ?? '',
+      status: json['status']?.toString() ?? 'approved',
+      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ??
+          DateTime.fromMillisecondsSinceEpoch(0),
+    );
+  }
+
+  String get displayReplierName {
+    final value = replierName?.trim();
+    return value == null || value.isEmpty ? 'UniSafeX traveler' : value;
+  }
+}
+
 class ReviewModerationConfig {
   const ReviewModerationConfig({
     this.reviewsRequireApproval = true,
@@ -579,6 +623,26 @@ class TourismRepository {
     return row == null ? null : PlaceReview.fromJson(row);
   }
 
+  Future<Map<String, List<PlaceReviewReply>>> getApprovedReviewReplies(
+    String placeId,
+  ) async {
+    final rows = await _client
+        .from('tourism_place_review_replies')
+        .select()
+        .eq('place_id', placeId)
+        .eq('status', 'approved')
+        .order('created_at', ascending: true)
+        .limit(300);
+    final repliesByReview = <String, List<PlaceReviewReply>>{};
+    for (final row in rows as List) {
+      final reply = PlaceReviewReply.fromJson(
+        Map<String, dynamic>.from(row as Map),
+      );
+      repliesByReview.putIfAbsent(reply.reviewId, () => []).add(reply);
+    }
+    return repliesByReview;
+  }
+
   Future<void> saveReview({
     required String placeId,
     required int rating,
@@ -610,6 +674,31 @@ class TourismRepository {
       },
       onConflict: 'user_id,place_id',
     );
+  }
+
+  Future<void> saveReviewReply({
+    required String reviewId,
+    required String placeId,
+    required String body,
+  }) async {
+    final user = _client.auth.currentUser;
+    if (user == null || user.isAnonymous) {
+      throw StateError('Login required to reply to reviews');
+    }
+    final replyBody = _emptyToNull(body);
+    if (replyBody == null) {
+      throw StateError('Reply cannot be empty');
+    }
+    final replier = await _reviewerSnapshot(user.id);
+    await _client.from('tourism_place_review_replies').insert({
+      'review_id': reviewId,
+      'place_id': placeId,
+      'user_id': user.id,
+      'replier_name': replier.name,
+      'replier_avatar_url': replier.avatarUrl,
+      'body': replyBody,
+      'status': 'approved',
+    });
   }
 
   Future<String> uploadReviewImageBytes({
@@ -1277,6 +1366,12 @@ final placeLikeStateProvider =
 final placeReviewsProvider =
     FutureProvider.family<List<PlaceReview>, String>((ref, placeId) {
   return ref.read(tourismRepositoryProvider).getApprovedReviews(placeId);
+});
+
+final placeReviewRepliesProvider =
+    FutureProvider.family<Map<String, List<PlaceReviewReply>>, String>(
+        (ref, placeId) {
+  return ref.read(tourismRepositoryProvider).getApprovedReviewReplies(placeId);
 });
 
 final myPlaceReviewProvider =

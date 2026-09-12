@@ -654,7 +654,7 @@ class _FullPlacesMapPageState extends ConsumerState<_FullPlacesMapPage> {
                       widget.initialLocation.latitude,
                       widget.initialLocation.longitude,
                     ),
-                    anchor: const Offset(0.5, 1),
+                    anchor: const Offset(0.5, 0.5),
                     icon: _travelerIcon ??
                         BitmapDescriptor.defaultMarkerWithHue(
                           BitmapDescriptor.hueAzure,

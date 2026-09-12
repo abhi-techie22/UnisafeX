@@ -94,6 +94,7 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
         remoteFavorite?.isCompleted == true;
     final imageUrls = _imageUrls(place);
     final reviewsAsync = ref.watch(placeReviewsProvider(place.id));
+    final reviewRepliesAsync = ref.watch(placeReviewRepliesProvider(place.id));
     final myReview = ref.watch(myPlaceReviewProvider(place.id)).valueOrNull;
     final likeState = ref.watch(placeLikeStateProvider(place.id)).valueOrNull;
     final liked = _likedOverride ?? likeState?.liked ?? false;
@@ -320,7 +321,9 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                   title: 'Traveler Reviews',
                   child: _ReviewsList(
                     reviewsAsync: reviewsAsync,
+                    repliesAsync: reviewRepliesAsync,
                     myReview: myReview,
+                    onReply: _showReviewReplySheet,
                   ),
                 ),
                 _Section(
@@ -831,6 +834,87 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
     bodyController.dispose();
   }
 
+  Future<void> _showReviewReplySheet(PlaceReview review) async {
+    final user = ref.read(currentUserProvider);
+    if (user == null || user.isAnonymous) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please login to reply to reviews')),
+      );
+      return;
+    }
+    if (!review.isApproved) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Replies are available after approval')),
+      );
+      return;
+    }
+
+    final controller = TextEditingController();
+    final reply = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          8,
+          20,
+          MediaQuery.viewInsetsOf(context).bottom + 24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Reply to ${review.displayReviewerName}',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              minLines: 3,
+              maxLines: 5,
+              maxLength: 800,
+              decoration: const InputDecoration(
+                labelText: 'Your reply',
+                alignLabelWithHint: true,
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => Navigator.pop(context, controller.text),
+                icon: const Icon(Icons.reply_rounded),
+                label: const Text('Post reply'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
+    if (reply == null || reply.trim().isEmpty) return;
+
+    try {
+      await ref.read(tourismRepositoryProvider).saveReviewReply(
+            reviewId: review.id,
+            placeId: review.placeId,
+            body: reply,
+          );
+      ref.invalidate(placeReviewRepliesProvider(widget.place.id));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Reply posted')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not post reply. $error')),
+      );
+    }
+  }
+
   Future<void> _showBucketPlanSheet() async {
     final noteController = TextEditingController();
     DateTime? plannedDate;
@@ -1281,14 +1365,19 @@ class _ReviewActionCard extends StatelessWidget {
 class _ReviewsList extends StatelessWidget {
   const _ReviewsList({
     required this.reviewsAsync,
+    required this.repliesAsync,
     required this.myReview,
+    required this.onReply,
   });
 
   final AsyncValue<List<PlaceReview>> reviewsAsync;
+  final AsyncValue<Map<String, List<PlaceReviewReply>>> repliesAsync;
   final PlaceReview? myReview;
+  final ValueChanged<PlaceReview> onReply;
 
   @override
   Widget build(BuildContext context) {
+    final repliesByReview = repliesAsync.valueOrNull ?? const {};
     return reviewsAsync.when(
       loading: () => const Padding(
         padding: EdgeInsets.symmetric(vertical: 8),
@@ -1310,7 +1399,14 @@ class _ReviewsList extends StatelessWidget {
               .map(
                 (review) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: _ReviewTile(review: review),
+                  child: _ReviewTile(
+                    review: review,
+                    replies: repliesByReview[review.id] ??
+                        const <PlaceReviewReply>[],
+                    repliesLoading: repliesAsync.isLoading,
+                    repliesUnavailable: repliesAsync.hasError,
+                    onReply: () => onReply(review),
+                  ),
                 ),
               )
               .toList(),
@@ -1321,9 +1417,19 @@ class _ReviewsList extends StatelessWidget {
 }
 
 class _ReviewTile extends StatelessWidget {
-  const _ReviewTile({required this.review});
+  const _ReviewTile({
+    required this.review,
+    required this.replies,
+    required this.repliesLoading,
+    required this.repliesUnavailable,
+    required this.onReply,
+  });
 
   final PlaceReview review;
+  final List<PlaceReviewReply> replies;
+  final bool repliesLoading;
+  final bool repliesUnavailable;
+  final VoidCallback onReply;
 
   @override
   Widget build(BuildContext context) {
@@ -1416,6 +1522,30 @@ class _ReviewTile extends StatelessWidget {
             const SizedBox(height: 10),
             _OfficialReviewReply(reply: review.adminReply!.trim()),
           ],
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: review.isApproved ? onReply : null,
+              icon: const Icon(Icons.reply_rounded),
+              label: const Text('Reply'),
+            ),
+          ),
+          if (repliesLoading && replies.isEmpty) ...[
+            const SizedBox(height: 4),
+            const LinearProgressIndicator(minHeight: 2),
+          ],
+          if (repliesUnavailable && replies.isEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Replies are unavailable right now.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+          if (replies.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            _ReviewReplyThread(replies: replies),
+          ],
           if (review.imageUrls.isNotEmpty) ...[
             const SizedBox(height: 10),
             SizedBox(
@@ -1442,6 +1572,85 @@ class _ReviewTile extends StatelessWidget {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ReviewReplyThread extends StatelessWidget {
+  const _ReviewReplyThread({required this.replies});
+
+  final List<PlaceReviewReply> replies;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        for (final reply in replies)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: _UserReviewReply(reply: reply),
+          ),
+      ],
+    );
+  }
+}
+
+class _UserReviewReply extends StatelessWidget {
+  const _UserReviewReply({required this.reply});
+
+  final PlaceReviewReply reply;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(left: 18),
+      padding: const EdgeInsets.all(11),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Theme.of(context).dividerColor),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: 14,
+            backgroundColor: AppColors.primary.withValues(alpha: 0.10),
+            backgroundImage: reply.replierAvatarUrl?.trim().isNotEmpty == true
+                ? NetworkImage(reply.replierAvatarUrl!.trim())
+                : null,
+            child: reply.replierAvatarUrl?.trim().isNotEmpty == true
+                ? null
+                : Text(
+                    reply.displayReplierName.substring(0, 1).toUpperCase(),
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  reply.displayReplierName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: 3),
+                Text(reply.body.trim()),
+              ],
+            ),
+          ),
         ],
       ),
     );

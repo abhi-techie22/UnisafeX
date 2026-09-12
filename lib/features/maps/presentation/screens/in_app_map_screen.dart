@@ -322,6 +322,12 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
             lon2: widget.longitude,
           );
     final route = _routeState.asData?.value;
+    final originPoint =
+        location == null ? null : LatLng(location.latitude, location.longitude);
+    final routePoints = route?.points ?? const <LatLng>[];
+    final hasRoutePath =
+        mapAccess.routeOverlayEnabled && routePoints.length >= 2;
+    final hasFallbackConnection = originPoint != null && !hasRoutePath;
 
     ref.listen(locationProvider, (previous, next) {
       final nextLocation = next.asData?.value;
@@ -378,8 +384,8 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
               if (location != null)
                 Marker(
                   markerId: const MarkerId('origin'),
-                  position: LatLng(location.latitude, location.longitude),
-                  anchor: const Offset(0.5, 1),
+                  position: originPoint!,
+                  anchor: const Offset(0.5, 0.5),
                   icon: _originIcon ??
                       BitmapDescriptor.defaultMarkerWithHue(
                         BitmapDescriptor.hueAzure,
@@ -392,30 +398,51 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
                   ),
                 ),
             },
-            polylines: route == null || !mapAccess.routeOverlayEnabled
-                ? const <Polyline>{}
-                : {
-                    Polyline(
-                      polylineId: const PolylineId('active-route-outline'),
-                      points: route.points,
-                      color: Colors.white,
-                      width: 7,
-                      startCap: Cap.roundCap,
-                      endCap: Cap.roundCap,
-                      jointType: JointType.round,
-                      zIndex: 1,
-                    ),
-                    Polyline(
-                      polylineId: const PolylineId('active-route'),
-                      points: route.points,
-                      color: AppColors.primary,
-                      width: 4,
-                      startCap: Cap.roundCap,
-                      endCap: Cap.roundCap,
-                      jointType: JointType.round,
-                      zIndex: 2,
-                    ),
-                  },
+            polylines: {
+              if (hasRoutePath) ...{
+                Polyline(
+                  polylineId: const PolylineId('active-route-outline'),
+                  points: routePoints,
+                  color: Colors.white,
+                  width: 7,
+                  startCap: Cap.roundCap,
+                  endCap: Cap.roundCap,
+                  jointType: JointType.round,
+                  zIndex: 1,
+                ),
+                Polyline(
+                  polylineId: const PolylineId('active-route'),
+                  points: routePoints,
+                  color: AppColors.primary,
+                  width: 4,
+                  startCap: Cap.roundCap,
+                  endCap: Cap.roundCap,
+                  jointType: JointType.round,
+                  zIndex: 2,
+                ),
+              } else if (hasFallbackConnection) ...{
+                Polyline(
+                  polylineId: const PolylineId('fallback-connection-outline'),
+                  points: [originPoint, _destination],
+                  color: Colors.white,
+                  width: 7,
+                  startCap: Cap.roundCap,
+                  endCap: Cap.roundCap,
+                  jointType: JointType.round,
+                  zIndex: 1,
+                ),
+                Polyline(
+                  polylineId: const PolylineId('fallback-connection'),
+                  points: [originPoint, _destination],
+                  color: AppColors.accent,
+                  width: 4,
+                  startCap: Cap.roundCap,
+                  endCap: Cap.roundCap,
+                  jointType: JointType.round,
+                  zIndex: 2,
+                ),
+              },
+            },
             onMapCreated: (controller) {
               _mapController = controller;
               if (location != null) {
