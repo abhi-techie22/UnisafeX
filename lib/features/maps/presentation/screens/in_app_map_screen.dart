@@ -327,7 +327,6 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
     final routePoints = route?.points ?? const <LatLng>[];
     final hasRoutePath =
         mapAccess.routeOverlayEnabled && routePoints.length >= 2;
-    final hasFallbackConnection = originPoint != null && !hasRoutePath;
 
     ref.listen(locationProvider, (previous, next) {
       final nextLocation = next.asData?.value;
@@ -414,27 +413,6 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
                   polylineId: const PolylineId('active-route'),
                   points: routePoints,
                   color: AppColors.primary,
-                  width: 4,
-                  startCap: Cap.roundCap,
-                  endCap: Cap.roundCap,
-                  jointType: JointType.round,
-                  zIndex: 2,
-                ),
-              } else if (hasFallbackConnection) ...{
-                Polyline(
-                  polylineId: const PolylineId('fallback-connection-outline'),
-                  points: [originPoint, _destination],
-                  color: Colors.white,
-                  width: 7,
-                  startCap: Cap.roundCap,
-                  endCap: Cap.roundCap,
-                  jointType: JointType.round,
-                  zIndex: 1,
-                ),
-                Polyline(
-                  polylineId: const PolylineId('fallback-connection'),
-                  points: [originPoint, _destination],
-                  color: AppColors.accent,
                   width: 4,
                   startCap: Cap.roundCap,
                   endCap: Cap.roundCap,
@@ -841,9 +819,9 @@ class _DestinationCard extends StatelessWidget {
                             ),
                           ] else if (straightLineDistance != null)
                             _InfoChip(
-                              icon: Icons.straighten_rounded,
+                              icon: Icons.explore_outlined,
                               label:
-                                  '${DistanceCalculator.format(straightLineDistance!)} direct',
+                                  'About ${DistanceCalculator.format(straightLineDistance!)} away',
                             ),
                         ],
                       ),
@@ -1076,10 +1054,10 @@ class _CollapsedDestinationCard extends StatelessWidget {
     if (route != null) {
       return '${route!.formattedDistance} · ${route!.formattedDuration}';
     }
-    if (straightLineDistance != null) {
-      return '${DistanceCalculator.format(straightLineDistance!)} direct';
-    }
     if (routeState.hasError) return routeState.error.toString();
+    if (straightLineDistance != null) {
+      return 'About ${DistanceCalculator.format(straightLineDistance!)} away';
+    }
     return 'Tap to view map details';
   }
 }

@@ -1,5 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:unisafex/features/booking/data/booking_link_service.dart';
 import 'package:unisafex/features/booking/domain/booking_partner.dart';
 import 'package:unisafex/features/booking/presentation/widgets/booking_form_widgets.dart';
 
@@ -63,7 +64,24 @@ class _FlightBookingScreenState extends State<FlightBookingScreen> {
 
   Future<void> _search() async {
     if (!_formKey.currentState!.validate()) return;
-    showPartnerPendingMessage(context, _selectedPartner);
+    final uri = BookingLinkService.buildFlightSearch(
+      origin: _originController.text,
+      destination: _destinationController.text,
+      departure: _departure,
+      returnDate: _roundTrip ? _returnDate : null,
+      travellers: _travellers,
+      partner: _selectedPartner,
+    );
+    final opened = await BookingLinkService.open(uri);
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Could not open ${_selectedPartner.name}. Please try again.',
+          ),
+        ),
+      );
+    }
   }
 
   @override

@@ -1,4 +1,5 @@
 import 'package:url_launcher/url_launcher.dart';
+import 'package:unisafex/features/booking/domain/booking_partner.dart';
 import 'package:unisafex/features/booking/domain/booking_partner_config.dart';
 
 class BookingLinkService {
@@ -33,8 +34,9 @@ class BookingLinkService {
     required DateTime departure,
     DateTime? returnDate,
     required int travellers,
+    BookingPartner? partner,
   }) {
-    final baseUri = Uri.parse(BookingPartnerConfig.flightPartnerUrl);
+    final baseUri = Uri.parse(_flightPartnerUrl(partner));
     return baseUri.replace(
       queryParameters: {
         ...baseUri.queryParameters,
@@ -57,4 +59,16 @@ class BookingLinkService {
       '${date.year.toString().padLeft(4, '0')}-'
       '${date.month.toString().padLeft(2, '0')}-'
       '${date.day.toString().padLeft(2, '0')}';
+
+  static String _flightPartnerUrl(BookingPartner? partner) {
+    if (BookingPartnerConfig.flightPartnerUrlConfigured) {
+      return BookingPartnerConfig.flightPartnerUrl;
+    }
+    return switch (partner?.name) {
+      'KAYAK' => 'https://www.kayak.co.in/flights',
+      'Expedia' => 'https://www.expedia.co.in/Flights-Search',
+      'Trip.com' => 'https://www.trip.com/flights/',
+      _ => 'https://www.skyscanner.co.in/transport/flights/',
+    };
+  }
 }

@@ -19,4 +19,6 @@ class BookingPartnerConfig {
 
   static bool get hasHotelAffiliate => hotelAffiliateId.trim().isNotEmpty;
   static bool get hasFlightAffiliate => flightPartnerId.trim().isNotEmpty;
+  static bool get flightPartnerUrlConfigured =>
+      flightPartnerUrl != 'https://www.aviasales.com';
 }
