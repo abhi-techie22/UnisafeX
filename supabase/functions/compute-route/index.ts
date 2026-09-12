@@ -5,6 +5,7 @@ const corsHeaders = {
 };
 
 const allowedTravelModes = new Set(["DRIVE", "WALK", "BICYCLE", "TRANSIT"]);
+const maxRouteDistanceMeters = 2_500_000;
 
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") {
@@ -13,6 +14,11 @@ Deno.serve(async (request) => {
 
   if (request.method !== "POST") {
     return json({ error: "Method not allowed." }, 405);
+  }
+
+  const authResult = await requireAuthenticatedUser(request);
+  if (!authResult.ok) {
+    return json({ error: authResult.error }, authResult.status);
   }
 
   const apiKey = Deno.env.get("GOOGLE_MAPS_ROUTES_API_KEY");
@@ -28,6 +34,10 @@ Deno.serve(async (request) => {
 
     if (!origin || !destination || !allowedTravelModes.has(travelMode)) {
       return json({ error: "Invalid route request." }, 400);
+    }
+
+    if (haversineDistanceMeters(origin, destination) > maxRouteDistanceMeters) {
+      return json({ error: "Route is too far for in-app navigation." }, 400);
     }
 
     const routeRequest: Record<string, unknown> = {
@@ -109,6 +119,32 @@ Deno.serve(async (request) => {
   }
 });
 
+async function requireAuthenticatedUser(request: Request) {
+  const authorization = request.headers.get("Authorization") ?? "";
+  if (!authorization.startsWith("Bearer ")) {
+    return { ok: false, status: 401, error: "Authentication required." };
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return { ok: false, status: 503, error: "Auth verification is not configured." };
+  }
+
+  const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: {
+      "Authorization": authorization,
+      "apikey": supabaseAnonKey,
+    },
+  });
+
+  if (!response.ok) {
+    return { ok: false, status: 401, error: "Invalid or expired session." };
+  }
+
+  return { ok: true, status: 200, error: "" };
+}
+
 function parseCoordinate(value: unknown) {
   if (!value || typeof value !== "object") return null;
   const coordinate = value as Record<string, unknown>;
@@ -125,6 +161,22 @@ function parseCoordinate(value: unknown) {
     return null;
   }
   return { latitude, longitude };
+}
+
+function haversineDistanceMeters(
+  origin: { latitude: number; longitude: number },
+  destination: { latitude: number; longitude: number },
+) {
+  const earthRadiusMeters = 6_371_000;
+  const toRadians = (degrees: number) => degrees * Math.PI / 180;
+  const deltaLatitude = toRadians(destination.latitude - origin.latitude);
+  const deltaLongitude = toRadians(destination.longitude - origin.longitude);
+  const originLatitude = toRadians(origin.latitude);
+  const destinationLatitude = toRadians(destination.latitude);
+  const a = Math.sin(deltaLatitude / 2) ** 2 +
+    Math.cos(originLatitude) * Math.cos(destinationLatitude) *
+      Math.sin(deltaLongitude / 2) ** 2;
+  return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 function parseDuration(value: unknown) {

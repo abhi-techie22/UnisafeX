@@ -35,6 +35,17 @@ class _PlacesListScreenState extends ConsumerState<PlacesListScreen> {
     final placesAsync = ref.watch(explorerPlacesProvider(_filters));
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go(AppRoutes.home);
+            }
+          },
+        ),
         title: Text(widget.title),
         actions: [
           IconButton(

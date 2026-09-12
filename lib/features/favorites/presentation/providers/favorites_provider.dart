@@ -7,12 +7,20 @@ class Favorite {
   final String id;
   final String userId;
   final String placeId;
+  final String status;
+  final String? notes;
+  final DateTime? plannedVisitDate;
+  final DateTime? completedAt;
   final DateTime createdAt;
 
   const Favorite({
     required this.id,
     required this.userId,
     required this.placeId,
+    required this.status,
+    this.notes,
+    this.plannedVisitDate,
+    this.completedAt,
     required this.createdAt,
   });
 
@@ -21,9 +29,19 @@ class Favorite {
       id: json['id'] as String,
       userId: json['user_id'] as String,
       placeId: json['place_id'] as String,
+      status: json['status']?.toString() ?? 'saved',
+      notes: json['notes']?.toString(),
+      plannedVisitDate: json['planned_visit_date'] == null
+          ? null
+          : DateTime.tryParse(json['planned_visit_date'].toString()),
+      completedAt: json['completed_at'] == null
+          ? null
+          : DateTime.tryParse(json['completed_at'].toString()),
       createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
+
+  bool get isCompleted => status == 'completed' || completedAt != null;
 }
 
 class FavoritesRepository {
@@ -49,15 +67,56 @@ class FavoritesRepository {
         .order('created_at', ascending: false);
 
     return (response as List)
-        .map((e) => TourismPlace.fromJson(e['tourism_places']))
+        .map((e) => e['tourism_places'])
+        .whereType<Map>()
+        .map((row) => TourismPlace.fromJson(Map<String, dynamic>.from(row)))
+        .where((place) => !place.isHidden)
         .toList();
   }
 
   Future<void> addFavorite(String userId, String placeId) async {
-    await _client.from('favorites').insert({
-      'user_id': userId,
-      'place_id': placeId,
-    });
+    await _client.from('favorites').upsert(
+      {
+        'user_id': userId,
+        'place_id': placeId,
+        'status': 'saved',
+      },
+      onConflict: 'user_id,place_id',
+    );
+  }
+
+  Future<void> updateBucketStatus({
+    required String userId,
+    required String placeId,
+    required bool completed,
+  }) async {
+    await _client.from('favorites').upsert(
+      {
+        'user_id': userId,
+        'place_id': placeId,
+        'status': completed ? 'completed' : 'saved',
+        'completed_at': completed ? DateTime.now().toIso8601String() : null,
+      },
+      onConflict: 'user_id,place_id',
+    );
+  }
+
+  Future<void> updateBucketNotes({
+    required String userId,
+    required String placeId,
+    String? notes,
+    DateTime? plannedVisitDate,
+  }) async {
+    await _client.from('favorites').upsert(
+      {
+        'user_id': userId,
+        'place_id': placeId,
+        'status': 'planned',
+        'notes': _emptyToNull(notes),
+        'planned_visit_date': plannedVisitDate?.toIso8601String(),
+      },
+      onConflict: 'user_id,place_id',
+    );
   }
 
   Future<void> removeFavorite(String userId, String placeId) async {
@@ -66,6 +125,11 @@ class FavoritesRepository {
         .delete()
         .eq('user_id', userId)
         .eq('place_id', placeId);
+  }
+
+  String? _emptyToNull(String? value) {
+    final trimmed = value?.trim();
+    return trimmed == null || trimmed.isEmpty ? null : trimmed;
   }
 }
 
@@ -117,6 +181,37 @@ class FavoritesNotifier extends StateNotifier<AsyncValue<List<Favorite>>> {
       final current = state.value ?? [];
       state =
           AsyncValue.data(current.where((f) => f.placeId != placeId).toList());
+    } catch (_) {}
+  }
+
+  Future<void> setCompleted(String placeId, bool completed) async {
+    final userId = _userId;
+    if (userId == null || userId.isEmpty) return;
+    try {
+      await _repo.updateBucketStatus(
+        userId: userId,
+        placeId: placeId,
+        completed: completed,
+      );
+      await _load();
+    } catch (_) {}
+  }
+
+  Future<void> saveBucketNotes({
+    required String placeId,
+    String? notes,
+    DateTime? plannedVisitDate,
+  }) async {
+    final userId = _userId;
+    if (userId == null || userId.isEmpty) return;
+    try {
+      await _repo.updateBucketNotes(
+        userId: userId,
+        placeId: placeId,
+        notes: notes,
+        plannedVisitDate: plannedVisitDate,
+      );
+      await _load();
     } catch (_) {}
   }
 

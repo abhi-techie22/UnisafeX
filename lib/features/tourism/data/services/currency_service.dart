@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:unisafex/features/tourism/domain/entities/currency_info.dart';
 
 class CurrencyRates {
@@ -33,6 +34,7 @@ class CurrencyService {
 
   static const _currenciesCacheKey = 'travel_currency_catalog_v2';
   static const _ratesCachePrefix = 'travel_currency_rates_v2_';
+  static const _adminRatesSettingsKey = 'currency_rates';
 
   Future<List<CurrencyInfo>> getCurrencies() async {
     try {
@@ -70,6 +72,23 @@ class CurrencyService {
   }
 
   Future<CurrencyRates> getRates(String base) async {
+    final adminRates = await _adminManagedRates(base);
+    if (adminRates != null) {
+      await _cacheRates(adminRates);
+      return adminRates;
+    }
+
+    try {
+      return await fetchLiveRates(base);
+    } catch (_) {
+      // Fall through to the latest cached or bundled reference rates.
+    }
+
+    final cached = await _cachedRates(base);
+    return cached ?? _fallbackRates(base);
+  }
+
+  Future<CurrencyRates> fetchLiveRates(String base) async {
     try {
       final response = await _dio.get<List<dynamic>>(
         '/rates',
@@ -94,12 +113,54 @@ class CurrencyService {
         await _cacheRates(result);
         return result;
       }
-    } catch (_) {
-      // Fall through to the latest cached or bundled reference rates.
-    }
+    } catch (_) {}
 
-    final cached = await _cachedRates(base);
-    return cached ?? _fallbackRates(base);
+    throw StateError('Could not fetch live currency rates.');
+  }
+
+  Future<CurrencyRates?> _adminManagedRates(String base) async {
+    try {
+      final row = await Supabase.instance.client
+          .from('app_settings')
+          .select('value')
+          .eq('key', _adminRatesSettingsKey)
+          .maybeSingle();
+      final value = row?['value'];
+      if (value is! Map) return null;
+      final config = Map<String, dynamic>.from(value);
+      final sourceBase = config['base']?.toString().toUpperCase() ?? 'USD';
+      final rawRates = config['rates'];
+      if (rawRates is! Map) return null;
+
+      final adminRates = rawRates.map(
+        (key, value) => MapEntry(
+          key.toString().toUpperCase(),
+          (value as num).toDouble(),
+        ),
+      );
+      final sourceRates = {..._fallbackUsdRates, ...adminRates};
+      if (!sourceRates.containsKey(sourceBase) ||
+          !sourceRates.containsKey(base)) {
+        return null;
+      }
+
+      final baseInSource = sourceRates[base]!;
+      if (baseInSource == 0) return null;
+      final rates = <String, double>{base: 1};
+      for (final entry in sourceRates.entries) {
+        rates[entry.key] = entry.value / baseInSource;
+      }
+
+      return CurrencyRates(
+        base: base,
+        rates: rates,
+        updatedAt: DateTime.tryParse(config['updated_at']?.toString() ?? '') ??
+            DateTime.now(),
+        isLive: true,
+      );
+    } catch (_) {
+      return null;
+    }
   }
 
   CurrencyInfo _currencyFromJson(Map<String, dynamic> json) {

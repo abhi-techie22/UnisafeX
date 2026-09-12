@@ -4,14 +4,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 final connectivityProvider = StreamProvider<bool>((ref) async* {
   // Emit initial status
   final initial = await Connectivity().checkConnectivity();
-  yield initial != ConnectivityResult.none;
+  yield _hasNetwork(initial);
 
   // Then stream changes
   await for (final result in Connectivity().onConnectivityChanged) {
-    yield result != ConnectivityResult.none;
+    yield _hasNetwork(result);
   }
 });
 
 final isOnlineProvider = Provider<bool>((ref) {
   return ref.watch(connectivityProvider).value ?? true;
 });
+
+bool _hasNetwork(List<ConnectivityResult> results) {
+  return results.any((result) => result != ConnectivityResult.none);
+}

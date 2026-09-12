@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,11 +7,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:unisafex/core/constants/app_constants.dart';
 import 'package:unisafex/core/widgets/main_scaffold.dart';
+import 'package:unisafex/features/admin/data/admin_remote_config_repository.dart';
 
 import 'package:unisafex/features/auth/presentation/screens/auth_selection_screen.dart';
 import 'package:unisafex/features/auth/presentation/screens/login_screen.dart';
 import 'package:unisafex/features/auth/presentation/screens/register_screen.dart';
 import 'package:unisafex/features/admin/presentation/admin_dashboard_screen.dart';
+import 'package:unisafex/features/booking/presentation/screens/booking_hub_screen.dart';
+import 'package:unisafex/features/booking/presentation/screens/flight_booking_screen.dart';
 
 import 'package:unisafex/features/favorites/presentation/screens/favorites_screen.dart';
 import 'package:unisafex/features/guide/presentation/screens/guide_request_screen.dart';
@@ -42,6 +46,8 @@ import 'package:unisafex/features/tourism/presentation/screens/currency_helper_s
 import 'package:unisafex/features/tourism/presentation/screens/phrase_book_screen.dart';
 import 'package:unisafex/features/tourism/presentation/screens/travel_toolkit_screen.dart';
 import 'package:unisafex/features/tourism/presentation/screens/trip_planner_screen.dart';
+import 'package:unisafex/hotel/hotel_router.dart';
+import 'package:unisafex/hotel/presentation/screens/hotel_search_screen.dart';
 
 part 'app_router.g.dart';
 
@@ -104,6 +110,8 @@ GoRouter appRouter(
       return null;
     },
     routes: [
+      ...hotelRoutes,
+
       /// Splash
       GoRoute(
         path: AppRoutes.splash,
@@ -177,15 +185,21 @@ GoRouter appRouter(
 
           GoRoute(
             path: AppRoutes.booking,
-            redirect: (context, state) => AppRoutes.home,
+            builder: (context, state) => const BookingHubScreen(),
           ),
           GoRoute(
             path: AppRoutes.hotelBooking,
-            redirect: (context, state) => AppRoutes.home,
+            builder: (context, state) => _FeatureFlagRouteGuard(
+              enabled: (flags) => flags.hotels,
+              child: const HotelSearchScreen(),
+            ),
           ),
           GoRoute(
             path: AppRoutes.flightBooking,
-            redirect: (context, state) => AppRoutes.home,
+            builder: (context, state) => _FeatureFlagRouteGuard(
+              enabled: (flags) => flags.flights,
+              child: const FlightBookingScreen(),
+            ),
           ),
 
           /// MAP (UPDATED)
@@ -278,6 +292,7 @@ GoRouter appRouter(
             latitude: latitude,
             longitude: longitude,
             address: query['address'],
+            imageUrl: query['imageUrl'],
           );
         },
       ),
@@ -370,6 +385,51 @@ GoRouter appRouter(
   );
 }
 
+class _FeatureFlagRouteGuard extends ConsumerWidget {
+  const _FeatureFlagRouteGuard({
+    required this.enabled,
+    required this.child,
+  });
+
+  final bool Function(FeatureFlags flags) enabled;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final flags = ref.watch(publicFeatureFlagsProvider);
+    const fallbackFlags = FeatureFlags({});
+    final isEnabled = flags.maybeWhen(
+      data: enabled,
+      orElse: () => enabled(fallbackFlags),
+    );
+    if (isEnabled) return child;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Feature unavailable')),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.lock_outline_rounded, size: 42),
+              const SizedBox(height: 12),
+              const Text(
+                'This booking feature is currently hidden by admin.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: () => context.go(AppRoutes.home),
+                child: const Text('Back to Home'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 bool _requiresSignedInUser(String location) {
   return location == AppRoutes.profileCompletion ||
       location == AppRoutes.profile ||
@@ -381,8 +441,16 @@ bool _requiresSignedInUser(String location) {
 
 Future<bool> _isAdminUser() async {
   try {
-    final value = await Supabase.instance.client.rpc('is_admin');
-    return value == true;
+    final client = Supabase.instance.client;
+    final user = client.auth.currentUser;
+    if (user == null || user.isAnonymous) return false;
+    final row = await client
+        .from('admin_users')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .maybeSingle();
+    return row != null;
   } catch (_) {
     return false;
   }
@@ -444,6 +512,7 @@ class AppRoutes {
     required double latitude,
     required double longitude,
     String? address,
+    String? imageUrl,
   }) {
     return Uri(
       path: destinationMap,
@@ -452,6 +521,7 @@ class AppRoutes {
         'latitude': latitude.toString(),
         'longitude': longitude.toString(),
         if (address?.trim().isNotEmpty == true) 'address': address!.trim(),
+        if (imageUrl?.trim().isNotEmpty == true) 'imageUrl': imageUrl!.trim(),
       },
     ).toString();
   }

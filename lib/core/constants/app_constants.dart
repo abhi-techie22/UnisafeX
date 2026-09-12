@@ -20,7 +20,7 @@ class AppConstants {
 
   // App Info
   static const String appName = 'UniSafeX';
-  static const String appVersion = '1.0.4-profile-save-fix (build 8)';
+  static const String appVersion = '1.0.5-security-hardening (build 9)';
 
   // Localization
   static const List<Locale> supportedLocales = [

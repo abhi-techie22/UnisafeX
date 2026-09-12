@@ -14,6 +14,7 @@ import 'package:unisafex/features/guide/presentation/providers/guide_request_pro
 import 'package:unisafex/features/heritage/data/heritage_repository.dart';
 import 'package:unisafex/features/maps/data/map_access_config_provider.dart';
 import 'package:unisafex/features/profile/domain/entities/user_profile.dart';
+import 'package:unisafex/features/tourism/data/services/currency_service.dart';
 import 'package:unisafex/features/tourism/domain/entities/tourism_place.dart';
 import 'package:unisafex/features/tourism/presentation/providers/tourism_provider.dart';
 
@@ -27,11 +28,18 @@ class AdminDashboardScreen extends ConsumerStatefulWidget {
 
 class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   final _search = TextEditingController();
+  final _placeCity = TextEditingController();
+  final _placeState = TextEditingController();
+  final _placeCategory = TextEditingController();
   int _page = 0;
+  String _placeGroup = 'all';
 
   @override
   void dispose() {
     _search.dispose();
+    _placeCity.dispose();
+    _placeState.dispose();
+    _placeCategory.dispose();
     super.dispose();
   }
 
@@ -39,7 +47,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   Widget build(BuildContext context) {
     final access = ref.watch(isAdminProvider);
     return DefaultTabController(
-      length: 11,
+      length: 14,
       child: Scaffold(
         appBar: AppBar(
           title: Text('admin_console'.tr()),
@@ -61,8 +69,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               Tab(icon: Icon(Icons.people_alt_rounded), text: 'Users'),
               Tab(icon: Icon(Icons.group_add_rounded), text: 'Team'),
               Tab(icon: Icon(Icons.support_rounded), text: 'Support'),
+              Tab(icon: Icon(Icons.rate_review_rounded), text: 'Reviews'),
               Tab(icon: Icon(Icons.timeline_rounded), text: 'Activity'),
               Tab(icon: Icon(Icons.support_agent_rounded), text: 'Guides'),
+              Tab(
+                  icon: Icon(Icons.currency_exchange_rounded),
+                  text: 'Currency'),
+              Tab(icon: Icon(Icons.mark_email_read_rounded), text: 'Auth'),
               Tab(icon: Icon(Icons.map_rounded), text: 'Maps'),
             ],
           ),
@@ -76,7 +89,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             }
             final places = ref.watch(
               adminTourismPlacesProvider(
-                AdminTourismPlacesParams(search: _search.text, page: _page),
+                AdminTourismPlacesParams(
+                  search: _search.text,
+                  city: _placeCity.text,
+                  state: _placeState.text,
+                  category: _placeCategory.text,
+                  group: _placeGroup,
+                  page: _page,
+                ),
               ),
             );
             return TabBarView(
@@ -89,8 +109,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 const _UsersAdminTab(),
                 const _TeamAdminTab(),
                 const _SupportTicketsAdminTab(),
+                const _ReviewsAdminTab(),
                 const _ActivityAdminTab(),
                 const _GuideRequestsAdminTab(),
+                const _CurrencyRatesAdminTab(),
+                const _AuthAccessAdminTab(),
                 const _MapAccessAdminTab(),
               ],
             );
@@ -103,50 +126,45 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   Widget _buildPlacesTab(AsyncValue<List<TourismPlace>> places) {
     return Column(
       children: [
-        Container(
-          margin: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [AppColors.primaryDark, AppColors.primary],
-            ),
-            borderRadius: BorderRadius.circular(20),
-          ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
           child: Row(
             children: [
-              const Icon(Icons.admin_panel_settings_rounded,
-                  color: Colors.white, size: 34),
-              const SizedBox(width: 14),
               Expanded(
-                child: Text(
-                  'admin_live_updates'.tr(),
-                  style: const TextStyle(color: Colors.white, height: 1.4),
+                child: TextField(
+                  controller: _search,
+                  onChanged: (_) => _refreshPlaceFilters(),
+                  decoration: InputDecoration(
+                    hintText: 'search_places_hint'.tr(),
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    isDense: true,
+                  ),
                 ),
+              ),
+              const SizedBox(width: 10),
+              IconButton.filled(
+                tooltip: 'Add place',
+                onPressed: () => _editPlace(),
+                icon: const Icon(Icons.add_rounded),
               ),
             ],
           ),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: FilledButton.icon(
-              onPressed: () => _editPlace(),
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Add place'),
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: TextField(
-            controller: _search,
-            onSubmitted: (_) => setState(() => _page = 0),
-            decoration: InputDecoration(
-              hintText: 'search_places_hint'.tr(),
-              prefixIcon: const Icon(Icons.search_rounded),
-            ),
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+          child: _AdminPlaceFilters(
+            city: _placeCity,
+            state: _placeState,
+            category: _placeCategory,
+            group: _placeGroup,
+            onGroupChanged: (value) {
+              setState(() {
+                _placeGroup = value;
+                _page = 0;
+              });
+            },
+            onTextChanged: _refreshPlaceFilters,
+            onClear: _clearPlaceFilters,
           ),
         ),
         const SizedBox(height: 8),
@@ -188,7 +206,17 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       vertical: 8,
                     ),
                     leading: _AdminPlaceThumb(place: place),
-                    title: Text(place.name),
+                    title: Row(
+                      children: [
+                        Expanded(child: Text(place.name)),
+                        if (place.isHidden)
+                          const Chip(
+                            visualDensity: VisualDensity.compact,
+                            avatar: Icon(Icons.visibility_off_outlined),
+                            label: Text('Hidden'),
+                          ),
+                      ],
+                    ),
                     subtitle: Text(
                       '${place.city}, ${place.state} · ${place.category}\n'
                       'Rating ${place.rating.toStringAsFixed(1)} · '
@@ -197,7 +225,39 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    trailing: const Icon(Icons.edit_outlined),
+                    trailing: PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'edit') {
+                          _editPlace(place);
+                        } else if (value == 'visibility') {
+                          _togglePlaceHidden(place);
+                        }
+                      },
+                      itemBuilder: (_) => [
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: ListTile(
+                            leading: Icon(Icons.edit_outlined),
+                            title: Text('Edit'),
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'visibility',
+                          child: ListTile(
+                            leading: Icon(
+                              place.isHidden
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                            ),
+                            title: Text(
+                              place.isHidden
+                                  ? 'Show to travelers'
+                                  : 'Hide from travelers',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                     onTap: () => _editPlace(place),
                   ),
                 );
@@ -207,6 +267,21 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         ),
       ],
     );
+  }
+
+  void _refreshPlaceFilters() {
+    setState(() => _page = 0);
+  }
+
+  void _clearPlaceFilters() {
+    setState(() {
+      _search.clear();
+      _placeCity.clear();
+      _placeState.clear();
+      _placeCategory.clear();
+      _placeGroup = 'all';
+      _page = 0;
+    });
   }
 
   Future<void> _editPlace([TourismPlace? place]) async {
@@ -245,7 +320,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     final address = TextEditingController(text: place?.address);
     var featured = place?.featured ?? false;
     var popular = place?.isPopular ?? false;
+    var hidden = place?.isHidden ?? false;
     var uploadingImage = false;
+    var selectedImageType = _adminImageTypes.first;
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -387,6 +464,28 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       children: [
                         _AdminPhotoPreview(controller: images),
                         const SizedBox(height: 8),
+                        DropdownButtonFormField<String>(
+                          initialValue: selectedImageType,
+                          decoration: const InputDecoration(
+                            labelText: 'Image type',
+                            prefixIcon: Icon(Icons.category_outlined),
+                            helperText:
+                                'Choose how this uploaded photo should be used.',
+                          ),
+                          items: _adminImageTypes
+                              .map(
+                                (type) => DropdownMenuItem(
+                                  value: type,
+                                  child: Text(type),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) => setSheetState(
+                            () =>
+                                selectedImageType = value ?? selectedImageType,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
                         Row(
                           children: [
                             Expanded(
@@ -395,35 +494,43 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                     ? null
                                     : () async {
                                         final picker = ImagePicker();
-                                        final file = await picker.pickImage(
-                                          source: ImageSource.gallery,
+                                        final files =
+                                            await picker.pickMultiImage(
                                           imageQuality: 88,
                                           maxWidth: 1800,
                                         );
-                                        if (file == null) return;
+                                        if (files.isEmpty) return;
                                         setSheetState(
                                             () => uploadingImage = true);
                                         try {
-                                          final bytes =
-                                              await file.readAsBytes();
-                                          final extension =
-                                              file.name.split('.').last;
-                                          final url = await ref
-                                              .read(tourismRepositoryProvider)
-                                              .uploadAdminPlaceImageBytes(
-                                                bytes: bytes,
-                                                extension: extension,
-                                                placeName: name.text,
-                                              );
                                           final next = _adminLines(images.text)
-                                            ..add(url);
+                                            ..addAll(
+                                              await Future.wait(
+                                                files.map((file) async {
+                                                  final bytes =
+                                                      await file.readAsBytes();
+                                                  final extension =
+                                                      file.name.split('.').last;
+                                                  return ref
+                                                      .read(
+                                                          tourismRepositoryProvider)
+                                                      .uploadAdminPlaceImageBytes(
+                                                        bytes: bytes,
+                                                        extension: extension,
+                                                        placeName: name.text,
+                                                        imageType:
+                                                            selectedImageType,
+                                                      );
+                                                }),
+                                              ),
+                                            );
                                           images.text = next.join('\n');
                                           if (context.mounted) {
                                             ScaffoldMessenger.of(context)
                                                 .showSnackBar(
-                                              const SnackBar(
+                                              SnackBar(
                                                 content: Text(
-                                                  'Image uploaded and added. Press Save to update this destination.',
+                                                  '${files.length} image${files.length == 1 ? '' : 's'} uploaded and added. Press Save to update this destination.',
                                                 ),
                                               ),
                                             );
@@ -458,8 +565,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                     : const Icon(Icons.upload_file_outlined),
                                 label: Text(
                                   uploadingImage
-                                      ? 'Uploading image...'
-                                      : 'Upload from folder',
+                                      ? 'Uploading images...'
+                                      : 'Upload images from folder',
                                 ),
                               ),
                             ),
@@ -599,6 +706,17 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           onChanged: (value) =>
                               setSheetState(() => popular = value),
                         ),
+                        SwitchListTile(
+                          value: hidden,
+                          contentPadding: EdgeInsets.zero,
+                          secondary: const Icon(Icons.visibility_off_outlined),
+                          title: const Text('Hide from traveler app'),
+                          subtitle: const Text(
+                            'Admins can still find and edit this place.',
+                          ),
+                          onChanged: (value) =>
+                              setSheetState(() => hidden = value),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 10),
@@ -657,6 +775,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                 featured: featured,
                                 rating: double.tryParse(rating.text) ?? 4.2,
                                 isPopular: popular,
+                                isHidden: hidden,
                                 likesCount: int.tryParse(likes.text) ?? 1000,
                                 visitDurationMinutes:
                                     int.tryParse(duration.text),
@@ -712,6 +831,34 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     }
   }
 
+  Future<void> _togglePlaceHidden(TourismPlace place) async {
+    await ref.read(tourismRepositoryProvider).setAdminPlaceHidden(
+          id: place.id,
+          hidden: !place.isHidden,
+        );
+    ref.invalidate(adminTourismPlacesProvider);
+    ref.invalidate(featuredPlacesProvider);
+    ref.invalidate(popularPlacesProvider);
+    ref.invalidate(trendingPlacesProvider);
+    ref.invalidate(mustVisitPlacesProvider);
+    ref.invalidate(explorerPlacesProvider);
+    ref.invalidate(plannerPlacesProvider);
+    ref.invalidate(placesByCategoryProvider);
+    ref.invalidate(placesByCityProvider);
+    ref.invalidate(searchPlacesProvider);
+    ref.invalidate(nearbyPlacesProvider);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          place.isHidden
+              ? '${place.name} is visible to travelers.'
+              : '${place.name} is hidden from travelers.',
+        ),
+      ),
+    );
+  }
+
   void _confirmAdminSignOut(BuildContext context) {
     showDialog<void>(
       context: context,
@@ -749,6 +896,243 @@ List<String> _adminLines(String value) {
       .map((line) => line.trim())
       .where((line) => line.isNotEmpty)
       .toList();
+}
+
+class _AdminPlaceFilters extends StatelessWidget {
+  const _AdminPlaceFilters({
+    required this.city,
+    required this.state,
+    required this.category,
+    required this.group,
+    required this.onGroupChanged,
+    required this.onTextChanged,
+    required this.onClear,
+  });
+
+  final TextEditingController city;
+  final TextEditingController state;
+  final TextEditingController category;
+  final String group;
+  final ValueChanged<String> onGroupChanged;
+  final VoidCallback onTextChanged;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasAdvanced = city.text.trim().isNotEmpty ||
+        state.text.trim().isNotEmpty ||
+        category.text.trim().isNotEmpty;
+    return Card(
+      elevation: 0,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              height: 40,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: [
+                        _AdminFilterChoiceChip(
+                          label: 'All',
+                          selected: group == 'all',
+                          onTap: () => onGroupChanged('all'),
+                        ),
+                        _AdminFilterChoiceChip(
+                          label: 'Featured',
+                          selected: group == 'featured',
+                          onTap: () => onGroupChanged('featured'),
+                        ),
+                        _AdminFilterChoiceChip(
+                          label: 'Popular',
+                          selected: group == 'popular',
+                          onTap: () => onGroupChanged('popular'),
+                        ),
+                        _AdminFilterChoiceChip(
+                          label: 'Free',
+                          selected: group == 'free',
+                          onTap: () => onGroupChanged('free'),
+                        ),
+                        _AdminFilterChoiceChip(
+                          label: 'Hidden gems',
+                          selected: group == 'hidden_gems',
+                          onTap: () => onGroupChanged('hidden_gems'),
+                        ),
+                        _AdminFilterChoiceChip(
+                          label: 'No photos',
+                          selected: group == 'missing_photos',
+                          onTap: () => onGroupChanged('missing_photos'),
+                        ),
+                        _AdminFilterChoiceChip(
+                          label: 'Hidden',
+                          selected: group == 'hidden',
+                          onTap: () => onGroupChanged('hidden'),
+                        ),
+                      ]
+                          .map(
+                            (chip) => Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: chip,
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ),
+                  IconButton.filledTonal(
+                    tooltip: 'Clear filters',
+                    onPressed: onClear,
+                    icon: const Icon(Icons.refresh_rounded),
+                  ),
+                ],
+              ),
+            ),
+            if (hasAdvanced) ...[
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  if (city.text.trim().isNotEmpty)
+                    InputChip(
+                      label: Text(city.text.trim()),
+                      onDeleted: () {
+                        city.clear();
+                        onTextChanged();
+                      },
+                    ),
+                  if (state.text.trim().isNotEmpty)
+                    InputChip(
+                      label: Text(state.text.trim()),
+                      onDeleted: () {
+                        state.clear();
+                        onTextChanged();
+                      },
+                    ),
+                  if (category.text.trim().isNotEmpty)
+                    InputChip(
+                      label: Text(category.text.trim()),
+                      onDeleted: () {
+                        category.clear();
+                        onTextChanged();
+                      },
+                    ),
+                ],
+              ),
+            ],
+            Theme(
+              data:
+                  Theme.of(context).copyWith(dividerColor: Colors.transparent),
+              child: ExpansionTile(
+                dense: true,
+                tilePadding: EdgeInsets.zero,
+                childrenPadding: EdgeInsets.zero,
+                leading:
+                    const Icon(Icons.tune_rounded, color: AppColors.primary),
+                title: Text(
+                  'City, state, category',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                children: [
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final compact = constraints.maxWidth < 720;
+                      final fields = [
+                        TextField(
+                          controller: city,
+                          onChanged: (_) => onTextChanged(),
+                          decoration: const InputDecoration(
+                            labelText: 'City',
+                            prefixIcon: Icon(Icons.location_city_outlined),
+                          ),
+                        ),
+                        TextField(
+                          controller: state,
+                          onChanged: (_) => onTextChanged(),
+                          decoration: const InputDecoration(
+                            labelText: 'State',
+                            prefixIcon: Icon(Icons.map_outlined),
+                          ),
+                        ),
+                        TextField(
+                          controller: category,
+                          onChanged: (_) => onTextChanged(),
+                          decoration: const InputDecoration(
+                            labelText: 'Category',
+                            prefixIcon: Icon(Icons.category_outlined),
+                          ),
+                        ),
+                      ];
+
+                      if (compact) {
+                        return Column(
+                          children: fields.expand(
+                            (field) sync* {
+                              yield field;
+                              if (field != fields.last) {
+                                yield const SizedBox(height: 10);
+                              }
+                            },
+                          ).toList(),
+                        );
+                      }
+
+                      return Row(
+                        children: [
+                          Expanded(child: fields[0]),
+                          const SizedBox(width: 10),
+                          Expanded(child: fields[1]),
+                          const SizedBox(width: 10),
+                          Expanded(child: fields[2]),
+                        ],
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AdminFilterChoiceChip extends StatelessWidget {
+  const _AdminFilterChoiceChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => onTap(),
+      selectedColor: AppColors.primary.withValues(alpha: 0.14),
+      labelStyle: TextStyle(
+        color: selected ? AppColors.primary : null,
+        fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+      ),
+      side: BorderSide(
+        color: selected
+            ? AppColors.primary.withValues(alpha: 0.35)
+            : Theme.of(context).dividerColor,
+      ),
+      visualDensity: VisualDensity.compact,
+    );
+  }
 }
 
 class _AdminPlaceThumb extends StatelessWidget {
@@ -921,29 +1305,74 @@ class _AdminPhotoPreviewState extends State<_AdminPhotoPreview> {
         ),
       );
     }
-    return SizedBox(
-      height: 76,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: urls.take(8).length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (context, index) => ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Image.network(
-            urls[index],
-            width: 76,
-            height: 76,
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => Container(
-              width: 76,
-              height: 76,
-              color: AppColors.grey200,
-              child: const Icon(Icons.broken_image_outlined),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${urls.length} photo${urls.length == 1 ? '' : 's'} added',
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 92,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: urls.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (context, index) => Stack(
+              clipBehavior: Clip.none,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    urls[index],
+                    width: 84,
+                    height: 84,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      width: 84,
+                      height: 84,
+                      color: AppColors.grey200,
+                      child: const Icon(Icons.broken_image_outlined),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: -6,
+                  top: -6,
+                  child: Material(
+                    color: AppColors.error,
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: () => _removePhoto(index),
+                      child: const Padding(
+                        padding: EdgeInsets.all(5),
+                        child: Icon(
+                          Icons.close_rounded,
+                          size: 15,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
-      ),
+      ],
     );
+  }
+
+  void _removePhoto(int index) {
+    final urls = _adminLines(widget.controller.text);
+    if (index < 0 || index >= urls.length) return;
+    urls.removeAt(index);
+    widget.controller.text = urls.join('\n');
   }
 }
 
@@ -1324,36 +1753,257 @@ class _FeatureFlagsAdminTab extends ConsumerWidget {
         flags.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, _) => _AdminErrorCard(error: error),
-          data: (items) => Column(
-            children: items
-                .map(
+          data: (items) {
+            final bookingFlags = items
+                .where(
+                  (flag) =>
+                      flag.key == 'feature_hotels_enabled' ||
+                      flag.key == 'feature_flights_enabled',
+                )
+                .toList();
+            final otherFlags = items
+                .where(
+                  (flag) =>
+                      flag.key != 'feature_hotels_enabled' &&
+                      flag.key != 'feature_flights_enabled',
+                )
+                .toList();
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _BookingFeatureFlagsCard(
+                  flags: bookingFlags,
+                  onToggle: (flag, enabled) => _saveFlag(ref, flag, enabled),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Other app features',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                ...otherFlags.map(
                   (flag) => Card(
                     child: SwitchListTile(
                       value: flag.enabled,
-                      title: Text(flag.key),
-                      subtitle: Text(flag.description ?? ''),
-                      onChanged: (enabled) async {
-                        await ref
-                            .read(adminRemoteConfigRepositoryProvider)
-                            .saveFeatureFlag(
-                              AppFeatureFlag(
-                                key: flag.key,
-                                enabled: enabled,
-                                description: flag.description,
-                              ),
-                            );
-                        ref.invalidate(adminFeatureFlagsProvider);
-                        ref.invalidate(publicFeatureFlagsProvider);
-                      },
+                      title: Text(_featureFlagTitle(flag.key)),
+                      subtitle: Text(flag.description ?? flag.key),
+                      secondary: Icon(_featureFlagIcon(flag.key)),
+                      onChanged: (enabled) => _saveFlag(ref, flag, enabled),
                     ),
                   ),
-                )
-                .toList(),
-          ),
+                ),
+              ],
+            );
+          },
         ),
       ],
     );
   }
+
+  Future<void> _saveFlag(
+    WidgetRef ref,
+    AppFeatureFlag flag,
+    bool enabled,
+  ) async {
+    await ref.read(adminRemoteConfigRepositoryProvider).saveFeatureFlag(
+          AppFeatureFlag(
+            key: flag.key,
+            enabled: enabled,
+            description: flag.description,
+          ),
+        );
+    ref.invalidate(adminFeatureFlagsProvider);
+    ref.invalidate(publicFeatureFlagsProvider);
+  }
+}
+
+class _BookingFeatureFlagsCard extends StatelessWidget {
+  const _BookingFeatureFlagsCard({
+    required this.flags,
+    required this.onToggle,
+  });
+
+  final List<AppFeatureFlag> flags;
+  final Future<void> Function(AppFeatureFlag flag, bool enabled) onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final hotels = _flag(
+      key: 'feature_hotels_enabled',
+      description: 'Show hotel booking features',
+    );
+    final flights = _flag(
+      key: 'feature_flights_enabled',
+      description: 'Show flight booking features',
+    );
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF173F35), AppColors.primary],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.luggage_rounded, color: Colors.white, size: 28),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Booking features',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Hide or show booking buttons on Home and protect direct routes.',
+            style: TextStyle(color: Colors.white70, height: 1.35),
+          ),
+          const SizedBox(height: 14),
+          _BookingFeatureSwitch(
+            title: 'Hotel booking',
+            subtitle: hotels.enabled ? 'Visible to users' : 'Hidden from users',
+            icon: Icons.bed_rounded,
+            value: hotels.enabled,
+            onChanged: (enabled) => onToggle(hotels, enabled),
+          ),
+          const SizedBox(height: 10),
+          _BookingFeatureSwitch(
+            title: 'Flight booking',
+            subtitle:
+                flights.enabled ? 'Visible to users' : 'Hidden from users',
+            icon: Icons.flight_takeoff_rounded,
+            value: flights.enabled,
+            onChanged: (enabled) => onToggle(flights, enabled),
+          ),
+        ],
+      ),
+    );
+  }
+
+  AppFeatureFlag _flag({
+    required String key,
+    required String description,
+  }) {
+    for (final flag in flags) {
+      if (flag.key == key) return flag;
+    }
+    return AppFeatureFlag(
+      key: key,
+      enabled: true,
+      description: description,
+    );
+  }
+}
+
+class _BookingFeatureSwitch extends StatelessWidget {
+  const _BookingFeatureSwitch({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white24),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: AppColors.primaryDark, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: value,
+            activeThumbColor: Colors.white,
+            activeTrackColor: AppColors.accentLight,
+            inactiveThumbColor: Colors.white,
+            inactiveTrackColor: Colors.white30,
+            onChanged: onChanged,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _featureFlagTitle(String key) {
+  return switch (key) {
+    'feature_ai_assistant_enabled' => 'AI Travel Assistant',
+    'feature_sos_enabled' => 'SOS / Emergency',
+    'feature_festival_campaign_enabled' => 'Festival Campaigns',
+    'feature_audio_guide_enabled' => 'Audio Guide',
+    'feature_trip_planner_enabled' => 'Smart Trip Planner',
+    _ => key
+        .replaceAll('feature_', '')
+        .replaceAll('_enabled', '')
+        .replaceAll('_', ' '),
+  };
+}
+
+IconData _featureFlagIcon(String key) {
+  return switch (key) {
+    'feature_ai_assistant_enabled' => Icons.auto_awesome_rounded,
+    'feature_sos_enabled' => Icons.sos_rounded,
+    'feature_festival_campaign_enabled' => Icons.celebration_rounded,
+    'feature_audio_guide_enabled' => Icons.volume_up_rounded,
+    'feature_trip_planner_enabled' => Icons.route_rounded,
+    _ => Icons.tune_rounded,
+  };
 }
 
 enum _AdminAlertFilter {
@@ -1982,22 +2632,56 @@ String _adminDate(DateTime? value) {
   return DateFormat('dd MMM, HH:mm').format(value.toLocal());
 }
 
+const List<String> _adminImageTypes = [
+  'Hero',
+  'Exterior',
+  'Interior',
+  'Entrance',
+  'Architecture detail',
+  'Close-up',
+  'Landscape',
+  'Gallery',
+];
+
 class _TeamAdminTab extends ConsumerWidget {
   const _TeamAdminTab();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final members = ref.watch(adminTeamMembersProvider);
+    final activity = ref.watch(adminActivityLogProvider);
+    final isOwner = ref.watch(isAdminOwnerProvider).valueOrNull ?? false;
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
       children: [
         _AdminSectionHeader(
           title: 'Team Members',
-          subtitle:
-              'Add trusted team accounts so they can manage places, alerts, guides and support.',
-          actionLabel: 'Add member',
-          onAction: () => _addMember(context, ref),
+          subtitle: isOwner
+              ? 'Owner-only area. Add trusted team accounts and control dashboard access.'
+              : 'Only the UniSafeX owner can add members or change dashboard access.',
+          actionLabel: isOwner ? 'Add member' : null,
+          onAction: isOwner ? () => _addMember(context, ref) : null,
         ),
+        if (!isOwner) ...[
+          Card(
+            color: AppColors.warning.withValues(alpha: 0.08),
+            child: const Padding(
+              padding: EdgeInsets.all(14),
+              child: Row(
+                children: [
+                  Icon(Icons.lock_outline_rounded, color: AppColors.warning),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Team changes are locked. Ask the primary owner to add, remove, or promote admins.',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+        ],
         members.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, _) => _AdminErrorCard(error: error),
@@ -2006,57 +2690,38 @@ class _TeamAdminTab extends ConsumerWidget {
               : Column(
                   children: items
                       .map(
-                        (member) => Card(
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor:
-                                  AppColors.primary.withValues(alpha: 0.12),
-                              foregroundColor: AppColors.primary,
-                              child: Text(
-                                member.email.isEmpty
-                                    ? '?'
-                                    : member.email[0].toUpperCase(),
-                              ),
-                            ),
-                            title: Text(member.email),
-                            subtitle: Text(
-                              '${member.role.toUpperCase()} · ${member.isActive ? 'active' : 'disabled'}\n'
-                              'Updated ${_adminDate(member.updatedAt)}',
-                            ),
-                            isThreeLine: true,
-                            trailing: PopupMenuButton<String>(
-                              onSelected: (value) async {
-                                if (value == 'disable') {
-                                  await _updateMember(context, ref, member,
-                                      active: false);
-                                } else if (value == 'enable') {
-                                  await _updateMember(context, ref, member,
-                                      active: true);
-                                } else {
-                                  await _updateMember(context, ref, member,
-                                      role: value);
-                                }
-                              },
-                              itemBuilder: (context) => [
-                                const PopupMenuItem(
-                                  value: 'editor',
-                                  child: Text('Make editor'),
-                                ),
-                                const PopupMenuItem(
-                                  value: 'admin',
-                                  child: Text('Make admin'),
-                                ),
-                                if (member.role != 'owner')
-                                  PopupMenuItem(
-                                    value:
-                                        member.isActive ? 'disable' : 'enable',
-                                    child: Text(member.isActive
-                                        ? 'Disable access'
-                                        : 'Enable access'),
-                                  ),
-                              ],
-                            ),
+                        (member) => _TeamMemberProgressCard(
+                          member: member,
+                          logs: _logsForMember(
+                            activity.valueOrNull ?? const [],
+                            member,
                           ),
+                          activityLoading: activity.isLoading,
+                          isOwner: isOwner,
+                          onAction: (value) async {
+                            if (value == 'disable') {
+                              await _updateMember(
+                                context,
+                                ref,
+                                member,
+                                active: false,
+                              );
+                            } else if (value == 'enable') {
+                              await _updateMember(
+                                context,
+                                ref,
+                                member,
+                                active: true,
+                              );
+                            } else {
+                              await _updateMember(
+                                context,
+                                ref,
+                                member,
+                                role: value,
+                              );
+                            }
+                          },
                         ),
                       )
                       .toList(),
@@ -2093,6 +2758,10 @@ class _TeamAdminTab extends ConsumerWidget {
               items: const [
                 DropdownMenuItem(value: 'editor', child: Text('Editor')),
                 DropdownMenuItem(value: 'admin', child: Text('Admin')),
+                DropdownMenuItem(
+                  value: 'owner',
+                  child: Text('Owner - full access'),
+                ),
               ],
               onChanged: (value) => setSheetState(() => role = value ?? role),
             ),
@@ -2143,6 +2812,145 @@ class _TeamAdminTab extends ConsumerWidget {
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Team member updated.')),
+    );
+  }
+}
+
+List<AdminActivityLog> _logsForMember(
+  List<AdminActivityLog> logs,
+  AdminTeamMember member,
+) {
+  final memberId = member.userId.trim();
+  if (memberId.isEmpty) return const [];
+  return logs.where((log) => log.actorUserId == memberId).toList();
+}
+
+String _memberDisplayName(String email) {
+  final name = email.split('@').first.replaceAll(RegExp(r'[._-]+'), ' ').trim();
+  if (name.isEmpty) return 'Team member';
+  return name
+      .split(' ')
+      .where((part) => part.isNotEmpty)
+      .map((part) => '${part[0].toUpperCase()}${part.substring(1)}')
+      .join(' ');
+}
+
+class _TeamMemberProgressCard extends StatelessWidget {
+  const _TeamMemberProgressCard({
+    required this.member,
+    required this.logs,
+    required this.activityLoading,
+    required this.isOwner,
+    required this.onAction,
+  });
+
+  final AdminTeamMember member;
+  final List<AdminActivityLog> logs;
+  final bool activityLoading;
+  final bool isOwner;
+  final ValueChanged<String> onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final latest = logs.isEmpty ? null : logs.first;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                  foregroundColor: AppColors.primary,
+                  child: Text(
+                    member.email.isEmpty ? '?' : member.email[0].toUpperCase(),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _memberDisplayName(member.email),
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      Text(
+                        member.email,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                if (member.isPrimaryOwner)
+                  const _InfoChip(
+                    icon: Icons.verified_user_rounded,
+                    label: 'Locked owner',
+                  )
+                else if (isOwner)
+                  PopupMenuButton<String>(
+                    onSelected: onAction,
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'editor',
+                        child: Text('Make editor'),
+                      ),
+                      const PopupMenuItem(
+                        value: 'admin',
+                        child: Text('Make admin'),
+                      ),
+                      const PopupMenuItem(
+                        value: 'owner',
+                        child: Text('Give full ownership'),
+                      ),
+                      PopupMenuItem(
+                        value: member.isActive ? 'disable' : 'enable',
+                        child: Text(
+                          member.isActive ? 'Disable access' : 'Enable access',
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  const Icon(Icons.lock_outline_rounded),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _InfoChip(
+                  icon: Icons.admin_panel_settings_outlined,
+                  label: member.role.toUpperCase(),
+                ),
+                _InfoChip(
+                  icon: member.isActive
+                      ? Icons.check_circle_outline
+                      : Icons.block_outlined,
+                  label: member.isActive ? 'Active' : 'Disabled',
+                ),
+                _InfoChip(
+                  icon: Icons.task_alt_rounded,
+                  label: activityLoading
+                      ? 'Loading progress'
+                      : '${logs.length} change${logs.length == 1 ? '' : 's'}',
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              latest == null
+                  ? 'No tracked admin work yet.'
+                  : 'Last work: ${latest.action} · ${latest.title} · ${_adminDate(latest.createdAt)}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -2334,6 +3142,929 @@ class _SupportTicketsAdminTabState
       ref.invalidate(adminSupportTicketsProvider);
       ref.invalidate(adminActivityLogProvider);
     }
+  }
+}
+
+class _ReviewsAdminTab extends ConsumerStatefulWidget {
+  const _ReviewsAdminTab();
+
+  @override
+  ConsumerState<_ReviewsAdminTab> createState() => _ReviewsAdminTabState();
+}
+
+class _ReviewsAdminTabState extends ConsumerState<_ReviewsAdminTab> {
+  String _status = 'pending';
+
+  @override
+  Widget build(BuildContext context) {
+    final reviews = ref.watch(adminPlaceReviewsProvider(_status));
+    final config = ref.watch(reviewModerationConfigProvider);
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+      children: [
+        const _AdminSectionHeader(
+          title: 'Review Queue',
+          subtitle:
+              'Check traveler reviews and uploaded photos before they become public.',
+        ),
+        config.when(
+          loading: () => const LinearProgressIndicator(),
+          error: (error, _) => _AdminErrorCard(error: error),
+          data: (value) => Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                children: [
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Require review approval'),
+                    subtitle: const Text(
+                      'New reviews stay pending until an admin approves them.',
+                    ),
+                    value: value.reviewsRequireApproval,
+                    onChanged: (enabled) => _saveConfig(
+                      value.copyWith(reviewsRequireApproval: enabled),
+                    ),
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Require image approval'),
+                    subtitle: const Text(
+                      'Review photos stay hidden until the review is approved.',
+                    ),
+                    value: value.imagesRequireApproval,
+                    onChanged: (enabled) => _saveConfig(
+                      value.copyWith(imagesRequireApproval: enabled),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              for (final status in const [
+                'pending',
+                'approved',
+                'rejected',
+                'all',
+              ])
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    selected: _status == status,
+                    label: Text(status),
+                    onSelected: (_) => setState(() => _status = status),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        reviews.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) => _AdminErrorCard(error: error),
+          data: (items) {
+            if (items.isEmpty) {
+              return const _AdminEmptyCard(text: 'No reviews in this queue.');
+            }
+            return Column(
+              children: items
+                  .map(
+                    (review) => _AdminReviewCard(
+                      review: review,
+                      onApprove: () => _updateReview(review, 'approved'),
+                      onReject: () => _updateReview(review, 'rejected'),
+                      onReply: () => _showReplyDialog(review),
+                    ),
+                  )
+                  .toList(),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Future<void> _saveConfig(ReviewModerationConfig config) async {
+    await ref
+        .read(tourismRepositoryProvider)
+        .saveReviewModerationConfig(config);
+    ref.invalidate(reviewModerationConfigProvider);
+  }
+
+  Future<void> _updateReview(PlaceReview review, String status) async {
+    await ref.read(tourismRepositoryProvider).updateReviewStatus(
+          reviewId: review.id,
+          status: status,
+        );
+    ref.invalidate(adminPlaceReviewsProvider(_status));
+    ref.invalidate(placeReviewsProvider(review.placeId));
+  }
+
+  Future<void> _showReplyDialog(PlaceReview review) async {
+    final controller = TextEditingController(text: review.adminReply ?? '');
+    final reply = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Reply to review'),
+        content: TextField(
+          controller: controller,
+          minLines: 3,
+          maxLines: 6,
+          textInputAction: TextInputAction.newline,
+          decoration: const InputDecoration(
+            labelText: 'Official UniSafeX reply',
+            hintText: 'Write a short helpful response from the team',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, ''),
+            child: const Text('Clear'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, controller.text),
+            icon: const Icon(Icons.reply_rounded),
+            label: const Text('Save reply'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (reply == null) return;
+    await ref.read(tourismRepositoryProvider).updateReviewReply(
+          reviewId: review.id,
+          adminReply: reply,
+        );
+    ref.invalidate(adminPlaceReviewsProvider(_status));
+    ref.invalidate(placeReviewsProvider(review.placeId));
+  }
+}
+
+class _AdminReviewCard extends StatelessWidget {
+  const _AdminReviewCard({
+    required this.review,
+    required this.onApprove,
+    required this.onReject,
+    required this.onReply,
+  });
+
+  final PlaceReview review;
+  final VoidCallback onApprove;
+  final VoidCallback onReject;
+  final VoidCallback onReply;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 17,
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                  backgroundImage:
+                      review.reviewerAvatarUrl?.trim().isNotEmpty == true
+                          ? NetworkImage(review.reviewerAvatarUrl!.trim())
+                          : null,
+                  child: review.reviewerAvatarUrl?.trim().isNotEmpty == true
+                      ? null
+                      : Text(
+                          review.displayReviewerName.substring(0, 1),
+                          style: const TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        review.title?.trim().isNotEmpty == true
+                            ? review.title!.trim()
+                            : 'Review for ${review.placeId}',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      Text(
+                        review.displayReviewerName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+                Chip(label: Text(review.status)),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: List.generate(
+                5,
+                (index) => Icon(
+                  index < review.rating
+                      ? Icons.star_rounded
+                      : Icons.star_border_rounded,
+                  size: 17,
+                  color: AppColors.accent,
+                ),
+              ),
+            ),
+            if (review.body?.trim().isNotEmpty == true) ...[
+              const SizedBox(height: 8),
+              Text(review.body!.trim()),
+            ],
+            if (review.hasAdminReply) ...[
+              const SizedBox(height: 10),
+              _AdminReviewReply(reply: review.adminReply!.trim()),
+            ],
+            if (review.imageUrls.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 92,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: review.imageUrls.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (_, index) => ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      review.imageUrls[index],
+                      width: 92,
+                      height: 92,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        width: 92,
+                        height: 92,
+                        color: AppColors.primary.withValues(alpha: 0.08),
+                        child: const Icon(Icons.image_outlined),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.icon(
+                  onPressed: review.status == 'approved' ? null : onApprove,
+                  icon: const Icon(Icons.check_rounded),
+                  label: const Text('Approve'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: review.status == 'rejected' ? null : onReject,
+                  icon: const Icon(Icons.close_rounded),
+                  label: const Text('Reject'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: onReply,
+                  icon: const Icon(Icons.reply_rounded),
+                  label: Text(review.hasAdminReply ? 'Edit reply' : 'Reply'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AdminReviewReply extends StatelessWidget {
+  const _AdminReviewReply({required this.reply});
+
+  final String reply;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.22)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.verified_rounded,
+              color: AppColors.primary, size: 19),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Official UniSafeX reply',
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(reply),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CurrencyRatesAdminTab extends ConsumerStatefulWidget {
+  const _CurrencyRatesAdminTab();
+
+  @override
+  ConsumerState<_CurrencyRatesAdminTab> createState() =>
+      _CurrencyRatesAdminTabState();
+}
+
+class _CurrencyRatesAdminTabState
+    extends ConsumerState<_CurrencyRatesAdminTab> {
+  static const _defaultCodes = [
+    'USD',
+    'INR',
+    'EUR',
+    'GBP',
+    'AUD',
+    'CAD',
+    'AED',
+    'SGD',
+    'JPY',
+    'THB',
+  ];
+
+  final Map<String, TextEditingController> _controllers = {};
+  bool _saving = false;
+  bool _fetching = false;
+  String? _loadedSignature;
+
+  @override
+  void dispose() {
+    for (final controller in _controllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final configState = ref.watch(adminCurrencyRatesConfigProvider);
+    final config = configState.valueOrNull ?? const CurrencyRatesConfig();
+    _hydrateControllers(config);
+    final codes = _controllers.keys.toList()..sort();
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: AppColors.primary,
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.currency_exchange_rounded,
+                  color: Colors.white, size: 34),
+              SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Live currency values',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Update USD-based rates used by the Travel Toolkit. '
+                      'Users receive these values immediately from Supabase.',
+                      style: TextStyle(color: Colors.white70, height: 1.35),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        if (configState.hasError)
+          Card(
+            color: AppColors.warning.withValues(alpha: 0.08),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'Currency settings are not ready yet. Apply the currency '
+                'SQL migration in Supabase, then reload admin.\n\n'
+                '${configState.error}',
+              ),
+            ),
+          ),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Base currency: USD',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                    _InfoChip(
+                      icon: Icons.schedule_rounded,
+                      label: config.updatedAt == null
+                          ? 'Not saved'
+                          : _adminDate(config.updatedAt),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Enter how much 1 USD equals in each currency. Keep USD = 1.',
+                ),
+                const SizedBox(height: 16),
+                ...codes.map(_rateField),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: _saving ? null : _saveRates,
+                      icon: _saving
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.save_rounded),
+                      label: Text(_saving ? 'Saving...' : 'Save rates'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _fetching ? null : _fetchLiveRates,
+                      icon: _fetching
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.cloud_sync_rounded),
+                      label: Text(_fetching ? 'Fetching...' : 'Fetch live'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _addCurrency,
+                      icon: const Icon(Icons.add_rounded),
+                      label: const Text('Add currency'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _rateField(String code) {
+    final removable = code != 'USD';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: TextField(
+        controller: _controllers[code],
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: InputDecoration(
+          labelText: code,
+          helperText: code == 'USD' ? 'Base rate must stay 1' : null,
+          prefixIcon: const Icon(Icons.payments_outlined),
+          suffixIcon: removable
+              ? IconButton(
+                  tooltip: 'Remove $code',
+                  onPressed: () => _removeCurrency(code),
+                  icon: const Icon(Icons.close_rounded),
+                )
+              : null,
+        ),
+      ),
+    );
+  }
+
+  void _hydrateControllers(CurrencyRatesConfig config) {
+    final signature = config.toJson().toString();
+    if (_controllers.isNotEmpty && _loadedSignature == signature) return;
+    if (_controllers.isNotEmpty && _loadedSignature != null) return;
+    final rates = {
+      ...config.rates,
+      for (final code in _defaultCodes) code: config.rates[code] ?? 0,
+      'USD': 1.0,
+    };
+    for (final entry in rates.entries) {
+      _controllers[entry.key] = TextEditingController(
+        text: entry.value == 0 ? '' : entry.value.toString(),
+      );
+    }
+    _loadedSignature = signature;
+  }
+
+  Map<String, double> _readRates() {
+    final rates = <String, double>{'USD': 1};
+    for (final entry in _controllers.entries) {
+      final code = entry.key.trim().toUpperCase();
+      final value = double.tryParse(entry.value.text.trim());
+      if (code.isEmpty || value == null || value <= 0) continue;
+      rates[code] = code == 'USD' ? 1 : value;
+    }
+    return rates;
+  }
+
+  Future<void> _saveRates() async {
+    final rates = _readRates();
+    if (rates.length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Add at least one valid currency rate.')),
+      );
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      await ref
+          .read(adminRemoteConfigRepositoryProvider)
+          .saveCurrencyRatesConfig(
+            CurrencyRatesConfig(
+              base: 'USD',
+              rates: rates,
+              updatedAt: DateTime.now(),
+              source: 'admin',
+            ),
+          );
+      ref.invalidate(adminCurrencyRatesConfigProvider);
+      ref.invalidate(adminActivityLogProvider);
+      if (!mounted) return;
+      setState(() {
+        _loadedSignature = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Currency rates saved.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not save currency rates. $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _fetchLiveRates() async {
+    setState(() => _fetching = true);
+    try {
+      final rates = await CurrencyService().fetchLiveRates('USD');
+      setState(() {
+        for (final entry in rates.rates.entries) {
+          final controller = _controllers.putIfAbsent(
+            entry.key,
+            () => TextEditingController(),
+          );
+          controller.text = entry.value.toString();
+        }
+        _controllers['USD']?.text = '1';
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Live currency rates loaded. Press Save.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not fetch live rates. $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _fetching = false);
+    }
+  }
+
+  Future<void> _addCurrency() async {
+    final controller = TextEditingController();
+    final code = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add currency'),
+        content: TextField(
+          controller: controller,
+          textCapitalization: TextCapitalization.characters,
+          maxLength: 3,
+          decoration: const InputDecoration(
+            labelText: 'Currency code',
+            hintText: 'USD, EUR, INR',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.pop(context, controller.text.trim().toUpperCase()),
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (code == null || code.length != 3 || _controllers.containsKey(code)) {
+      return;
+    }
+    setState(() => _controllers[code] = TextEditingController());
+  }
+
+  void _removeCurrency(String code) {
+    final controller = _controllers.remove(code);
+    controller?.dispose();
+    setState(() {});
+  }
+}
+
+class _AuthAccessAdminTab extends ConsumerStatefulWidget {
+  const _AuthAccessAdminTab();
+
+  @override
+  ConsumerState<_AuthAccessAdminTab> createState() =>
+      _AuthAccessAdminTabState();
+}
+
+class _AuthAccessAdminTabState extends ConsumerState<_AuthAccessAdminTab> {
+  static final Uri _supabaseEmailProviderUrl = Uri.parse(
+    'https://supabase.com/dashboard/project/anslzankezcrxvuoidxj/auth/providers',
+  );
+
+  AuthAccessConfig? _draft;
+  bool _saving = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final configState = ref.watch(authAccessConfigProvider);
+    final config =
+        _draft ?? configState.valueOrNull ?? const AuthAccessConfig();
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: AppColors.primaryDark,
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.mark_email_read_rounded,
+                  color: Colors.white, size: 34),
+              SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Email confirmation control',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Save app login behavior here, then match the real '
+                      'Supabase Auth provider setting.',
+                      style: TextStyle(color: Colors.white70, height: 1.35),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        if (configState.hasError)
+          Card(
+            color: AppColors.warning.withValues(alpha: 0.08),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'Auth settings table is not ready yet. Apply the app_settings '
+                'SQL migration in Supabase, then reload admin.\n\n'
+                '${configState.error}',
+              ),
+            ),
+          ),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SwitchListTile(
+                  value: config.emailConfirmationRequired,
+                  title: const Text('Require email confirmation in app flow'),
+                  subtitle: Text(
+                    config.emailConfirmationRequired
+                        ? 'ON: registration asks users to confirm email before sign in.'
+                        : 'OFF: app expects instant login after signup. Supabase Email provider must also have Confirm email OFF.',
+                  ),
+                  onChanged: (value) {
+                    setState(() {
+                      _draft = config.copyWith(
+                        emailConfirmationRequired: value,
+                        showResendConfirmation: value,
+                      );
+                    });
+                  },
+                ),
+                const Divider(),
+                SwitchListTile(
+                  value: config.showResendConfirmation,
+                  title: const Text('Show resend confirmation on login'),
+                  subtitle: const Text(
+                    'Hide this when email confirmation is disabled.',
+                  ),
+                  onChanged: (value) {
+                    setState(() {
+                      _draft = config.copyWith(showResendConfirmation: value);
+                    });
+                  },
+                ),
+                const Divider(),
+                SwitchListTile(
+                  value: config.guestLoginEnabled,
+                  title: const Text('Show guest login button'),
+                  subtitle: Text(
+                    config.guestLoginEnabled
+                        ? 'ON: visitors can explore limited app features without signing in.'
+                        : 'OFF: auth screen only shows email, Google and create account.',
+                  ),
+                  onChanged: (value) {
+                    setState(() {
+                      _draft = config.copyWith(guestLoginEnabled: value);
+                    });
+                  },
+                ),
+                const SizedBox(height: 12),
+                _AuthModeStatusCard(config: config),
+                const SizedBox(height: 12),
+                Card(
+                  color: AppColors.warning.withValues(alpha: 0.08),
+                  child: const Padding(
+                    padding: EdgeInsets.all(14),
+                    child: Text(
+                      'Important: Flutter cannot safely turn Supabase email '
+                      'confirmation ON/OFF with the public anon key. For real '
+                      'instant signup, open Supabase Auth > Providers > Email '
+                      'and turn Confirm email OFF. Never put service-role keys '
+                      'inside the app.',
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: _saving ? null : () => _save(config),
+                      icon: _saving
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.save_rounded),
+                      label: Text(_saving ? 'Saving...' : 'Save app setting'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _openSupabaseEmailProvider,
+                      icon: const Icon(Icons.open_in_new_rounded),
+                      label: const Text('Open Supabase Email provider'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _draft = config.copyWith(
+                            emailConfirmationRequired: false,
+                            showResendConfirmation: false,
+                          );
+                        });
+                      },
+                      icon: const Icon(Icons.flash_on_rounded),
+                      label: const Text('Set app to instant signup'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _save(AuthAccessConfig config) async {
+    setState(() => _saving = true);
+    try {
+      await ref.read(adminRemoteConfigRepositoryProvider).saveAuthAccessConfig(
+            config,
+          );
+      ref.invalidate(authAccessConfigProvider);
+      ref.invalidate(adminActivityLogProvider);
+      if (!mounted) return;
+      setState(() => _draft = null);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Auth app settings saved.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not save auth settings. $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _openSupabaseEmailProvider() async {
+    await launchUrl(_supabaseEmailProviderUrl);
+  }
+}
+
+class _AuthModeStatusCard extends StatelessWidget {
+  const _AuthModeStatusCard({required this.config});
+
+  final AuthAccessConfig config;
+
+  @override
+  Widget build(BuildContext context) {
+    final instant = !config.emailConfirmationRequired;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: (instant ? AppColors.success : AppColors.primary)
+            .withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: (instant ? AppColors.success : AppColors.primary)
+              .withValues(alpha: 0.22),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            instant ? Icons.flash_on_rounded : Icons.verified_user_rounded,
+            color: instant ? AppColors.success : AppColors.primary,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              instant
+                  ? 'App mode: instant signup. Users can continue immediately only after Supabase Confirm email is OFF.'
+                  : 'App mode: secure email confirmation. Users confirm email before signing in.',
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

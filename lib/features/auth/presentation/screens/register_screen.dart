@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
 import 'package:unisafex/core/widgets/app_button.dart';
+import 'package:unisafex/features/admin/data/admin_remote_config_repository.dart';
 import 'package:unisafex/features/auth/presentation/providers/auth_provider.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -46,13 +47,25 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       if (!mounted) return;
 
       if (result.requiresEmailConfirmation) {
+        final config = ref.read(authAccessConfigProvider).valueOrNull ??
+            const AuthAccessConfig();
         await showDialog<void>(
           context: context,
           barrierDismissible: false,
           builder: (dialogContext) => AlertDialog(
-            title: Text('confirm_email'.tr()),
+            title: Text(
+              config.emailConfirmationRequired
+                  ? 'confirm_email'.tr()
+                  : 'Supabase confirmation is still ON',
+            ),
             content: Text(
-              'confirm_email_message'.tr(args: [_emailController.text.trim()]),
+              config.emailConfirmationRequired
+                  ? 'confirm_email_message'
+                      .tr(args: [_emailController.text.trim()])
+                  : 'Admin app setting is OFF, but Supabase Auth still '
+                      'requires email confirmation. Turn off Confirm email '
+                      'in Supabase Dashboard > Authentication > Providers > '
+                      'Email to allow instant login.',
             ),
             actions: [
               TextButton(
@@ -87,12 +100,20 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final authConfig = ref.watch(authAccessConfigProvider).valueOrNull ??
+        const AuthAccessConfig();
 
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_rounded),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go(AppRoutes.authSelection);
+            }
+          },
         ),
         title: Text('create_account'.tr()),
       ),
@@ -179,7 +200,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     curve: Curves.easeOutCubic,
                   ),
               const SizedBox(height: 10),
-              _PasswordSecurityNote(password: _passwordController.text),
+              _PasswordSecurityNote(
+                password: _passwordController.text,
+                emailConfirmationRequired: authConfig.emailConfirmationRequired,
+              ),
               const SizedBox(height: 20),
               _buildLabel('confirm_password'.tr()),
               const SizedBox(height: 8),
@@ -300,8 +324,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
 class _PasswordSecurityNote extends StatelessWidget {
   final String password;
+  final bool emailConfirmationRequired;
 
-  const _PasswordSecurityNote({required this.password});
+  const _PasswordSecurityNote({
+    required this.password,
+    required this.emailConfirmationRequired,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -328,8 +356,15 @@ class _PasswordSecurityNote extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Security required: email confirmation + strong password.',
+            'Security required: strong password.',
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            emailConfirmationRequired
+                ? 'Email confirmation is ON.'
+                : 'Email confirmation is OFF in app settings. Supabase Auth must also be OFF.',
+            style: const TextStyle(fontSize: 12),
           ),
           const SizedBox(height: 8),
           Wrap(

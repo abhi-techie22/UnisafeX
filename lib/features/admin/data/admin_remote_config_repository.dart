@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:unisafex/features/auth/presentation/providers/auth_provider.dart';
 import 'package:unisafex/features/profile/domain/entities/user_profile.dart';
@@ -10,8 +11,8 @@ class FeatureFlags {
 
   bool enabled(String key, {bool fallback = false}) => values[key] ?? fallback;
 
-  bool get hotels => enabled('feature_hotels_enabled');
-  bool get flights => enabled('feature_flights_enabled');
+  bool get hotels => enabled('feature_hotels_enabled', fallback: true);
+  bool get flights => enabled('feature_flights_enabled', fallback: true);
   bool get aiAssistant =>
       enabled('feature_ai_assistant_enabled', fallback: true);
   bool get sos => enabled('feature_sos_enabled', fallback: true);
@@ -86,6 +87,112 @@ class HomeBanner {
   }
 }
 
+class AuthAccessConfig {
+  const AuthAccessConfig({
+    this.emailConfirmationRequired = true,
+    this.showResendConfirmation = true,
+    this.guestLoginEnabled = true,
+  });
+
+  final bool emailConfirmationRequired;
+  final bool showResendConfirmation;
+  final bool guestLoginEnabled;
+
+  factory AuthAccessConfig.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return const AuthAccessConfig();
+    return AuthAccessConfig(
+      emailConfirmationRequired:
+          json['email_confirmation_required'] as bool? ?? true,
+      showResendConfirmation: json['show_resend_confirmation'] as bool? ?? true,
+      guestLoginEnabled: json['guest_login_enabled'] as bool? ?? true,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'email_confirmation_required': emailConfirmationRequired,
+      'show_resend_confirmation': showResendConfirmation,
+      'guest_login_enabled': guestLoginEnabled,
+    };
+  }
+
+  AuthAccessConfig copyWith({
+    bool? emailConfirmationRequired,
+    bool? showResendConfirmation,
+    bool? guestLoginEnabled,
+  }) {
+    return AuthAccessConfig(
+      emailConfirmationRequired:
+          emailConfirmationRequired ?? this.emailConfirmationRequired,
+      showResendConfirmation:
+          showResendConfirmation ?? this.showResendConfirmation,
+      guestLoginEnabled: guestLoginEnabled ?? this.guestLoginEnabled,
+    );
+  }
+}
+
+class CurrencyRatesConfig {
+  const CurrencyRatesConfig({
+    this.base = 'USD',
+    this.rates = const <String, double>{
+      'USD': 1,
+      'INR': 83.5,
+      'EUR': 0.92,
+      'GBP': 0.79,
+    },
+    this.updatedAt,
+    this.source = 'admin',
+  });
+
+  final String base;
+  final Map<String, double> rates;
+  final DateTime? updatedAt;
+  final String source;
+
+  factory CurrencyRatesConfig.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return const CurrencyRatesConfig();
+    final rawRates = json['rates'];
+    return CurrencyRatesConfig(
+      base: json['base']?.toString().toUpperCase() ?? 'USD',
+      rates: rawRates is Map
+          ? rawRates.map(
+              (key, value) => MapEntry(
+                key.toString().toUpperCase(),
+                (value as num).toDouble(),
+              ),
+            )
+          : const CurrencyRatesConfig().rates,
+      updatedAt: DateTime.tryParse(json['updated_at']?.toString() ?? ''),
+      source: json['source']?.toString() ?? 'admin',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'base': base.toUpperCase(),
+      'rates': rates.map(
+        (key, value) => MapEntry(key.toUpperCase(), value),
+      ),
+      'updated_at': (updatedAt ?? DateTime.now()).toIso8601String(),
+      'source': source,
+    };
+  }
+
+  CurrencyRatesConfig copyWith({
+    String? base,
+    Map<String, double>? rates,
+    DateTime? updatedAt,
+    String? source,
+  }) {
+    return CurrencyRatesConfig(
+      base: base ?? this.base,
+      rates: rates ?? this.rates,
+      updatedAt: updatedAt ?? this.updatedAt,
+      source: source ?? this.source,
+    );
+  }
+}
+
 class TravelAlert {
   const TravelAlert({
     required this.id,
@@ -134,6 +241,10 @@ class AdminTeamMember {
   final bool isActive;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+
+  bool get isOwner => role == 'owner';
+  bool get isPrimaryOwner =>
+      email.trim().toLowerCase() == 'abhishek.work962511@gmail.com';
 
   factory AdminTeamMember.fromJson(Map<String, dynamic> json) {
     return AdminTeamMember(
@@ -237,6 +348,35 @@ class SupportTicket {
   }
 }
 
+String _supportSeenKey(String userId) => 'support_seen_latest_update_$userId';
+
+DateTime? latestSupportAttentionUpdate(List<SupportTicket> tickets) {
+  DateTime? latest;
+  for (final ticket in tickets) {
+    final hasReply = ticket.adminResponse?.trim().isNotEmpty == true;
+    final needsUser = ticket.status == 'waiting_user';
+    final resolved = ticket.status == 'resolved' || ticket.status == 'closed';
+    if (!hasReply && !needsUser && !resolved) continue;
+
+    final updatedAt = ticket.updatedAt ?? ticket.resolvedAt ?? ticket.createdAt;
+    if (updatedAt == null) continue;
+    if (latest == null || updatedAt.isAfter(latest)) {
+      latest = updatedAt;
+    }
+  }
+  return latest;
+}
+
+Future<void> markSupportTicketsSeen({
+  required String userId,
+  required List<SupportTicket> tickets,
+}) async {
+  final latest = latestSupportAttentionUpdate(tickets);
+  if (latest == null) return;
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setInt(_supportSeenKey(userId), latest.millisecondsSinceEpoch);
+}
+
 class AdminDashboardStats {
   const AdminDashboardStats({
     required this.places,
@@ -255,6 +395,9 @@ class AdminRemoteConfigRepository {
   const AdminRemoteConfigRepository(this._client);
 
   final SupabaseClient _client;
+
+  static const authSettingsKey = 'auth_config';
+  static const currencySettingsKey = 'currency_rates';
 
   Future<List<AppFeatureFlag>> getFeatureFlags() async {
     final rows = await _client
@@ -289,6 +432,70 @@ class AdminRemoteConfigRepository {
     if (!admin) query = query.eq('is_active', true);
     final rows = await query.order('priority').order('created_at');
     return _rows(rows).map(HomeBanner.fromJson).toList();
+  }
+
+  Future<AuthAccessConfig> getAuthAccessConfig() async {
+    try {
+      final row = await _client
+          .from('app_settings')
+          .select('value')
+          .eq('key', authSettingsKey)
+          .maybeSingle();
+      final value = row?['value'];
+      if (value is Map) {
+        return AuthAccessConfig.fromJson(Map<String, dynamic>.from(value));
+      }
+    } catch (_) {
+      // Keep secure defaults if app_settings is not applied yet.
+    }
+    return const AuthAccessConfig();
+  }
+
+  Future<void> saveAuthAccessConfig(AuthAccessConfig config) async {
+    await _client.from('app_settings').upsert({
+      'key': authSettingsKey,
+      'value': config.toJson(),
+    });
+    await logActivity(
+      entityType: 'auth_config',
+      entityId: authSettingsKey,
+      action: 'updated auth settings',
+      afterData: config.toJson(),
+    );
+  }
+
+  Future<CurrencyRatesConfig> getCurrencyRatesConfig() async {
+    try {
+      final row = await _client
+          .from('app_settings')
+          .select('value')
+          .eq('key', currencySettingsKey)
+          .maybeSingle();
+      final value = row?['value'];
+      if (value is Map) {
+        return CurrencyRatesConfig.fromJson(Map<String, dynamic>.from(value));
+      }
+    } catch (_) {
+      // Keep bundled fallback rates if app_settings is not applied yet.
+    }
+    return const CurrencyRatesConfig();
+  }
+
+  Future<void> saveCurrencyRatesConfig(CurrencyRatesConfig config) async {
+    await _client.from('app_settings').upsert({
+      'key': currencySettingsKey,
+      'value': config.toJson(),
+    });
+    await logActivity(
+      entityType: 'currency_rates',
+      entityId: currencySettingsKey,
+      action: 'updated currency rates',
+      afterData: {
+        'title': '${config.base} currency rates',
+        'count': config.rates.length,
+        'source': config.source,
+      },
+    );
   }
 
   Future<void> saveHomeBanner({
@@ -416,6 +623,17 @@ class AdminRemoteConfigRepository {
     final rows =
         await _client.from('admin_users').select().order('role').order('email');
     return _rows(rows).map(AdminTeamMember.fromJson).toList();
+  }
+
+  Future<bool> isCurrentUserOwner() async {
+    try {
+      final value = await _client.rpc('is_owner');
+      return value == true;
+    } catch (_) {
+      final user = _client.auth.currentUser;
+      return user?.email?.trim().toLowerCase() ==
+          'abhishek.work962511@gmail.com';
+    }
   }
 
   Future<void> addTeamMember({
@@ -560,6 +778,17 @@ final activeHomeBannersProvider = FutureProvider<List<HomeBanner>>((ref) {
   return ref.watch(adminRemoteConfigRepositoryProvider).getHomeBanners();
 });
 
+final authAccessConfigProvider = FutureProvider<AuthAccessConfig>((ref) {
+  return ref.watch(adminRemoteConfigRepositoryProvider).getAuthAccessConfig();
+});
+
+final adminCurrencyRatesConfigProvider =
+    FutureProvider<CurrencyRatesConfig>((ref) {
+  return ref
+      .watch(adminRemoteConfigRepositoryProvider)
+      .getCurrencyRatesConfig();
+});
+
 final adminHomeBannersProvider = FutureProvider<List<HomeBanner>>((ref) {
   return ref.watch(adminRemoteConfigRepositoryProvider).getHomeBanners(
         admin: true,
@@ -588,6 +817,10 @@ final adminTeamMembersProvider = FutureProvider<List<AdminTeamMember>>((ref) {
   return ref.watch(adminRemoteConfigRepositoryProvider).getTeamMembers();
 });
 
+final isAdminOwnerProvider = FutureProvider<bool>((ref) {
+  return ref.watch(adminRemoteConfigRepositoryProvider).isCurrentUserOwner();
+});
+
 final adminActivityLogProvider = FutureProvider<List<AdminActivityLog>>((ref) {
   return ref.watch(adminRemoteConfigRepositoryProvider).getActivityLog();
 });
@@ -609,10 +842,10 @@ final supportNeedsAttentionProvider = FutureProvider<bool>((ref) async {
   if (user == null) return false;
   final tickets =
       await ref.watch(adminRemoteConfigRepositoryProvider).getSupportTickets();
-  return tickets.any((ticket) {
-    final hasReply = ticket.adminResponse?.trim().isNotEmpty == true;
-    final needsUser = ticket.status == 'waiting_user';
-    final resolved = ticket.status == 'resolved' || ticket.status == 'closed';
-    return hasReply || needsUser || resolved;
-  });
+  final latest = latestSupportAttentionUpdate(tickets);
+  if (latest == null) return false;
+
+  final prefs = await SharedPreferences.getInstance();
+  final seenAt = prefs.getInt(_supportSeenKey(user.id)) ?? 0;
+  return latest.millisecondsSinceEpoch > seenAt;
 });

@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
+import 'package:unisafex/core/utils/connectivity_service.dart';
+import 'package:unisafex/core/widgets/offline_mode_screen.dart';
 import 'package:unisafex/features/admin/data/admin_remote_config_repository.dart';
 import 'package:unisafex/features/auth/presentation/providers/auth_provider.dart';
 
@@ -53,17 +55,24 @@ class MainScaffold extends ConsumerWidget {
     return 0;
   }
 
+  bool _canShowOfflineChild(BuildContext context) {
+    return GoRouterState.of(context).matchedLocation == AppRoutes.favorites;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final activeIndex = _getActiveIndex(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final user = ref.watch(currentUserProvider);
+    final isOnline = ref.watch(isOnlineProvider);
     final supportAttention = user == null
         ? false
         : (ref.watch(supportNeedsAttentionProvider).valueOrNull ?? false);
 
     return Scaffold(
-      body: child,
+      body: isOnline || _canShowOfflineChild(context)
+          ? child
+          : const OfflineModeScreen(),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: isDark ? AppColors.cardDark : AppColors.cardLight,

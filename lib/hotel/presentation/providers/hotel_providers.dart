@@ -26,17 +26,10 @@ final _bookingAffiliateServiceProvider = Provider<BookingAffiliateService>(
   (_) => BookingAffiliateService(),
 );
 
-/// To enable Amadeus, set these env values or replace the strings.
-/// Leave them as '' to use mock service.
+/// Hotel supplier secrets must never be shipped inside the Flutter APK.
+/// Wire Amadeus through a Supabase Edge Function before enabling this provider.
 final _amadeusServiceProvider = Provider<AmadeusApiService?>((_) {
-  const clientId = String.fromEnvironment('AMADEUS_CLIENT_ID');
-  const clientSecret = String.fromEnvironment('AMADEUS_CLIENT_SECRET');
-  if (clientId.isEmpty || clientSecret.isEmpty) return null;
-  return AmadeusApiService(
-    clientId: clientId,
-    clientSecret: clientSecret,
-    useSandbox: true,
-  );
+  return null;
 });
 
 final hotelRepositoryProvider = Provider<HotelRepository>((ref) {

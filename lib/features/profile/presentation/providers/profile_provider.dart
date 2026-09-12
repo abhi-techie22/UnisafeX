@@ -8,6 +8,13 @@ import 'package:unisafex/features/profile/domain/entities/user_profile.dart';
 
 class ProfileRepository {
   final SupabaseClient _client;
+  static const int _maxProfileImageBytes = 5 * 1024 * 1024;
+  static const Map<String, String> _allowedProfileImageTypes = {
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'png': 'image/png',
+    'webp': 'image/webp',
+  };
 
   ProfileRepository(this._client);
 
@@ -44,13 +51,16 @@ class ProfileRepository {
 
   Future<String> uploadProfileImage(String userId, File imageFile) async {
     _requireMatchingAuthenticatedUser(userId);
-    final ext = imageFile.path.split('.').last;
+    final ext = _normalizeImageExtension(imageFile.path.split('.').last);
+    final contentType = _contentTypeForExtension(ext);
+    final size = await imageFile.length();
+    _validateImageSize(size);
     final fileName = 'profiles/$userId/avatar.$ext';
 
     await _client.storage.from('user-media').upload(
           fileName,
           imageFile,
-          fileOptions: const FileOptions(upsert: true),
+          fileOptions: FileOptions(upsert: true, contentType: contentType),
         );
 
     return _client.storage.from('user-media').getPublicUrl(fileName);
@@ -62,16 +72,41 @@ class ProfileRepository {
     required String extension,
   }) async {
     _requireMatchingAuthenticatedUser(userId);
-    final normalizedExtension = extension.isEmpty ? 'jpg' : extension;
+    final normalizedExtension = _normalizeImageExtension(extension);
+    final contentType = _contentTypeForExtension(normalizedExtension);
+    _validateImageSize(bytes.length);
     final fileName = 'profiles/$userId/avatar.$normalizedExtension';
 
     await _client.storage.from('user-media').uploadBinary(
           fileName,
           bytes,
-          fileOptions: const FileOptions(upsert: true),
+          fileOptions: FileOptions(upsert: true, contentType: contentType),
         );
 
     return _client.storage.from('user-media').getPublicUrl(fileName);
+  }
+
+  String _normalizeImageExtension(String extension) {
+    final normalized = extension.trim().toLowerCase().replaceAll('.', '');
+    final safeExtension = normalized.isEmpty ? 'jpg' : normalized;
+    if (!_allowedProfileImageTypes.containsKey(safeExtension)) {
+      throw const StorageException(
+        'Only JPG, PNG, and WebP profile images are allowed.',
+      );
+    }
+    return safeExtension;
+  }
+
+  String _contentTypeForExtension(String extension) {
+    return _allowedProfileImageTypes[extension] ?? 'image/jpeg';
+  }
+
+  void _validateImageSize(int bytes) {
+    if (bytes <= 0 || bytes > _maxProfileImageBytes) {
+      throw const StorageException(
+        'Profile image must be smaller than 5 MB.',
+      );
+    }
   }
 
   void _requireMatchingAuthenticatedUser(String userId) {

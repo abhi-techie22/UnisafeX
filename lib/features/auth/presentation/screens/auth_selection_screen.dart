@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
 import 'package:unisafex/core/widgets/app_button.dart';
+import 'package:unisafex/features/admin/data/admin_remote_config_repository.dart';
 import 'package:unisafex/features/auth/presentation/providers/auth_provider.dart';
 import 'package:unisafex/features/profile/presentation/providers/profile_provider.dart';
 
@@ -85,6 +86,8 @@ class _AuthSelectionScreenState extends ConsumerState<AuthSelectionScreen> {
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final size = MediaQuery.of(context).size;
+    final authConfig = ref.watch(authAccessConfigProvider).valueOrNull ??
+        const AuthAccessConfig();
 
     return Scaffold(
       body: Stack(
@@ -272,75 +275,78 @@ class _AuthSelectionScreenState extends ConsumerState<AuthSelectionScreen> {
                                 isFullWidth: true,
                               ),
 
-                              const SizedBox(height: 20),
+                              if (authConfig.guestLoginEnabled) ...[
+                                const SizedBox(height: 20),
 
-                              // Divider
-                              Row(
-                                children: [
-                                  Expanded(
-                                      child: Divider(
-                                          color: isDark
-                                              ? AppColors.borderDark
-                                              : AppColors.borderLight)),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 16),
-                                    child: Text(
-                                      'or'.tr(),
-                                      style: TextStyle(
-                                        color: isDark
-                                            ? AppColors.grey600
-                                            : AppColors.grey400,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ),
-                                  Expanded(
-                                      child: Divider(
-                                          color: isDark
-                                              ? AppColors.borderDark
-                                              : AppColors.borderLight)),
-                                ],
-                              ),
-
-                              const SizedBox(height: 20),
-
-                              // Guest button
-                              SizedBox(
-                                width: double.infinity,
-                                height: 52,
-                                child: TextButton(
-                                  onPressed: () => context.go(AppRoutes.home),
-                                  style: TextButton.styleFrom(
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(14),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.explore_outlined,
-                                        size: 20,
-                                        color: isDark
-                                            ? AppColors.grey400
-                                            : AppColors.grey600,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        'explore_as_guest'.tr(),
+                                // Divider
+                                Row(
+                                  children: [
+                                    Expanded(
+                                        child: Divider(
+                                            color: isDark
+                                                ? AppColors.borderDark
+                                                : AppColors.borderLight)),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 16),
+                                      child: Text(
+                                        'or'.tr(),
                                         style: TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w500,
+                                          color: isDark
+                                              ? AppColors.grey600
+                                              : AppColors.grey400,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                        child: Divider(
+                                            color: isDark
+                                                ? AppColors.borderDark
+                                                : AppColors.borderLight)),
+                                  ],
+                                ),
+
+                                const SizedBox(height: 20),
+
+                                // Guest button
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 52,
+                                  child: TextButton(
+                                    onPressed: () => context.go(AppRoutes.home),
+                                    style: TextButton.styleFrom(
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.explore_outlined,
+                                          size: 20,
                                           color: isDark
                                               ? AppColors.grey400
                                               : AppColors.grey600,
                                         ),
-                                      ),
-                                    ],
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'explore_as_guest'.tr(),
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w500,
+                                            color: isDark
+                                                ? AppColors.grey400
+                                                : AppColors.grey600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
-                              ),
+                              ],
 
                               const SizedBox(height: 16),
 

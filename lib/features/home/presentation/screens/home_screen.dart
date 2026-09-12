@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -13,6 +15,7 @@ import 'package:unisafex/features/guide/presentation/providers/guide_request_pro
 import 'package:unisafex/features/home/presentation/providers/location_provider.dart';
 import 'package:unisafex/features/profile/domain/profile_completion.dart';
 import 'package:unisafex/features/profile/presentation/providers/profile_provider.dart';
+import 'package:unisafex/features/booking/presentation/widgets/booking_home_section.dart';
 import 'package:unisafex/features/tourism/domain/entities/tourism_place.dart';
 import 'package:unisafex/features/tourism/presentation/providers/tourism_provider.dart';
 import 'package:unisafex/features/tourism/presentation/widgets/featured_place_card.dart';
@@ -314,6 +317,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ),
 
+          if (featureFlags.hotels || featureFlags.flights)
+            SliverToBoxAdapter(
+              child: BookingHomeSection(
+                showHotels: featureFlags.hotels,
+                showFlights: featureFlags.flights,
+              ),
+            ),
+
           // Featured
           if (nearby != null)
             SliverToBoxAdapter(
@@ -442,7 +453,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         SectionHeader(
                           title: 'trending_now'.tr(),
                           subtitle: 'Popular with travelers this week',
-                          onSeeAll: () => context.go(
+                          onSeeAll: () => context.push(
                             '${AppRoutes.placesList}?title=Trending',
                           ),
                         ),
@@ -487,7 +498,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           SectionHeader(
                             title: 'popular_places'.tr(),
                             subtitle: 'Loved by international tourists',
-                            onSeeAll: () => context.go(
+                            onSeeAll: () => context.push(
                               '${AppRoutes.placesList}?title=Popular',
                             ),
                           ),
@@ -1464,123 +1475,198 @@ class _HomeGuideRequestCard extends StatelessWidget {
   }
 }
 
-class _PopularPlaceListItem extends StatelessWidget {
+class _PopularPlaceListItem extends StatefulWidget {
   final TourismPlace place;
   final VoidCallback onTap;
 
   const _PopularPlaceListItem({required this.place, required this.onTap});
 
   @override
+  State<_PopularPlaceListItem> createState() => _PopularPlaceListItemState();
+}
+
+class _PopularPlaceListItemState extends State<_PopularPlaceListItem> {
+  static _PopularPlaceListItemState? _activeSlider;
+
+  final _controller = PageController();
+  Timer? _timer;
+  int _index = 0;
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _controller.dispose();
+    if (_activeSlider == this) _activeSlider = null;
+    super.dispose();
+  }
+
+  List<String> get _images {
+    final urls = widget.place.images
+        .map((url) => url.trim())
+        .where((url) => url.isNotEmpty)
+        .toList();
+    if (urls.isEmpty && widget.place.primaryImage.trim().isNotEmpty) {
+      urls.add(widget.place.primaryImage.trim());
+    }
+    return urls;
+  }
+
+  void _activateSlider() {
+    final images = _images;
+    if (images.length <= 1 || _activeSlider == this) return;
+    _activeSlider?._stopSlider();
+    _activeSlider = this;
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 2), (_) {
+      if (!mounted || !_controller.hasClients) return;
+      _index = (_index + 1) % images.length;
+      _controller.animateToPage(
+        _index,
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  void _stopSlider() {
+    _timer?.cancel();
+    _timer = null;
+    if (_activeSlider == this) _activeSlider = null;
+  }
+
+  @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final images = _images;
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 100,
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.cardDark : AppColors.cardLight,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => _activateSlider(),
+      onExit: (_) => _stopSlider(),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        onTapDown: (_) => _activateSlider(),
+        onTapCancel: _stopSlider,
+        child: Container(
+          height: 100,
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.cardDark : AppColors.cardLight,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isDark ? AppColors.borderDark : AppColors.borderLight,
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(15),
-                bottomLeft: Radius.circular(15),
-              ),
-              child: Image.network(
-                place.primaryImage,
-                width: 100,
-                height: 100,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(15),
+                  bottomLeft: Radius.circular(15),
+                ),
+                child: SizedBox(
                   width: 100,
-                  color: AppColors.primary.withOpacity(0.1),
-                  child: const Icon(Icons.image_outlined,
-                      color: AppColors.grey400),
+                  height: 100,
+                  child: PageView.builder(
+                    controller: _controller,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: images.isEmpty ? 1 : images.length,
+                    itemBuilder: (_, index) {
+                      if (images.isEmpty) return _imageFallback();
+                      return Image.network(
+                        images[index],
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _imageFallback(),
+                      );
+                    },
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          place.name,
-                          style: Theme.of(context).textTheme.titleMedium,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          '${place.city}, ${place.state}',
-                          style: Theme.of(context).textTheme.bodySmall,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        const Icon(Icons.star_rounded,
-                            size: 14, color: AppColors.accent),
-                        const SizedBox(width: 4),
-                        Text(
-                          place.rating.toStringAsFixed(1),
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelMedium
-                              ?.copyWith(
-                                  color: isDark
-                                      ? AppColors.grey300
-                                      : AppColors.grey700),
-                        ),
-                        const SizedBox(width: 12),
-                        if (place.isFree)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.success.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              'free_entry'.tr(),
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.success,
+              const SizedBox(width: 14),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.place.name,
+                            style: Theme.of(context).textTheme.titleMedium,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            '${widget.place.city}, ${widget.place.state}',
+                            style: Theme.of(context).textTheme.bodySmall,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          const Icon(Icons.star_rounded,
+                              size: 14, color: AppColors.accent),
+                          const SizedBox(width: 4),
+                          Text(
+                            widget.place.rating.toStringAsFixed(1),
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelMedium
+                                ?.copyWith(
+                                    color: isDark
+                                        ? AppColors.grey300
+                                        : AppColors.grey700),
+                          ),
+                          const SizedBox(width: 12),
+                          if (widget.place.isFree)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.success.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                'free_entry'.tr(),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.success,
+                                ),
                               ),
                             ),
-                          ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: Icon(
-                Icons.arrow_forward_ios_rounded,
-                size: 14,
-                color: isDark ? AppColors.grey600 : AppColors.grey400,
+              Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 14,
+                  color: isDark ? AppColors.grey600 : AppColors.grey400,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _imageFallback() {
+    return Container(
+      width: 100,
+      height: 100,
+      color: AppColors.primary.withOpacity(0.1),
+      child: const Icon(Icons.image_outlined, color: AppColors.grey400),
     );
   }
 }

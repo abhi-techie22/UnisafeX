@@ -1,5 +1,9 @@
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -43,97 +47,115 @@ class ProfileScreen extends ConsumerWidget {
           error: error,
           onRetry: () => ref.read(profileNotifierProvider.notifier).refresh(),
         ),
-        data: (profile) => RefreshIndicator(
-          onRefresh: () => ref.read(profileNotifierProvider.notifier).refresh(),
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
-            children: [
-              _IdentityCard(
-                profile: profile,
-                onTap: () => context.push(AppRoutes.identityDetails),
-                onEditPhoto: () => _pickProfilePhoto(context, ref),
-              ),
-              const SizedBox(height: 16),
-              _ActionCard(
-                title: 'your_account'.tr(),
-                actions: [
-                  _ProfileAction(
-                    icon: Icons.badge_outlined,
-                    label: 'my_identity'.tr(),
-                    subtitle: 'view_private_details'.tr(),
-                    onTap: () => context.push(AppRoutes.identityDetails),
-                  ),
-                  _ProfileAction(
-                    icon: Icons.bookmark_outline_rounded,
-                    label: 'saved_places'.tr(),
-                    subtitle: 'view_travel_shortlist'.tr(),
-                    onTap: () => context.go(AppRoutes.favorites),
-                  ),
-                  _ProfileAction(
-                    icon: Icons.settings_outlined,
-                    label: 'settings'.tr(),
-                    subtitle: 'settings_subtitle'.tr(),
-                    onTap: () => context.push(AppRoutes.settings),
-                  ),
-                  if (isAdmin)
+        data: (profile) {
+          final completionPercent = profileCompletionPercent(profile);
+          final canGenerateVerifiedCard =
+              profile != null && completionPercent == 100;
+          return RefreshIndicator(
+            onRefresh: () =>
+                ref.read(profileNotifierProvider.notifier).refresh(),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
+              children: [
+                _IdentityCard(
+                  profile: profile,
+                  onTap: () => context.push(AppRoutes.identityDetails),
+                  onEditPhoto: () => _pickProfilePhoto(context, ref),
+                ),
+                const SizedBox(height: 16),
+                _ActionCard(
+                  title: 'your_account'.tr(),
+                  actions: [
                     _ProfileAction(
-                      icon: Icons.admin_panel_settings_outlined,
-                      label: 'admin_console'.tr(),
-                      subtitle: 'admin_live_updates'.tr(),
-                      onTap: () => context.push(AppRoutes.admin),
+                      icon: Icons.badge_outlined,
+                      label: 'my_identity'.tr(),
+                      subtitle: 'view_private_details'.tr(),
+                      onTap: () => context.push(AppRoutes.identityDetails),
                     ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _ActionCard(
-                title: 'information_support'.tr(),
-                actions: [
-                  _ProfileAction(
-                    icon: Icons.help_outline_rounded,
-                    label: 'help_support'.tr(),
-                    subtitle: supportAttention
-                        ? 'Support has an update for you'
-                        : 'help_subtitle'.tr(),
-                    highlight: supportAttention,
-                    badgeLabel: supportAttention ? 'Update' : null,
-                    onTap: () => context.push(AppRoutes.helpSupport),
-                  ),
-                  _ProfileAction(
-                    icon: Icons.privacy_tip_outlined,
-                    label: 'privacy_policy'.tr(),
-                    subtitle: 'privacy_subtitle'.tr(),
-                    onTap: () => context.push(AppRoutes.privacyPolicy),
-                  ),
-                  _ProfileAction(
-                    icon: Icons.description_outlined,
-                    label: 'terms_of_service'.tr(),
-                    subtitle: 'terms_subtitle'.tr(),
-                    onTap: () => context.push(AppRoutes.termsOfService),
-                  ),
-                  _ProfileAction(
-                    icon: Icons.info_outline_rounded,
-                    label: 'about_unisafex'.tr(),
-                    subtitle: 'about_subtitle'.tr(),
-                    onTap: () => context.push(AppRoutes.about),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 18),
-              OutlinedButton.icon(
-                onPressed: () => _confirmSignOut(context, ref),
-                icon: const Icon(Icons.logout_rounded),
-                label: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 13),
-                  child: Text('sign_out'.tr()),
+                    if (canGenerateVerifiedCard)
+                      _ProfileAction(
+                        icon: Icons.verified_user_outlined,
+                        label: 'Verified UniSafeX card',
+                        subtitle: 'Generate your traveler verification card',
+                        onTap: () => _showVerifiedUserCard(context, profile),
+                      ),
+                    _ProfileAction(
+                      icon: Icons.bookmark_outline_rounded,
+                      label: 'saved_places'.tr(),
+                      subtitle: 'view_travel_shortlist'.tr(),
+                      onTap: () => context.go(AppRoutes.favorites),
+                    ),
+                    _ProfileAction(
+                      icon: Icons.settings_outlined,
+                      label: 'settings'.tr(),
+                      subtitle: 'settings_subtitle'.tr(),
+                      onTap: () => context.push(AppRoutes.settings),
+                    ),
+                    if (isAdmin)
+                      _ProfileAction(
+                        icon: Icons.admin_panel_settings_outlined,
+                        label: 'admin_console'.tr(),
+                        subtitle: 'Manage UniSafeX admin tools',
+                        onTap: () => context.push(AppRoutes.admin),
+                      ),
+                  ],
                 ),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.error,
-                  side: const BorderSide(color: AppColors.error),
+                const SizedBox(height: 16),
+                _ActionCard(
+                  title: 'information_support'.tr(),
+                  actions: [
+                    _ProfileAction(
+                      icon: Icons.help_outline_rounded,
+                      label: 'help_support'.tr(),
+                      subtitle: supportAttention
+                          ? 'Support has an update for you'
+                          : 'help_subtitle'.tr(),
+                      highlight: supportAttention,
+                      badgeLabel: supportAttention ? 'Update' : null,
+                      onTap: () {
+                        if (supportAttention) {
+                          _markSupportSeen(ref);
+                        }
+                        context.push(AppRoutes.helpSupport);
+                      },
+                    ),
+                    _ProfileAction(
+                      icon: Icons.privacy_tip_outlined,
+                      label: 'privacy_policy'.tr(),
+                      subtitle: 'privacy_subtitle'.tr(),
+                      onTap: () => context.push(AppRoutes.privacyPolicy),
+                    ),
+                    _ProfileAction(
+                      icon: Icons.description_outlined,
+                      label: 'terms_of_service'.tr(),
+                      subtitle: 'terms_subtitle'.tr(),
+                      onTap: () => context.push(AppRoutes.termsOfService),
+                    ),
+                    _ProfileAction(
+                      icon: Icons.info_outline_rounded,
+                      label: 'about_unisafex'.tr(),
+                      subtitle: 'about_subtitle'.tr(),
+                      onTap: () => context.push(AppRoutes.about),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
-        ),
+                const SizedBox(height: 18),
+                OutlinedButton.icon(
+                  onPressed: () => _confirmSignOut(context, ref),
+                  icon: const Icon(Icons.logout_rounded),
+                  label: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    child: Text('sign_out'.tr()),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.error,
+                    side: const BorderSide(color: AppColors.error),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -172,12 +194,12 @@ class ProfileScreen extends ConsumerWidget {
       );
       if (image == null) return;
       final bytes = await image.readAsBytes();
-      final extension = image.name.contains('.')
-          ? image.name.split('.').last.toLowerCase()
-          : 'jpg';
+      if (!context.mounted) return;
+      final croppedBytes = await _showProfilePhotoCropper(context, bytes);
+      if (croppedBytes == null) return;
       await ref.read(profileNotifierProvider.notifier).uploadImageBytes(
-            bytes: bytes,
-            extension: extension,
+            bytes: croppedBytes,
+            extension: 'png',
           );
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -189,6 +211,152 @@ class ProfileScreen extends ConsumerWidget {
         SnackBar(content: Text('Could not update profile photo. $error')),
       );
     }
+  }
+
+  Future<Uint8List?> _showProfilePhotoCropper(
+    BuildContext context,
+    Uint8List imageBytes,
+  ) {
+    return showDialog<Uint8List>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => _ProfilePhotoCropDialog(
+        imageBytes: imageBytes,
+        onCancel: () => Navigator.pop(dialogContext),
+        onSave: (croppedBytes) => Navigator.pop(dialogContext, croppedBytes),
+      ),
+    );
+  }
+
+  Future<void> _markSupportSeen(WidgetRef ref) async {
+    final user = ref.read(currentUserProvider);
+    if (user == null) return;
+    try {
+      final tickets = await ref.read(mySupportTicketsProvider.future);
+      await markSupportTicketsSeen(userId: user.id, tickets: tickets);
+      ref.invalidate(supportNeedsAttentionProvider);
+    } catch (_) {
+      // The Help & Support screen also marks updates seen after loading.
+    }
+  }
+
+  void _showVerifiedUserCard(BuildContext context, UserProfile profile) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: _VerifiedUserCard(
+          profile: profile,
+          onClose: () => Navigator.pop(dialogContext),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfilePhotoCropDialog extends StatefulWidget {
+  const _ProfilePhotoCropDialog({
+    required this.imageBytes,
+    required this.onCancel,
+    required this.onSave,
+  });
+
+  final Uint8List imageBytes;
+  final VoidCallback onCancel;
+  final ValueChanged<Uint8List> onSave;
+
+  @override
+  State<_ProfilePhotoCropDialog> createState() =>
+      _ProfilePhotoCropDialogState();
+}
+
+class _ProfilePhotoCropDialogState extends State<_ProfilePhotoCropDialog> {
+  final _cropKey = GlobalKey();
+  final _transformController = TransformationController();
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _transformController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveCrop() async {
+    final boundary =
+        _cropKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+    if (boundary == null) return;
+    setState(() => _saving = true);
+    try {
+      final image = await boundary.toImage(pixelRatio: 3);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      final bytes = byteData?.buffer.asUint8List();
+      if (bytes == null) return;
+      widget.onSave(bytes);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final cropSize = (size.width - 72).clamp(220.0, 320.0);
+
+    return AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      title: const Text('Adjust profile photo'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          RepaintBoundary(
+            key: _cropKey,
+            child: ClipOval(
+              child: ColoredBox(
+                color: AppColors.primary.withValues(alpha: 0.08),
+                child: SizedBox.square(
+                  dimension: cropSize,
+                  child: InteractiveViewer(
+                    transformationController: _transformController,
+                    minScale: 1,
+                    maxScale: 4,
+                    boundaryMargin: const EdgeInsets.all(120),
+                    clipBehavior: Clip.none,
+                    child: Image.memory(
+                      widget.imageBytes,
+                      width: cropSize,
+                      height: cropSize,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Drag or pinch to center your face.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: _saving ? null : widget.onCancel,
+          child: const Text('Cancel'),
+        ),
+        FilledButton.icon(
+          onPressed: _saving ? null : _saveCrop,
+          icon: _saving
+              ? const SizedBox.square(
+                  dimension: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.check_rounded),
+          label: const Text('Use photo'),
+        ),
+      ],
+    );
   }
 }
 
@@ -354,6 +522,195 @@ class _IdentityCard extends StatelessWidget {
           fontSize: 22,
         ),
       );
+}
+
+class _VerifiedUserCard extends StatelessWidget {
+  const _VerifiedUserCard({
+    required this.profile,
+    required this.onClose,
+  });
+
+  final UserProfile profile;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 420),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.verified_user_rounded,
+                  color: AppColors.success,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Verified UniSafeX user card',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: onClose,
+                  icon: const Icon(Icons.close_rounded),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 34,
+                        backgroundColor: Colors.white,
+                        backgroundImage:
+                            profile.profileImageUrl?.trim().isNotEmpty == true
+                                ? NetworkImage(profile.profileImageUrl!.trim())
+                                : null,
+                        child:
+                            profile.profileImageUrl?.trim().isNotEmpty == true
+                                ? null
+                                : Text(
+                                    profile.initials,
+                                    style: const TextStyle(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 22,
+                                    ),
+                                  ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              profile.displayName,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            const Text(
+                              '100% profile complete',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _VerifiedCardPill(
+                        icon: Icons.flag_outlined,
+                        label: profile.nationality ?? profile.country ?? '',
+                      ),
+                      _VerifiedCardPill(
+                        icon: Icons.public_rounded,
+                        label: profile.currentLocation ?? '',
+                      ),
+                      _VerifiedCardPill(
+                        icon: Icons.credit_card_rounded,
+                        label: profile.passportCountry ?? '',
+                      ),
+                      _VerifiedCardPill(
+                        icon: Icons.assignment_turned_in_outlined,
+                        label: profile.visaType ?? '',
+                      ),
+                    ].where((pill) => pill.label.trim().isNotEmpty).toList(),
+                  ),
+                  if (profile.visaExpiry != null) ...[
+                    const SizedBox(height: 14),
+                    Text(
+                      'Visa valid until ${DateFormat.yMMMd().format(profile.visaExpiry!)}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Generated from verified profile details. Complete profile is required before this card is available.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _VerifiedCardPill extends StatelessWidget {
+  const _VerifiedCardPill({
+    required this.icon,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: Colors.white24),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: Colors.white),
+          const SizedBox(width: 6),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 190),
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _ActionCard extends StatelessWidget {

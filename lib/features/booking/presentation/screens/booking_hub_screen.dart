@@ -1,14 +1,21 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
+import 'package:unisafex/features/admin/data/admin_remote_config_repository.dart';
 
-class BookingHubScreen extends StatelessWidget {
+class BookingHubScreen extends ConsumerWidget {
   const BookingHubScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final flags = ref.watch(publicFeatureFlagsProvider).valueOrNull ??
+        const FeatureFlags({});
+    final showHotels = flags.hotels;
+    final showFlights = flags.flights;
+
     return Scaffold(
       appBar: AppBar(
         title: Text('booking'.tr()),
@@ -50,43 +57,48 @@ class BookingHubScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          Text(
-            'hotels'.tr(),
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 5),
-          Text(
-            'hotels_priority_subtitle'.tr(),
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: 12),
-          _BookingTypeCard(
-            title: 'find_hotels'.tr(),
-            subtitle: 'find_hotels_subtitle'.tr(),
-            icon: Icons.hotel_rounded,
-            badge: 'priority'.tr().toUpperCase(),
-            colors: const [Color(0xFF173F35), AppColors.primary],
-            onTap: () => context.push(AppRoutes.hotelBooking),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'flights'.tr(),
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 5),
-          Text(
-            'flights_compare_subtitle'.tr(),
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: 12),
-          _BookingTypeCard(
-            title: 'search_flights'.tr(),
-            subtitle: 'search_flights_subtitle'.tr(),
-            icon: Icons.flight_takeoff_rounded,
-            badge: 'coming_next'.tr().toUpperCase(),
-            colors: const [Color(0xFF193A62), Color(0xFF2E6AA5)],
-            onTap: () => context.push(AppRoutes.flightBooking),
-          ),
+          if (showHotels) ...[
+            Text(
+              'hotels'.tr(),
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 5),
+            Text(
+              'hotels_priority_subtitle'.tr(),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            _BookingTypeCard(
+              title: 'find_hotels'.tr(),
+              subtitle: 'find_hotels_subtitle'.tr(),
+              icon: Icons.hotel_rounded,
+              badge: 'priority'.tr().toUpperCase(),
+              colors: const [Color(0xFF173F35), AppColors.primary],
+              onTap: () => context.push(AppRoutes.hotelBooking),
+            ),
+            const SizedBox(height: 24),
+          ],
+          if (showFlights) ...[
+            Text(
+              'flights'.tr(),
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 5),
+            Text(
+              'flights_compare_subtitle'.tr(),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            _BookingTypeCard(
+              title: 'search_flights'.tr(),
+              subtitle: 'search_flights_subtitle'.tr(),
+              icon: Icons.flight_takeoff_rounded,
+              badge: 'coming_next'.tr().toUpperCase(),
+              colors: const [Color(0xFF193A62), Color(0xFF2E6AA5)],
+              onTap: () => context.push(AppRoutes.flightBooking),
+            ),
+          ],
+          if (!showHotels && !showFlights) const _BookingDisabledCard(),
           const SizedBox(height: 20),
           Container(
             padding: const EdgeInsets.all(16),
@@ -182,6 +194,34 @@ class _BookingTypeCard extends StatelessWidget {
               ),
             ),
             const Icon(Icons.arrow_forward_rounded, color: Colors.white),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BookingDisabledCard extends StatelessWidget {
+  const _BookingDisabledCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Row(
+          children: [
+            CircleAvatar(
+              backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+              foregroundColor: AppColors.primary,
+              child: const Icon(Icons.visibility_off_outlined),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Booking features are currently hidden by admin.',
+              ),
+            ),
           ],
         ),
       ),

@@ -37,9 +37,20 @@ migrate_working_dir/
 /ios/Flutter/GoogleMapsSecrets.xcconfig
 /web/google_maps_config.js
 
+# Android release signing credentials. Never commit these files.
+/android/key.properties
+/android/app/*.jks
+/android/app/*.keystore
+
 # Local runtime secrets for flutter run/build.
+/.env
 /.env.local
 /.env.local.json
+
+# Codex local presentation scratch/output folders.
+/.codex-pptx-output/
+/.codex-pptx-work/
+/outputs/
 
 # Symbolication related
 app.*.symbols

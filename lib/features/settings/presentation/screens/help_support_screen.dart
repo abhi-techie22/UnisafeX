@@ -19,6 +19,7 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
   var _category = 'general';
   var _priority = 'normal';
   var _submitting = false;
+  int? _lastMarkedSeenAt;
 
   @override
   void dispose() {
@@ -97,18 +98,21 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
             tickets.when(
               loading: () => const LinearProgressIndicator(),
               error: (error, _) => Text('Could not load tickets: $error'),
-              data: (items) => items.isEmpty
-                  ? const Card(
-                      child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Text('No support tickets yet.'),
-                      ),
-                    )
-                  : Column(
-                      children: items
-                          .map((ticket) => _TicketStatusCard(ticket: ticket))
-                          .toList(),
-                    ),
+              data: (items) {
+                _markTicketsSeenAfterRender(user!.id, items);
+                return items.isEmpty
+                    ? const Card(
+                        child: Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Text('No support tickets yet.'),
+                        ),
+                      )
+                    : Column(
+                        children: items
+                            .map((ticket) => _TicketStatusCard(ticket: ticket))
+                            .toList(),
+                      );
+              },
             ),
           const SizedBox(height: 22),
           Text('quick_help'.tr(),
@@ -190,6 +194,23 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
+  }
+
+  void _markTicketsSeenAfterRender(
+    String userId,
+    List<SupportTicket> tickets,
+  ) {
+    final latest = latestSupportAttentionUpdate(tickets);
+    if (latest == null) return;
+    final latestMs = latest.millisecondsSinceEpoch;
+    if (_lastMarkedSeenAt == latestMs) return;
+    _lastMarkedSeenAt = latestMs;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await markSupportTicketsSeen(userId: userId, tickets: tickets);
+      if (!mounted) return;
+      ref.invalidate(supportNeedsAttentionProvider);
+    });
   }
 
   Future<void> _launch(BuildContext context, Uri uri) async {

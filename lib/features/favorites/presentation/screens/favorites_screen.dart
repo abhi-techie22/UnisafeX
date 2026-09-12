@@ -49,8 +49,12 @@ class FavoritesScreen extends ConsumerWidget {
           if (visible.isEmpty) {
             return _EmptySavedState(isOffline: user == null);
           }
-          final completedCount =
-              visible.where((place) => completedIds.contains(place.id)).length;
+          final remoteFavorites = ref.watch(favoritesProvider).value ?? [];
+          final completedCount = visible.where((place) {
+            final remoteFavorite = _favoriteFor(remoteFavorites, place.id);
+            return completedIds.contains(place.id) ||
+                remoteFavorite?.isCompleted == true;
+          }).length;
           return ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: visible.length + 1,
@@ -63,6 +67,9 @@ class FavoritesScreen extends ConsumerWidget {
                 );
               }
               final place = visible[index - 1];
+              final remoteFavorite = _favoriteFor(remoteFavorites, place.id);
+              final completed = completedIds.contains(place.id) ||
+                  remoteFavorite?.isCompleted == true;
               return Dismissible(
                 key: ValueKey(
                     '${user == null ? 'local' : 'remote'}-${place.id}'),
@@ -98,10 +105,19 @@ class FavoritesScreen extends ConsumerWidget {
                       context.push(AppRoutes.placeDetail, extra: place),
                   child: _SavedPlaceCard(
                     place: place,
-                    completed: completedIds.contains(place.id),
-                    onToggleCompleted: () => ref
-                        .read(bucketListCompletedProvider.notifier)
-                        .toggleCompleted(place.id),
+                    completed: completed,
+                    favorite: remoteFavorite,
+                    onToggleCompleted: () async {
+                      await ref
+                          .read(bucketListCompletedProvider.notifier)
+                          .toggleCompleted(place.id);
+                      if (user != null) {
+                        await ref
+                            .read(favoritesProvider.notifier)
+                            .setCompleted(place.id, !completed);
+                        ref.invalidate(favoritePlacesProvider);
+                      }
+                    },
                   ),
                 ),
               );
@@ -114,6 +130,13 @@ class FavoritesScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Favorite? _favoriteFor(List<Favorite> favorites, String placeId) {
+    for (final favorite in favorites) {
+      if (favorite.placeId == placeId) return favorite;
+    }
+    return null;
   }
 }
 
@@ -224,11 +247,13 @@ class _BucketProgressCard extends StatelessWidget {
 class _SavedPlaceCard extends StatelessWidget {
   final TourismPlace place;
   final bool completed;
+  final Favorite? favorite;
   final VoidCallback onToggleCompleted;
 
   const _SavedPlaceCard({
     required this.place,
     required this.completed,
+    required this.favorite,
     required this.onToggleCompleted,
   });
 
@@ -268,6 +293,13 @@ class _SavedPlaceCard extends StatelessWidget {
                   const SizedBox(height: 5),
                   Text('${place.city}, ${place.state}',
                       style: Theme.of(context).textTheme.bodySmall),
+                  if (favorite?.plannedVisitDate != null) ...[
+                    const SizedBox(height: 5),
+                    Text(
+                      'Planned ${favorite!.plannedVisitDate!.day}/${favorite!.plannedVisitDate!.month}/${favorite!.plannedVisitDate!.year}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   Wrap(
                     spacing: 8,

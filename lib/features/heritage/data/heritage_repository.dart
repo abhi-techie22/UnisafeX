@@ -164,8 +164,15 @@ class HeritageRepository {
   }
 
   Future<bool> isAdmin() async {
-    final value = await _client.rpc('is_admin');
-    return value == true;
+    final user = _client.auth.currentUser;
+    if (user == null || user.isAnonymous) return false;
+    final row = await _client
+        .from('admin_users')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .maybeSingle();
+    return row != null;
   }
 
   Future<void> saveMonument({

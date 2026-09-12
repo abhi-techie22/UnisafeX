@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
+import 'package:unisafex/core/router/app_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 
@@ -11,7 +12,7 @@ class HotelEntryBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => context.push('/hotel/search'),
+      onTap: () => context.push(AppRoutes.hotelBooking),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 20),
         padding: const EdgeInsets.all(18),
@@ -22,8 +23,8 @@ class HotelEntryBanner extends StatelessWidget {
             colors: [Color(0xFF0F2850), Color(0xFF1A4080)],
           ),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-              color: AppColors.goldPrimary.withValues(alpha: 0.35)),
+          border:
+              Border.all(color: AppColors.goldPrimary.withValues(alpha: 0.35)),
           boxShadow: [
             BoxShadow(
               color: AppColors.navyDeep.withValues(alpha: 0.6),

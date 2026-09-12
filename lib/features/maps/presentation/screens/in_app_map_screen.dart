@@ -1,12 +1,15 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
 import 'package:unisafex/core/utils/distance_calculator.dart';
 import 'package:unisafex/core/utils/google_maps_launcher.dart';
+import 'package:unisafex/core/utils/traveler_map_marker.dart';
 import 'package:unisafex/features/home/presentation/providers/location_provider.dart';
 import 'package:unisafex/features/maps/data/map_access_config_provider.dart';
 import 'package:unisafex/features/maps/data/map_route_repository.dart';
@@ -19,12 +22,14 @@ class InAppMapScreen extends ConsumerStatefulWidget {
     required this.latitude,
     required this.longitude,
     this.address,
+    this.imageUrl,
   });
 
   final String placeName;
   final double latitude;
   final double longitude;
   final String? address;
+  final String? imageUrl;
 
   @override
   ConsumerState<InAppMapScreen> createState() => _InAppMapScreenState();
@@ -37,8 +42,17 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
   String? _lastOriginKey;
   bool _isCardCollapsed = false;
   bool _navigationMode = false;
+  BitmapDescriptor? _destinationIcon;
+  BitmapDescriptor? _originIcon;
 
   LatLng get _destination => LatLng(widget.latitude, widget.longitude);
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadDestinationIcon());
+    unawaited(_loadOriginIcon());
+  }
 
   @override
   void dispose() {
@@ -52,6 +66,92 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
         CameraPosition(target: _destination, zoom: 15.5),
       ),
     );
+  }
+
+  Future<void> _loadDestinationIcon() async {
+    final imageUrl = widget.imageUrl?.trim();
+    if (imageUrl == null || imageUrl.isEmpty) return;
+    try {
+      final data = await NetworkAssetBundle(Uri.parse(imageUrl)).load('');
+      final bytes = await _buildPlaceMarker(data.buffer.asUint8List());
+      if (!mounted) return;
+      setState(() {
+        _destinationIcon = BitmapDescriptor.bytes(
+          bytes,
+          width: 72,
+          height: 82,
+        );
+      });
+    } catch (_) {
+      // Keep the default map marker if the remote image cannot be decoded.
+    }
+  }
+
+  Future<void> _loadOriginIcon() async {
+    try {
+      final icon = await TravelerMapMarker.build();
+      if (!mounted) return;
+      setState(() => _originIcon = icon);
+    } catch (_) {
+      // Keep the default origin marker if custom marker drawing fails.
+    }
+  }
+
+  Future<Uint8List> _buildPlaceMarker(Uint8List imageBytes) async {
+    const width = 216.0;
+    const height = 246.0;
+    const imageSize = 178.0;
+    const center = Offset(width / 2, 98);
+    final codec = await ui.instantiateImageCodec(
+      imageBytes,
+      targetWidth: imageSize.toInt(),
+      targetHeight: imageSize.toInt(),
+    );
+    final frame = await codec.getNextFrame();
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    final paint = Paint()..isAntiAlias = true;
+
+    final shadowPaint = Paint()
+      ..color = Colors.black.withValues(alpha: 0.22)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
+    canvas.drawCircle(center.translate(0, 8), 96, shadowPaint);
+    canvas.drawCircle(center, 96, paint..color = Colors.white);
+    canvas.save();
+    canvas
+        .clipPath(Path()..addOval(Rect.fromCircle(center: center, radius: 82)));
+    canvas.drawImageRect(
+      frame.image,
+      Rect.fromLTWH(
+        0,
+        0,
+        frame.image.width.toDouble(),
+        frame.image.height.toDouble(),
+      ),
+      Rect.fromCircle(center: center, radius: 82),
+      Paint()..isAntiAlias = true,
+    );
+    canvas.restore();
+    canvas.drawCircle(
+      center,
+      86,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 8
+        ..color = AppColors.primary,
+    );
+    final pointer = Path()
+      ..moveTo(width / 2 - 24, 180)
+      ..quadraticBezierTo(width / 2, height - 10, width / 2 + 24, 180)
+      ..close();
+    canvas.drawPath(pointer, Paint()..color = AppColors.primary);
+
+    final image = await recorder.endRecording().toImage(
+          width.toInt(),
+          height.toInt(),
+        );
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    return byteData!.buffer.asUint8List();
   }
 
   Future<void> _loadRoute(LocationData location) async {
@@ -213,7 +313,6 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
     final mapAccessState = ref.watch(mapAccessConfigProvider);
     final mapAccess = mapAccessState.valueOrNull ?? const MapAccessConfig();
     final location = locationState.asData?.value;
-    final hasLiveLocation = location?.source == LocationSource.gps;
     final straightLineDistance = location == null
         ? null
         : DistanceCalculator.calculate(
@@ -259,7 +358,7 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
             mapType: MapType.normal,
             compassEnabled: true,
             zoomControlsEnabled: true,
-            myLocationEnabled: hasLiveLocation,
+            myLocationEnabled: false,
             myLocationButtonEnabled: false,
             padding: EdgeInsets.only(
               top: 18,
@@ -274,20 +373,17 @@ class _InAppMapScreenState extends ConsumerState<InAppMapScreen> {
                   title: widget.placeName,
                   snippet: widget.address,
                 ),
+                icon: _destinationIcon ?? BitmapDescriptor.defaultMarker,
               ),
               if (location != null)
                 Marker(
                   markerId: const MarkerId('origin'),
                   position: LatLng(location.latitude, location.longitude),
-                  anchor: const Offset(0.5, 0.5),
-                  flat: true,
-                  rotation: _bearing(
-                    LatLng(location.latitude, location.longitude),
-                    _destination,
-                  ),
-                  icon: BitmapDescriptor.defaultMarkerWithHue(
-                    BitmapDescriptor.hueAzure,
-                  ),
+                  anchor: const Offset(0.5, 1),
+                  icon: _originIcon ??
+                      BitmapDescriptor.defaultMarkerWithHue(
+                        BitmapDescriptor.hueAzure,
+                      ),
                   infoWindow: InfoWindow(
                     title: location.source == LocationSource.gps
                         ? 'Your current location'

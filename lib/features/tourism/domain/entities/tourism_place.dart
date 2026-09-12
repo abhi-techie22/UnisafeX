@@ -18,6 +18,7 @@ class TourismPlace {
   final bool featured;
   final bool isPopular;
   final bool isFree;
+  final bool isHidden;
 
   final int tier;
   final int likesCount;
@@ -50,6 +51,7 @@ class TourismPlace {
     required this.featured,
     required this.isPopular,
     required this.isFree,
+    this.isHidden = false,
     required this.tier,
     required this.likesCount,
     required this.entryFeeForeigner,
@@ -92,6 +94,7 @@ class TourismPlace {
       featured: json['featured'] ?? false,
       isPopular: json['is_popular'] ?? false,
       isFree: foreignerFee == 0,
+      isHidden: json['is_hidden'] as bool? ?? false,
       tier: json['tier'] ?? 2,
       likesCount: ((json['likes_count'] ?? 1000) as num).toInt(),
       entryFeeForeigner: foreignerFee,

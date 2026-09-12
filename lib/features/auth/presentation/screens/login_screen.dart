@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
 import 'package:unisafex/core/widgets/app_button.dart';
+import 'package:unisafex/features/admin/data/admin_remote_config_repository.dart';
 import 'package:unisafex/features/auth/presentation/providers/auth_provider.dart';
 import 'package:unisafex/features/heritage/data/heritage_repository.dart';
 import 'package:unisafex/features/profile/presentation/providers/profile_provider.dart';
@@ -90,12 +91,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final authConfig = ref.watch(authAccessConfigProvider).valueOrNull ??
+        const AuthAccessConfig();
 
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_rounded),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go(AppRoutes.authSelection);
+            }
+          },
         ),
         title: Text('sign_in'.tr()),
       ),
@@ -200,10 +209,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: Wrap(
                   alignment: WrapAlignment.end,
                   children: [
-                    TextButton(
-                      onPressed: () => _showResendConfirmation(context),
-                      child: Text('resend_confirmation'.tr()),
-                    ),
+                    if (authConfig.showResendConfirmation)
+                      TextButton(
+                        onPressed: () => _showResendConfirmation(context),
+                        child: Text('resend_confirmation'.tr()),
+                      ),
                     TextButton(
                       onPressed: () => _showForgotPassword(context),
                       child: Text('forgot_password'.tr()),
