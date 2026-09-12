@@ -37,6 +37,8 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
   int? _likesOverride;
   bool? _likedOverride;
   bool _liking = false;
+  final Map<String, ReviewHelpfulState> _reviewHelpfulOverrides = {};
+  final Set<String> _helpfulReviewIds = {};
   int _currentImageIndex = 0;
 
   @override
@@ -323,7 +325,10 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                     reviewsAsync: reviewsAsync,
                     repliesAsync: reviewRepliesAsync,
                     myReview: myReview,
+                    helpfulOverrides: _reviewHelpfulOverrides,
+                    helpfulLoadingIds: _helpfulReviewIds,
                     onReply: _showReviewReplySheet,
+                    onHelpful: _toggleReviewHelpful,
                   ),
                 ),
                 _Section(
@@ -670,6 +675,10 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
     final bodyController = TextEditingController(text: existing?.body ?? '');
     var rating = existing?.rating ?? 5;
     final imageUrls = [...?existing?.imageUrls];
+    final originalRating = rating;
+    final originalTitle = titleController.text.trim();
+    final originalBody = bodyController.text.trim();
+    final originalImages = List<String>.from(imageUrls);
     var uploading = false;
 
     await showModalBottomSheet<void>(
@@ -689,8 +698,15 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                existing == null ? 'Add review' : 'Update review',
+                existing == null ? 'Share your experience' : 'Edit your review',
                 style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                existing == null
+                    ? 'Help other travelers with a clear, useful note.'
+                    : 'Change only what you want to update.',
+                style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: 14),
               Row(
@@ -711,7 +727,7 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
               TextField(
                 controller: titleController,
                 textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(labelText: 'Short title'),
+                decoration: const InputDecoration(labelText: 'Headline'),
               ),
               const SizedBox(height: 10),
               TextField(
@@ -719,7 +735,7 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                 minLines: 3,
                 maxLines: 5,
                 decoration: const InputDecoration(
-                  labelText: 'Review',
+                  labelText: 'Your travel note',
                   alignLabelWithHint: true,
                 ),
               ),
@@ -803,26 +819,62 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
               const SizedBox(height: 12),
               FilledButton.icon(
                 onPressed: () async {
-                  await ref.read(tourismRepositoryProvider).saveReview(
-                        placeId: widget.place.id,
-                        rating: rating,
-                        title: titleController.text,
-                        body: bodyController.text,
-                        imageUrls: imageUrls,
+                  final title = titleController.text.trim();
+                  final body = bodyController.text.trim();
+                  final unchanged = existing != null &&
+                      rating == originalRating &&
+                      title == originalTitle &&
+                      body == originalBody &&
+                      _sameStringList(imageUrls, originalImages);
+                  if (unchanged) {
+                    if (context.mounted) Navigator.pop(context);
+                    if (mounted) {
+                      ScaffoldMessenger.of(this.context).showSnackBar(
+                        const SnackBar(
+                          content: Text('No changes to save.'),
+                        ),
                       );
-                  ref.invalidate(myPlaceReviewProvider(widget.place.id));
-                  ref.invalidate(placeReviewsProvider(widget.place.id));
-                  if (context.mounted) Navigator.pop(context);
-                  if (mounted) {
-                    ScaffoldMessenger.of(this.context).showSnackBar(
+                    }
+                    return;
+                  }
+
+                  try {
+                    final status =
+                        await ref.read(tourismRepositoryProvider).saveReview(
+                              placeId: widget.place.id,
+                              rating: rating,
+                              title: title,
+                              body: body,
+                              imageUrls: imageUrls,
+                            );
+                    ref.invalidate(myPlaceReviewProvider(widget.place.id));
+                    ref.invalidate(placeReviewsProvider(widget.place.id));
+                    if (context.mounted) Navigator.pop(context);
+                    if (mounted) {
+                      final message = status == 'approved'
+                          ? existing == null
+                              ? 'Thank you. Your review is now live.'
+                              : 'Your review has been updated.'
+                          : existing == null
+                              ? 'Thank you. Your review will appear after our team approves it.'
+                              : 'Your changes were submitted for approval.';
+                      ScaffoldMessenger.of(this.context).showSnackBar(
+                        SnackBar(content: Text(message)),
+                      );
+                    }
+                  } catch (_) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Review submitted for checking'),
+                        content: Text(
+                          'We could not save your review right now. Please try again.',
+                        ),
                       ),
                     );
                   }
                 },
                 icon: const Icon(Icons.rate_review_outlined),
-                label: const Text('Submit for check'),
+                label: Text(existing == null ? 'Post review' : 'Save changes'),
               ),
             ],
           ),
@@ -834,17 +886,60 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
     bodyController.dispose();
   }
 
+  bool _sameStringList(List<String> first, List<String> second) {
+    if (first.length != second.length) return false;
+    for (var index = 0; index < first.length; index += 1) {
+      if (first[index] != second[index]) return false;
+    }
+    return true;
+  }
+
+  Future<void> _toggleReviewHelpful(PlaceReview review) async {
+    final user = ref.read(currentUserProvider);
+    if (user == null || user.isAnonymous) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sign in to mark reviews helpful.')),
+      );
+      return;
+    }
+    if (_helpfulReviewIds.contains(review.id)) return;
+    setState(() => _helpfulReviewIds.add(review.id));
+    try {
+      final state = await ref
+          .read(tourismRepositoryProvider)
+          .toggleReviewHelpful(review.id);
+      if (!mounted) return;
+      setState(() {
+        _reviewHelpfulOverrides[review.id] = state;
+      });
+      ref.invalidate(placeReviewsProvider(widget.place.id));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('We could not update that review right now.'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _helpfulReviewIds.remove(review.id));
+      }
+    }
+  }
+
   Future<void> _showReviewReplySheet(PlaceReview review) async {
     final user = ref.read(currentUserProvider);
     if (user == null || user.isAnonymous) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please login to reply to reviews')),
+        const SnackBar(content: Text('Sign in to reply to reviews.')),
       );
       return;
     }
     if (!review.isApproved) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Replies are available after approval')),
+        const SnackBar(
+          content: Text('Replies open after a review is approved.'),
+        ),
       );
       return;
     }
@@ -905,12 +1000,14 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
       ref.invalidate(placeReviewRepliesProvider(widget.place.id));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Reply posted')),
+        const SnackBar(content: Text('Your reply has been posted.')),
       );
-    } catch (error) {
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not post reply. $error')),
+        const SnackBar(
+          content: Text('We could not post your reply right now.'),
+        ),
       );
     }
   }
@@ -1345,8 +1442,8 @@ class _ReviewActionCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   pending
-                      ? 'Submitted and waiting for admin check.'
-                      : 'Share a rating and travel note for other visitors.',
+                      ? 'Thanks. Your review is waiting for team approval.'
+                      : 'Share a rating, photos, and a useful travel note.',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
@@ -1354,7 +1451,7 @@ class _ReviewActionCard extends StatelessWidget {
           ),
           FilledButton.tonal(
             onPressed: onTap,
-            child: Text(myReview == null ? 'Add' : 'Edit'),
+            child: Text(myReview == null ? 'Write' : 'Edit'),
           ),
         ],
       ),
@@ -1367,13 +1464,19 @@ class _ReviewsList extends StatelessWidget {
     required this.reviewsAsync,
     required this.repliesAsync,
     required this.myReview,
+    required this.helpfulOverrides,
+    required this.helpfulLoadingIds,
     required this.onReply,
+    required this.onHelpful,
   });
 
   final AsyncValue<List<PlaceReview>> reviewsAsync;
   final AsyncValue<Map<String, List<PlaceReviewReply>>> repliesAsync;
   final PlaceReview? myReview;
+  final Map<String, ReviewHelpfulState> helpfulOverrides;
+  final Set<String> helpfulLoadingIds;
   final ValueChanged<PlaceReview> onReply;
+  final ValueChanged<PlaceReview> onHelpful;
 
   @override
   Widget build(BuildContext context) {
@@ -1383,7 +1486,10 @@ class _ReviewsList extends StatelessWidget {
         padding: EdgeInsets.symmetric(vertical: 8),
         child: LinearProgressIndicator(),
       ),
-      error: (_, __) => const Text('Reviews are unavailable right now.'),
+      error: (_, __) => const _ReviewsMessageState(
+        icon: Icons.cloud_off_outlined,
+        message: 'Reviews are not loading right now. Please try again shortly.',
+      ),
       data: (reviews) {
         final visibleReviews = [...reviews];
         final ownReview = myReview;
@@ -1391,27 +1497,206 @@ class _ReviewsList extends StatelessWidget {
             !visibleReviews.any((review) => review.id == ownReview.id)) {
           visibleReviews.insert(0, ownReview);
         }
-        if (visibleReviews.isEmpty) {
-          return const Text('No checked traveler reviews yet.');
-        }
+        if (visibleReviews.isEmpty) return const _ReviewsEmptyState();
+        final approvedReviews =
+            visibleReviews.where((review) => review.isApproved).toList();
+        final averageRating = approvedReviews.isEmpty
+            ? 0.0
+            : approvedReviews
+                    .map((review) => review.rating)
+                    .reduce((a, b) => a + b) /
+                approvedReviews.length;
+        final replyCount = repliesByReview.values.fold<int>(
+          0,
+          (total, replies) => total + replies.length,
+        );
         return Column(
-          children: visibleReviews
-              .map(
-                (review) => Padding(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _ReviewsOverview(
+              reviewCount: approvedReviews.length,
+              averageRating: averageRating,
+              replyCount: replyCount,
+            ),
+            const SizedBox(height: 12),
+            ...visibleReviews.map(
+              (review) {
+                final helpfulOverride = helpfulOverrides[review.id];
+                return Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: _ReviewTile(
                     review: review,
                     replies: repliesByReview[review.id] ??
                         const <PlaceReviewReply>[],
+                    helpfulCount:
+                        helpfulOverride?.helpfulCount ?? review.helpfulCount,
+                    likedHelpful: helpfulOverride?.liked ?? review.likedByMe,
+                    helpfulLoading: helpfulLoadingIds.contains(review.id),
                     repliesLoading: repliesAsync.isLoading,
                     repliesUnavailable: repliesAsync.hasError,
                     onReply: () => onReply(review),
+                    onHelpful: () => onHelpful(review),
                   ),
-                ),
-              )
-              .toList(),
+                );
+              },
+            ),
+          ],
         );
       },
+    );
+  }
+}
+
+class _ReviewsEmptyState extends StatelessWidget {
+  const _ReviewsEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.14)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.forum_outlined, color: AppColors.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'No public traveler reviews yet. Share a clear note to help the next visitor.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReviewsMessageState extends StatelessWidget {
+  const _ReviewsMessageState({
+    required this.icon,
+    required this.message,
+  });
+
+  final IconData icon;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              message,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReviewsOverview extends StatelessWidget {
+  const _ReviewsOverview({
+    required this.reviewCount,
+    required this.averageRating,
+    required this.replyCount,
+  });
+
+  final int reviewCount;
+  final double averageRating;
+  final int replyCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          _ReviewMetric(
+            icon: Icons.star_rounded,
+            label: reviewCount == 0
+                ? 'No ratings yet'
+                : '${averageRating.toStringAsFixed(1)} average',
+            color: AppColors.accent,
+          ),
+          const SizedBox(width: 10),
+          _ReviewMetric(
+            icon: Icons.rate_review_outlined,
+            label: '$reviewCount reviews',
+            color: AppColors.primary,
+          ),
+          const SizedBox(width: 10),
+          _ReviewMetric(
+            icon: Icons.reply_rounded,
+            label: '$replyCount replies',
+            color: AppColors.success,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReviewMetric extends StatelessWidget {
+  const _ReviewMetric({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 5),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -1420,25 +1705,43 @@ class _ReviewTile extends StatelessWidget {
   const _ReviewTile({
     required this.review,
     required this.replies,
+    required this.helpfulCount,
+    required this.likedHelpful,
+    required this.helpfulLoading,
     required this.repliesLoading,
     required this.repliesUnavailable,
     required this.onReply,
+    required this.onHelpful,
   });
 
   final PlaceReview review;
   final List<PlaceReviewReply> replies;
+  final int helpfulCount;
+  final bool likedHelpful;
+  final bool helpfulLoading;
   final bool repliesLoading;
   final bool repliesUnavailable;
   final VoidCallback onReply;
+  final VoidCallback onHelpful;
 
   @override
   Widget build(BuildContext context) {
+    final title = review.title?.trim();
+    final body = review.body?.trim();
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Theme.of(context).dividerColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1466,22 +1769,37 @@ class _ReviewTile extends StatelessWidget {
               ),
               const SizedBox(width: 9),
               Expanded(
-                child: Text(
-                  review.displayReviewerName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      review.displayReviewerName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w900,
+                          ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _formatReviewDate(review.createdAt),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
                 ),
               ),
-              Text(
-                '${review.createdAt.day}/${review.createdAt.month}/${review.createdAt.year}',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
+              if (review.status != 'approved')
+                Chip(
+                  visualDensity: VisualDensity.compact,
+                  label: Text(
+                    review.status == 'pending'
+                        ? 'Pending approval'
+                        : 'Not public',
+                  ),
+                ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Row(
             children: [
               ...List.generate(
@@ -1494,85 +1812,210 @@ class _ReviewTile extends StatelessWidget {
                   color: AppColors.accent,
                 ),
               ),
-              if (review.status != 'approved') ...[
-                const SizedBox(width: 8),
-                Chip(
-                  visualDensity: VisualDensity.compact,
-                  label: Text(
-                    review.status == 'pending'
-                        ? 'Pending approval'
-                        : 'Rejected',
-                  ),
-                ),
-              ],
+              const SizedBox(width: 8),
+              Text(
+                '${review.rating}/5',
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
             ],
           ),
-          if (review.title?.trim().isNotEmpty == true) ...[
+          if (title?.isNotEmpty == true) ...[
             const SizedBox(height: 8),
             Text(
-              review.title!.trim(),
-              style: Theme.of(context).textTheme.titleMedium,
+              title!,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
             ),
           ],
-          if (review.body?.trim().isNotEmpty == true) ...[
+          if (body?.isNotEmpty == true) ...[
             const SizedBox(height: 6),
-            Text(review.body!.trim()),
+            Text(
+              body!,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    height: 1.35,
+                  ),
+            ),
           ],
           if (review.hasAdminReply) ...[
             const SizedBox(height: 10),
             _OfficialReviewReply(reply: review.adminReply!.trim()),
           ],
-          const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: review.isApproved ? onReply : null,
-              icon: const Icon(Icons.reply_rounded),
-              label: const Text('Reply'),
-            ),
-          ),
-          if (repliesLoading && replies.isEmpty) ...[
-            const SizedBox(height: 4),
-            const LinearProgressIndicator(minHeight: 2),
-          ],
-          if (repliesUnavailable && replies.isEmpty) ...[
-            const SizedBox(height: 4),
-            Text(
-              'Replies are unavailable right now.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-          if (replies.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            _ReviewReplyThread(replies: replies),
-          ],
           if (review.imageUrls.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            SizedBox(
-              height: 88,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: review.imageUrls.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (_, index) => ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    review.imageUrls[index],
-                    width: 88,
-                    height: 88,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      width: 88,
-                      height: 88,
-                      color: AppColors.primary.withValues(alpha: 0.08),
-                      child: const Icon(Icons.image_outlined),
-                    ),
+            const SizedBox(height: 12),
+            _ReviewImageStrip(imageUrls: review.imageUrls),
+          ],
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _ReviewActionPill(
+                icon: likedHelpful
+                    ? Icons.thumb_up_alt_rounded
+                    : Icons.thumb_up_alt_outlined,
+                label: helpfulCount == 0 ? 'Helpful' : '$helpfulCount helpful',
+                selected: likedHelpful,
+                loading: helpfulLoading,
+                onTap: review.isApproved ? onHelpful : null,
+              ),
+              _ReviewActionPill(
+                icon: Icons.reply_rounded,
+                label: replies.isEmpty ? 'Reply' : '${replies.length} replies',
+                onTap: review.isApproved ? onReply : null,
+              ),
+            ],
+          ),
+          if (replies.isNotEmpty || repliesLoading || repliesUnavailable) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+              decoration: BoxDecoration(
+                color: Theme.of(context)
+                    .colorScheme
+                    .surfaceContainerHighest
+                    .withValues(alpha: 0.58),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.forum_outlined,
+                        size: 16,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Conversation',
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                              fontWeight: FontWeight.w900,
+                            ),
+                      ),
+                    ],
                   ),
-                ),
+                  if (repliesLoading && replies.isEmpty) ...[
+                    const SizedBox(height: 8),
+                    const LinearProgressIndicator(minHeight: 2),
+                  ],
+                  if (repliesUnavailable && replies.isEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Replies are not loading right now. Please try again shortly.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                  if (replies.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    _ReviewReplyThread(replies: replies),
+                  ],
+                ],
               ),
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  String _formatReviewDate(DateTime date) {
+    if (date.millisecondsSinceEpoch == 0) return 'Recently';
+    return '${date.day}/${date.month}/${date.year}';
+  }
+}
+
+class _ReviewActionPill extends StatelessWidget {
+  const _ReviewActionPill({
+    required this.icon,
+    required this.label,
+    this.selected = false,
+    this.loading = false,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final bool loading;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected
+        ? AppColors.primary
+        : Theme.of(context).colorScheme.onSurfaceVariant;
+    return Material(
+      color: selected
+          ? AppColors.primary.withValues(alpha: 0.10)
+          : Theme.of(context).colorScheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(99),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(99),
+        onTap: loading ? null : onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (loading)
+                SizedBox.square(
+                  dimension: 15,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: color,
+                  ),
+                )
+              else
+                Icon(icon, size: 17, color: color),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ReviewImageStrip extends StatelessWidget {
+  const _ReviewImageStrip({required this.imageUrls});
+
+  final List<String> imageUrls;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 92,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: imageUrls.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (_, index) => ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.network(
+            imageUrls[index],
+            width: 92,
+            height: 92,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Container(
+              width: 92,
+              height: 92,
+              color: AppColors.primary.withValues(alpha: 0.08),
+              child: const Icon(Icons.image_outlined),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -1604,34 +2047,64 @@ class _UserReviewReply extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isAdminReply = reply.isAdminReply;
+    final color = isAdminReply
+        ? AppColors.primary
+        : Theme.of(context).colorScheme.onSurfaceVariant;
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(left: 18),
-      padding: const EdgeInsets.all(11),
+      margin: EdgeInsets.only(left: isAdminReply ? 0 : 18),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        color: isAdminReply
+            ? AppColors.primary.withValues(alpha: 0.08)
+            : Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Theme.of(context).dividerColor),
+        border: Border.all(
+          color: isAdminReply
+              ? AppColors.primary.withValues(alpha: 0.26)
+              : Theme.of(context).dividerColor,
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            radius: 14,
-            backgroundColor: AppColors.primary.withValues(alpha: 0.10),
-            backgroundImage: reply.replierAvatarUrl?.trim().isNotEmpty == true
-                ? NetworkImage(reply.replierAvatarUrl!.trim())
-                : null,
-            child: reply.replierAvatarUrl?.trim().isNotEmpty == true
-                ? null
-                : Text(
-                    reply.displayReplierName.substring(0, 1).toUpperCase(),
-                    style: const TextStyle(
-                      color: AppColors.primary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              CircleAvatar(
+                radius: isAdminReply ? 16 : 14,
+                backgroundColor: color.withValues(alpha: 0.10),
+                backgroundImage:
+                    reply.replierAvatarUrl?.trim().isNotEmpty == true
+                        ? NetworkImage(reply.replierAvatarUrl!.trim())
+                        : null,
+                child: reply.replierAvatarUrl?.trim().isNotEmpty == true
+                    ? null
+                    : Text(
+                        reply.displayReplierName.substring(0, 1).toUpperCase(),
+                        style: TextStyle(
+                          color: color,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+              ),
+              if (isAdminReply)
+                const Positioned(
+                  right: -3,
+                  bottom: -3,
+                  child: CircleAvatar(
+                    radius: 7,
+                    backgroundColor: AppColors.primary,
+                    child: Icon(
+                      Icons.verified_rounded,
+                      color: Colors.white,
+                      size: 10,
                     ),
                   ),
+                ),
+            ],
           ),
           const SizedBox(width: 9),
           Expanded(
@@ -1639,11 +2112,14 @@ class _UserReviewReply extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  reply.displayReplierName,
+                  isAdminReply
+                      ? 'UniSafeX team · ${reply.displayReplierName}'
+                      : reply.displayReplierName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
                         fontWeight: FontWeight.w800,
+                        color: isAdminReply ? AppColors.primary : null,
                       ),
                 ),
                 const SizedBox(height: 3),

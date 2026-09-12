@@ -30,6 +30,8 @@ class PlaceReview {
     this.status = 'pending',
     this.adminReply,
     this.adminReplyAt,
+    this.helpfulCount = 0,
+    this.likedByMe = false,
     required this.createdAt,
   });
 
@@ -46,6 +48,8 @@ class PlaceReview {
   final String status;
   final String? adminReply;
   final DateTime? adminReplyAt;
+  final int helpfulCount;
+  final bool likedByMe;
   final DateTime createdAt;
 
   factory PlaceReview.fromJson(Map<String, dynamic> json) {
@@ -71,6 +75,7 @@ class PlaceReview {
       adminReplyAt: json['admin_reply_at'] == null
           ? null
           : DateTime.tryParse(json['admin_reply_at'].toString()),
+      helpfulCount: ((json['helpful_count'] ?? 0) as num).toInt(),
       createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ??
           DateTime.fromMillisecondsSinceEpoch(0),
     );
@@ -79,6 +84,30 @@ class PlaceReview {
   bool get isApproved => status == 'approved';
 
   bool get hasAdminReply => adminReply?.trim().isNotEmpty == true;
+
+  PlaceReview copyWith({
+    int? helpfulCount,
+    bool? likedByMe,
+  }) {
+    return PlaceReview(
+      id: id,
+      placeId: placeId,
+      userId: userId,
+      rating: rating,
+      reviewerName: reviewerName,
+      reviewerAvatarUrl: reviewerAvatarUrl,
+      title: title,
+      body: body,
+      imageUrls: imageUrls,
+      visitDate: visitDate,
+      status: status,
+      adminReply: adminReply,
+      adminReplyAt: adminReplyAt,
+      helpfulCount: helpfulCount ?? this.helpfulCount,
+      likedByMe: likedByMe ?? this.likedByMe,
+      createdAt: createdAt,
+    );
+  }
 
   String get displayReviewerName {
     final value = reviewerName?.trim();
@@ -96,6 +125,7 @@ class PlaceReviewReply {
     this.replierAvatarUrl,
     required this.body,
     this.status = 'approved',
+    this.isAdminReply = false,
     required this.createdAt,
   });
 
@@ -107,6 +137,7 @@ class PlaceReviewReply {
   final String? replierAvatarUrl;
   final String body;
   final String status;
+  final bool isAdminReply;
   final DateTime createdAt;
 
   factory PlaceReviewReply.fromJson(Map<String, dynamic> json) {
@@ -119,6 +150,7 @@ class PlaceReviewReply {
       replierAvatarUrl: json['replier_avatar_url']?.toString(),
       body: json['body']?.toString() ?? '',
       status: json['status']?.toString() ?? 'approved',
+      isAdminReply: json['is_admin_reply'] as bool? ?? false,
       createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ??
           DateTime.fromMillisecondsSinceEpoch(0),
     );
@@ -179,6 +211,23 @@ class PlaceLikeState {
   factory PlaceLikeState.fromJson(Map<String, dynamic> json) {
     return PlaceLikeState(
       likesCount: ((json['likes_count'] ?? 1000) as num).toInt(),
+      liked: json['liked'] as bool? ?? false,
+    );
+  }
+}
+
+class ReviewHelpfulState {
+  const ReviewHelpfulState({
+    required this.helpfulCount,
+    required this.liked,
+  });
+
+  final int helpfulCount;
+  final bool liked;
+
+  factory ReviewHelpfulState.fromJson(Map<String, dynamic> json) {
+    return ReviewHelpfulState(
+      helpfulCount: ((json['helpful_count'] ?? 0) as num).toInt(),
       liked: json['liked'] as bool? ?? false,
     );
   }
@@ -595,8 +644,29 @@ class TourismRepository {
         .eq('status', 'approved')
         .order('created_at', ascending: false)
         .limit(30);
-    return (rows as List)
+    final reviews = (rows as List)
         .map((row) => PlaceReview.fromJson(Map<String, dynamic>.from(row)))
+        .toList();
+    final user = _client.auth.currentUser;
+    if (user == null || user.isAnonymous || reviews.isEmpty) {
+      return reviews;
+    }
+    final reviewIds = reviews.map((review) => review.id).toList();
+    final likeRows = await _client
+        .from('tourism_place_review_likes')
+        .select('review_id')
+        .eq('user_id', user.id)
+        .inFilter('review_id', reviewIds);
+    final likedReviewIds = (likeRows as List)
+        .map((row) => (row as Map)['review_id']?.toString())
+        .whereType<String>()
+        .toSet();
+    return reviews
+        .map(
+          (review) => review.copyWith(
+            likedByMe: likedReviewIds.contains(review.id),
+          ),
+        )
         .toList();
   }
 
@@ -643,7 +713,7 @@ class TourismRepository {
     return repliesByReview;
   }
 
-  Future<void> saveReview({
+  Future<String> saveReview({
     required String placeId,
     required int rating,
     String? title,
@@ -673,6 +743,17 @@ class TourismRepository {
         'status': needsApproval ? 'pending' : 'approved',
       },
       onConflict: 'user_id,place_id',
+    );
+    return needsApproval ? 'pending' : 'approved';
+  }
+
+  Future<ReviewHelpfulState> toggleReviewHelpful(String reviewId) async {
+    final response = await _client.rpc<dynamic>(
+      'toggle_tourism_place_review_like',
+      params: {'p_review_id': reviewId},
+    );
+    return ReviewHelpfulState.fromJson(
+      Map<String, dynamic>.from(response as Map),
     );
   }
 

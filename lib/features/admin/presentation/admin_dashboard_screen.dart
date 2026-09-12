@@ -535,13 +535,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                               ),
                                             );
                                           }
-                                        } catch (error) {
+                                        } catch (_) {
                                           if (context.mounted) {
                                             ScaffoldMessenger.of(context)
                                                 .showSnackBar(
-                                              SnackBar(
+                                              const SnackBar(
                                                 content: Text(
-                                                  'Could not upload image. Apply the tourism-media storage migration first. $error',
+                                                  'We could not upload that image right now. Please try again.',
                                                 ),
                                               ),
                                             );
@@ -2588,8 +2588,9 @@ class _AdminErrorCard extends StatelessWidget {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Text(
-            'Could not load admin data. Apply the remote config SQL migration first.\n\n$error'),
+        child: const Text(
+          'Admin data is not loading right now. Please refresh in a moment.',
+        ),
       ),
     );
   }
@@ -3736,10 +3737,12 @@ class _CurrencyRatesAdminTabState
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Currency rates saved.')),
       );
-    } catch (error) {
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not save currency rates. $error')),
+        const SnackBar(
+          content: Text('We could not save currency rates right now.'),
+        ),
       );
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -4013,10 +4016,12 @@ class _AuthAccessAdminTabState extends ConsumerState<_AuthAccessAdminTab> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Auth app settings saved.')),
       );
-    } catch (error) {
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not save auth settings. $error')),
+        const SnackBar(
+          content: Text('We could not save auth settings right now.'),
+        ),
       );
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -4772,10 +4777,12 @@ class _MapAccessAdminTabState extends ConsumerState<_MapAccessAdminTab> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Map access settings saved.')),
       );
-    } catch (error) {
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not save map settings. $error')),
+        const SnackBar(
+          content: Text('We could not save map settings right now.'),
+        ),
       );
     } finally {
       if (mounted) setState(() => _saving = false);
