@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:unisafex/core/router/app_router.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
+import 'package:unisafex/features/tourism/domain/entities/tourism_place.dart';
 import 'package:unisafex/features/tourism/domain/entities/trip_plan.dart';
 import 'package:unisafex/features/tourism/domain/services/trip_planner_service.dart';
 import 'package:unisafex/features/tourism/presentation/providers/tourism_provider.dart';
@@ -17,12 +18,16 @@ class TripPlannerScreen extends ConsumerStatefulWidget {
 
 class _TripPlannerScreenState extends ConsumerState<TripPlannerScreen> {
   final _destinationSearchController = TextEditingController();
+  static const _plannerService = TripPlannerService();
 
   String? _city;
   String _destinationQuery = '';
   int _days = 2;
   TravelStyle _style = TravelStyle.balanced;
   TripPlan? _plan;
+  bool _generating = false;
+  List<TourismPlace>? _indexedPlaces;
+  _TripPlannerIndex? _cachedIndex;
 
   @override
   void dispose() {
@@ -37,23 +42,15 @@ class _TripPlannerScreenState extends ConsumerState<TripPlannerScreen> {
       appBar: AppBar(title: Text('smart_trip_planner'.tr())),
       body: places.when(
         data: (items) {
-          final cityCounts = <String, Set<String>>{};
-          for (final place in items) {
-            cityCounts
-                .putIfAbsent(place.city, () => <String>{})
-                .add(place.name.toLowerCase());
-          }
-          final cities = cityCounts.keys.toList()
-            ..sort(
-              (a, b) => cityCounts[b]!.length.compareTo(cityCounts[a]!.length),
-            );
-          final filteredCities = _filteredCities(cities, items);
+          final index = _indexFor(items);
+          final cities = index.cities;
+          final filteredCities = _filteredCities(index);
           if (_city == null && cities.isNotEmpty) _city = cities.first;
           if (filteredCities.isNotEmpty && !filteredCities.contains(_city)) {
             _city = filteredCities.first;
           }
           final selectedCityCount =
-              _city == null ? 0 : cityCounts[_city!]?.length ?? 0;
+              _city == null ? 0 : index.cityCounts[_city!] ?? 0;
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
             children: [
@@ -67,10 +64,10 @@ class _TripPlannerScreenState extends ConsumerState<TripPlannerScreen> {
                 controller: _destinationSearchController,
                 onChanged: (value) => setState(() {
                   _destinationQuery = value;
-                  final matches = _filteredCities(cities, items, value);
+                  final matches = _filteredCities(index, value);
                   if (value.trim().isEmpty) return;
                   if (matches.length == 1) {
-                    _city = matches.first;
+                    _setCity(matches.first);
                   }
                 }),
                 decoration: const InputDecoration(
@@ -81,6 +78,9 @@ class _TripPlannerScreenState extends ConsumerState<TripPlannerScreen> {
               ),
               const SizedBox(height: 14),
               DropdownButtonFormField<String>(
+                key: ValueKey(
+                  'destination-${_destinationQuery.trim().toLowerCase()}-${_city ?? ''}-${filteredCities.length}',
+                ),
                 initialValue: filteredCities.contains(_city)
                     ? _city
                     : filteredCities.isEmpty
@@ -91,14 +91,16 @@ class _TripPlannerScreenState extends ConsumerState<TripPlannerScreen> {
                   prefixIcon: Icon(Icons.location_city_outlined),
                 ),
                 items: filteredCities
-                    .map((city) => DropdownMenuItem(
-                          value: city,
-                          child: Text('$city (${cityCounts[city]!.length})'),
-                        ))
+                    .map(
+                      (city) => DropdownMenuItem(
+                        value: city,
+                        child: Text('$city (${index.cityCounts[city] ?? 0})'),
+                      ),
+                    )
                     .toList(),
                 onChanged: filteredCities.isEmpty
                     ? null
-                    : (value) => setState(() => _city = value),
+                    : (value) => setState(() => _setCity(value)),
               ),
               const SizedBox(height: 8),
               Text(
@@ -143,18 +145,22 @@ class _TripPlannerScreenState extends ConsumerState<TripPlannerScreen> {
               ),
               const SizedBox(height: 20),
               FilledButton.icon(
-                onPressed: _city == null || filteredCities.isEmpty
-                    ? null
-                    : () => setState(() {
-                          _plan = const TripPlannerService().generate(
-                            city: _city!,
-                            days: _days,
-                            style: _style,
-                            places: items,
-                          );
-                        }),
-                icon: const Icon(Icons.auto_awesome),
-                label: Text('generate_itinerary'.tr()),
+                onPressed:
+                    _city == null || filteredCities.isEmpty || _generating
+                        ? null
+                        : () => _generatePlan(items),
+                icon: _generating
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.auto_awesome),
+                label: Text(
+                  _generating
+                      ? 'Building itinerary...'
+                      : 'generate_itinerary'.tr(),
+                ),
               ),
               if (_plan != null) ...[
                 const SizedBox(height: 28),
@@ -186,24 +192,112 @@ class _TripPlannerScreenState extends ConsumerState<TripPlannerScreen> {
         TravelStyle.luxury => Icons.diamond_outlined,
       };
 
-  List<String> _filteredCities(
-    List<String> cities,
-    List<dynamic> places, [
-    String? overrideQuery,
-  ]) {
-    final query = (overrideQuery ?? _destinationQuery).trim().toLowerCase();
-    if (query.isEmpty) return cities;
-    return cities.where((city) {
-      final normalizedCity = city.toLowerCase();
-      if (normalizedCity.contains(query)) return true;
-      return places.any((place) {
-        if (place.city != city) return false;
-        return place.name.toLowerCase().contains(query) ||
-            place.state.toLowerCase().contains(query) ||
-            place.category.toLowerCase().contains(query);
-      });
-    }).toList();
+  void _setCity(String? city) {
+    if (_city == city) return;
+    _city = city;
+    _plan = null;
   }
+
+  Future<void> _generatePlan(List<TourismPlace> places) async {
+    final city = _city;
+    if (city == null || _generating) return;
+
+    setState(() => _generating = true);
+    await Future<void>.delayed(const Duration(milliseconds: 16));
+
+    try {
+      final plan = _plannerService.generate(
+        city: city,
+        days: _days,
+        style: _style,
+        places: places,
+      );
+      if (!mounted) return;
+      setState(() {
+        _plan = plan;
+        _generating = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _generating = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('We could not build this itinerary right now.'),
+        ),
+      );
+    }
+  }
+
+  _TripPlannerIndex _indexFor(List<TourismPlace> places) {
+    if (identical(_indexedPlaces, places) && _cachedIndex != null) {
+      return _cachedIndex!;
+    }
+
+    final namesByCity = <String, Set<String>>{};
+    final searchByCity = <String, StringBuffer>{};
+    for (final place in places) {
+      final city =
+          place.city.trim().isEmpty ? place.state.trim() : place.city.trim();
+      if (city.isEmpty) continue;
+      namesByCity.putIfAbsent(city, () => <String>{}).add(
+            place.name.toLowerCase(),
+          );
+      searchByCity.putIfAbsent(city, StringBuffer.new)
+        ..write(' ')
+        ..write(place.name.toLowerCase())
+        ..write(' ')
+        ..write(place.state.toLowerCase())
+        ..write(' ')
+        ..write(place.category.toLowerCase())
+        ..write(' ')
+        ..write(place.district?.toLowerCase() ?? '')
+        ..write(' ')
+        ..write(place.address?.toLowerCase() ?? '');
+    }
+
+    final cityCounts = {
+      for (final entry in namesByCity.entries) entry.key: entry.value.length,
+    };
+    final cities = cityCounts.keys.toList()
+      ..sort((a, b) {
+        final count = cityCounts[b]!.compareTo(cityCounts[a]!);
+        if (count != 0) return count;
+        return a.compareTo(b);
+      });
+    final index = _TripPlannerIndex(
+      cities: cities,
+      cityCounts: cityCounts,
+      searchByCity: {
+        for (final entry in searchByCity.entries)
+          entry.key: entry.value.toString(),
+      },
+    );
+    _indexedPlaces = places;
+    _cachedIndex = index;
+    return index;
+  }
+
+  List<String> _filteredCities(_TripPlannerIndex index,
+      [String? overrideQuery]) {
+    final query = (overrideQuery ?? _destinationQuery).trim().toLowerCase();
+    if (query.isEmpty) return index.cities;
+    return index.cities.where((city) {
+      return city.toLowerCase().contains(query) ||
+          (index.searchByCity[city]?.contains(query) ?? false);
+    }).toList(growable: false);
+  }
+}
+
+class _TripPlannerIndex {
+  const _TripPlannerIndex({
+    required this.cities,
+    required this.cityCounts,
+    required this.searchByCity,
+  });
+
+  final List<String> cities;
+  final Map<String, int> cityCounts;
+  final Map<String, String> searchByCity;
 }
 
 class _HeroCard extends StatelessWidget {
@@ -411,6 +505,9 @@ class _DayCard extends StatelessWidget {
                               : Image.network(
                                   stop.place.primaryImage,
                                   fit: BoxFit.cover,
+                                  cacheWidth: 160,
+                                  cacheHeight: 160,
+                                  filterQuality: FilterQuality.low,
                                   errorBuilder: (_, __, ___) => Container(
                                     color: AppColors.primary
                                         .withValues(alpha: 0.08),

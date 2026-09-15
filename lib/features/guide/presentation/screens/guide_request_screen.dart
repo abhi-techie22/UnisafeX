@@ -65,7 +65,13 @@ class _GuideRequestScreenState extends ConsumerState<GuideRequestScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        automaticallyImplyLeading: false,
+        leading: context.canPop()
+            ? IconButton(
+                tooltip: 'Back',
+                onPressed: () => context.pop(),
+                icon: const Icon(Icons.arrow_back_rounded),
+              )
+            : null,
         title: const Text('Guide Request'),
       ),
       body: ListView(

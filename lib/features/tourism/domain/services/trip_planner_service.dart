@@ -18,8 +18,13 @@ class TripPlannerService {
     )) {
       uniquePlaces.putIfAbsent(place.name.toLowerCase(), () => place);
     }
-    final cityPlaces = uniquePlaces.values.toList()
-      ..sort((a, b) => _score(b, style).compareTo(_score(a, style)));
+    final scoredPlaces = uniquePlaces.values
+        .map((place) => _ScoredPlace(place, _score(place, style)))
+        .toList()
+      ..sort((a, b) => b.score.compareTo(a.score));
+    final cityPlaces = [
+      for (final scoredPlace in scoredPlaces) scoredPlace.place,
+    ];
 
     final selected = _balancedSelection(cityPlaces, days * _stopsPerDay(style));
     final itinerary = <TripPlanDay>[];
@@ -205,4 +210,11 @@ class TripPlannerService {
             math.sin(dLon / 2);
     return 6371 * 2 * math.atan2(math.sqrt(value), math.sqrt(1 - value));
   }
+}
+
+class _ScoredPlace {
+  const _ScoredPlace(this.place, this.score);
+
+  final TourismPlace place;
+  final double score;
 }

@@ -215,10 +215,6 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                       : null,
                   onPlan: isFavorite ? () => _showBucketPlanSheet() : null,
                 ),
-                if (guideAvailable) ...[
-                  const SizedBox(height: 12),
-                  _GuideBookingCard(onTap: _openGuideBooking),
-                ],
                 if (distance != null) ...[
                   const SizedBox(height: 8),
                   Text(
@@ -386,10 +382,10 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                 ),
               ),
               if (guideAvailable) ...[
-                FilledButton.icon(
+                IconButton.filledTonal(
+                  tooltip: 'Book Delhi guide',
                   onPressed: _openGuideBooking,
-                  icon: const Icon(Icons.support_agent_rounded, size: 18),
-                  label: const Text('Guide'),
+                  icon: const Icon(Icons.support_agent_rounded),
                 ),
                 const SizedBox(width: 8),
               ],
@@ -1248,58 +1244,6 @@ class _BucketListCard extends StatelessWidget {
       return 'Planned for ${date.day}/${date.month}/${date.year}.';
     }
     return 'Track this place, add notes, and mark it completed later.';
-  }
-}
-
-class _GuideBookingCard extends StatelessWidget {
-  const _GuideBookingCard({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.success.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.success.withValues(alpha: 0.20)),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            backgroundColor: AppColors.success.withValues(alpha: 0.14),
-            foregroundColor: AppColors.success,
-            child: const Icon(Icons.support_agent_rounded),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Book a Delhi guide',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Request a verified local guide for this destination.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          FilledButton.tonalIcon(
-            onPressed: onTap,
-            icon: const Icon(Icons.badge_outlined),
-            label: const Text('Book'),
-          ),
-        ],
-      ),
-    );
   }
 }
 

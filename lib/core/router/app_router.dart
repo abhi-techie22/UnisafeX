@@ -442,7 +442,6 @@ bool _requiresSignedInUser(String location) {
       location == AppRoutes.profile ||
       location == AppRoutes.identityDetails ||
       location == AppRoutes.favorites ||
-      location == AppRoutes.guideRequest ||
       location == AppRoutes.admin;
 }
 

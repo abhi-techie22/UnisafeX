@@ -15,6 +15,9 @@ void _debugLog(Object? message) {
   }());
 }
 
+const _plannerPlaceColumns =
+    'place_id,place_name,state,city,district,category,subcategory,description,latitude,longitude,rating,images,featured,is_popular,is_hidden,tier,likes_count,entry_fee_foreigner,entry_fee_indian,timings,best_season,best_months,safety_guidelines,tourist_tips,visit_duration_minutes,address';
+
 class PlaceReview {
   const PlaceReview({
     required this.id,
@@ -557,7 +560,7 @@ class TourismRepository {
         final to = from + batchSize - 1;
         final response = await _client
             .from('tourism_places')
-            .select()
+            .select(_plannerPlaceColumns)
             .eq('is_hidden', false)
             .order('state')
             .order('city')
