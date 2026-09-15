@@ -66,9 +66,7 @@ class _TravelBookingScreenState extends State<TravelBookingScreen> {
     }
   }
 
-  bool get _usesDelhiMetroPlanner =>
-      _selectedMode == TravelTransportMode.metro &&
-      _selectedPartner.name == 'Delhi Metro';
+  bool get _usesDelhiMetroPlanner => _selectedMode == TravelTransportMode.metro;
 
   void _setRouteText({
     required String origin,
@@ -315,6 +313,12 @@ class _TravelBookingScreenState extends State<TravelBookingScreen> {
     );
     final canOpenPartner = partners.isNotEmpty;
     final usesDelhiMetroPlanner = _usesDelhiMetroPlanner;
+    final bookingButtonLabel = canOpenPartner
+        ? _selectedMode == TravelTransportMode.metro &&
+                _selectedPartner.name == 'Delhi Metro'
+            ? 'Open DMRC planner'
+            : 'Open ${_selectedPartner.name}'
+        : 'No partner for this route';
     return Scaffold(
       appBar: AppBar(title: const Text('Travel booking')),
       body: SafeArea(
@@ -439,13 +443,7 @@ class _TravelBookingScreenState extends State<TravelBookingScreen> {
                 icon: Icon(_modeIcon(_selectedMode)),
                 label: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  child: Text(
-                    canOpenPartner
-                        ? usesDelhiMetroPlanner
-                            ? 'Open DMRC planner'
-                            : 'Open ${_selectedPartner.name}'
-                        : 'No partner for this route',
-                  ),
+                  child: Text(bookingButtonLabel),
                 ),
               ),
             ],
