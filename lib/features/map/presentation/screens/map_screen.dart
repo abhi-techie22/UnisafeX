@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -340,12 +341,16 @@ class _FullPlacesMapPage extends ConsumerStatefulWidget {
 
 class _FullPlacesMapPageState extends ConsumerState<_FullPlacesMapPage> {
   static const _allStatesKey = '__all__';
-  static const _maxPhotoMarkers = 220;
-  static const _maxAllStateMarkers = 700;
+  static const _maxPhotoMarkers = 64;
+  static const _maxStateMarkers = 280;
+  static const _maxAllStateMarkers = 320;
+  static const _photoMarkerDelay = Duration(milliseconds: 18);
 
   GoogleMapController? _controller;
   final Map<String, BitmapDescriptor> _photoIcons = {};
   final Set<String> _loadingIcons = {};
+  final Queue<TourismPlace> _photoMarkerQueue = Queue<TourismPlace>();
+  bool _photoMarkerQueueRunning = false;
   BitmapDescriptor? _travelerIcon;
   String? _selectedStateKey;
   String? _lastFittedStateKey;
@@ -358,6 +363,7 @@ class _FullPlacesMapPageState extends ConsumerState<_FullPlacesMapPage> {
 
   @override
   void dispose() {
+    _photoMarkerQueue.clear();
     _controller?.dispose();
     super.dispose();
   }
@@ -497,10 +503,15 @@ class _FullPlacesMapPageState extends ConsumerState<_FullPlacesMapPage> {
     if (stateKey == _allStatesKey && ranked.length > _maxAllStateMarkers) {
       return ranked.take(_maxAllStateMarkers).toList();
     }
+    if (stateKey != _allStatesKey && ranked.length > _maxStateMarkers) {
+      return ranked.take(_maxStateMarkers).toList();
+    }
     return ranked;
   }
 
   void _selectState(String stateKey) {
+    _photoMarkerQueue.clear();
+    _loadingIcons.clear();
     setState(() {
       _selectedStateKey = stateKey;
       _lastFittedStateKey = null;
@@ -517,7 +528,26 @@ class _FullPlacesMapPageState extends ConsumerState<_FullPlacesMapPage> {
         continue;
       }
       _loadingIcons.add(place.id);
-      unawaited(_loadPhotoMarker(place));
+      _photoMarkerQueue.add(place);
+    }
+    if (!_photoMarkerQueueRunning && _photoMarkerQueue.isNotEmpty) {
+      unawaited(_drainPhotoMarkerQueue());
+    }
+  }
+
+  Future<void> _drainPhotoMarkerQueue() async {
+    if (_photoMarkerQueueRunning) return;
+    _photoMarkerQueueRunning = true;
+    try {
+      while (mounted && _photoMarkerQueue.isNotEmpty) {
+        final place = _photoMarkerQueue.removeFirst();
+        await _loadPhotoMarker(place);
+        if (_photoMarkerQueue.isNotEmpty) {
+          await Future<void>.delayed(_photoMarkerDelay);
+        }
+      }
+    } finally {
+      _photoMarkerQueueRunning = false;
     }
   }
 
@@ -531,8 +561,8 @@ class _FullPlacesMapPageState extends ConsumerState<_FullPlacesMapPage> {
       setState(() {
         _photoIcons[place.id] = BitmapDescriptor.bytes(
           bytes,
-          width: 60,
-          height: 70,
+          width: 48,
+          height: 56,
         );
       });
     } catch (_) {
@@ -543,13 +573,13 @@ class _FullPlacesMapPageState extends ConsumerState<_FullPlacesMapPage> {
   }
 
   Future<Uint8List> _buildPhotoMarker(Uint8List imageBytes) async {
-    const width = 180.0;
-    const height = 210.0;
-    const center = Offset(width / 2, 78);
+    const width = 144.0;
+    const height = 168.0;
+    const center = Offset(width / 2, 62);
     final codec = await ui.instantiateImageCodec(
       imageBytes,
-      targetWidth: 140,
-      targetHeight: 140,
+      targetWidth: 112,
+      targetHeight: 112,
     );
     final frame = await codec.getNextFrame();
     final recorder = ui.PictureRecorder();
@@ -557,15 +587,15 @@ class _FullPlacesMapPageState extends ConsumerState<_FullPlacesMapPage> {
 
     canvas.drawCircle(
       center.translate(0, 8),
-      76,
+      60,
       Paint()
         ..color = Colors.black.withValues(alpha: 0.24)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
     );
-    canvas.drawCircle(center, 75, Paint()..color = Colors.white);
+    canvas.drawCircle(center, 59, Paint()..color = Colors.white);
     canvas.save();
     canvas
-        .clipPath(Path()..addOval(Rect.fromCircle(center: center, radius: 64)));
+        .clipPath(Path()..addOval(Rect.fromCircle(center: center, radius: 51)));
     canvas.drawImageRect(
       frame.image,
       Rect.fromLTWH(
@@ -574,21 +604,21 @@ class _FullPlacesMapPageState extends ConsumerState<_FullPlacesMapPage> {
         frame.image.width.toDouble(),
         frame.image.height.toDouble(),
       ),
-      Rect.fromCircle(center: center, radius: 64),
+      Rect.fromCircle(center: center, radius: 51),
       Paint()..isAntiAlias = true,
     );
     canvas.restore();
     canvas.drawCircle(
       center,
-      68,
+      54,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 7
+        ..strokeWidth = 6
         ..color = AppColors.primary,
     );
     final pointer = Path()
-      ..moveTo(width / 2 - 20, 142)
-      ..quadraticBezierTo(width / 2, height - 8, width / 2 + 20, 142)
+      ..moveTo(width / 2 - 17, 114)
+      ..quadraticBezierTo(width / 2, height - 8, width / 2 + 17, 114)
       ..close();
     canvas.drawPath(pointer, Paint()..color = AppColors.primary);
 
@@ -626,6 +656,9 @@ class _FullPlacesMapPageState extends ConsumerState<_FullPlacesMapPage> {
               _defaultStateKey(visiblePlaces, stateCounts.keys) ??
               _allStatesKey;
           final mappedPlaces = _placesForState(visiblePlaces, activeStateKey);
+          final activePlacesCount = activeStateKey == _allStatesKey
+              ? visiblePlaces.length
+              : stateCounts[activeStateKey] ?? mappedPlaces.length;
           _loadPhotoMarkers(mappedPlaces);
           _scheduleFit(activeStateKey, mappedPlaces);
           final selected = widget.selectedPlace;
@@ -643,7 +676,13 @@ class _FullPlacesMapPageState extends ConsumerState<_FullPlacesMapPage> {
                   zoom: selected == null ? 5.2 : 13.5,
                 ),
                 mapType: MapType.normal,
+                buildingsEnabled: false,
                 compassEnabled: true,
+                indoorViewEnabled: false,
+                mapToolbarEnabled: false,
+                rotateGesturesEnabled: false,
+                tiltGesturesEnabled: false,
+                trafficEnabled: false,
                 zoomControlsEnabled: true,
                 myLocationEnabled: false,
                 myLocationButtonEnabled: false,
@@ -694,7 +733,7 @@ class _FullPlacesMapPageState extends ConsumerState<_FullPlacesMapPage> {
                     _FullMapSummary(
                       placesCount: activeStateKey == _allStatesKey
                           ? visiblePlaces.length
-                          : mappedPlaces.length,
+                          : activePlacesCount,
                       shownCount: mappedPlaces.length,
                       photoCount: mappedPlaces
                           .where(

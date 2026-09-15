@@ -87,6 +87,15 @@ class BookingLinkService {
       );
     }
 
+    if (partner?.name == 'Delhi Metro') {
+      return Uri.parse(baseUrl).replace(
+        queryParameters: {
+          'from': trimmedOrigin,
+          'to': trimmedDestination,
+        },
+      );
+    }
+
     if (partner?.name == 'Uber') {
       return Uri.parse(baseUrl).replace(
         queryParameters: {

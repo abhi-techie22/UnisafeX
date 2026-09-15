@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:unisafex/features/booking/domain/booking_partner.dart';
+import 'package:unisafex/features/booking/domain/delhi_metro_network.dart';
 
 void main() {
   group('availableTravelPartnersForRoute', () {
@@ -57,6 +58,31 @@ void main() {
         autoPartners.map((partner) => partner.name),
         isNot(contains('Namma Yatri')),
       );
+    });
+  });
+
+  group('buildDelhiMetroRoutePlan', () {
+    test('builds a direct route on one line', () {
+      final route = buildDelhiMetroRoutePlan(
+        origin: 'Rajiv Chowk',
+        destination: 'Kashmere Gate',
+      );
+
+      expect(route, isNotNull);
+      expect(route!.isDirect, isTrue);
+      expect(route.legs.single.line.name, 'Yellow Line');
+    });
+
+    test('shows interchange stations when lines change', () {
+      final route = buildDelhiMetroRoutePlan(
+        origin: 'Rajiv Chowk',
+        destination: 'Lajpat Nagar',
+      );
+
+      expect(route, isNotNull);
+      expect(route!.isDirect, isFalse);
+      expect(route.interchanges, isNotEmpty);
+      expect(route.legs.length, greaterThan(1));
     });
   });
 }
