@@ -75,6 +75,57 @@ class TravelAssistantService {
       }
     }
 
+    if (_containsAny(query, ['photo', 'photography', 'instagram', 'view'])) {
+      final picks = scoped
+          .where(
+              (item) => item.images.isNotEmpty || item.primaryImage.isNotEmpty)
+          .take(5)
+          .toList();
+      if (picks.isNotEmpty) {
+        return TravelAssistantReply(
+          text: 'Most photo-ready UniSafeX picks'
+              '${city == null ? '' : ' in $city'} are '
+              '${picks.map((item) => item.name).join(', ')}. Go early for '
+              'softer light, keep valuables zipped, and check whether camera '
+              'fees apply at ticketed monuments.',
+          places: picks,
+        );
+      }
+    }
+
+    if (_containsAny(query, ['family', 'kids', 'children', 'elderly'])) {
+      final familyPicks = [...scoped]..sort((a, b) {
+          final aScore = _familyScore(a);
+          final bScore = _familyScore(b);
+          return bScore.compareTo(aScore);
+        });
+      final picks = familyPicks.take(4).toList();
+      if (picks.isNotEmpty) {
+        return TravelAssistantReply(
+          text: 'Family-friendly picks${city == null ? '' : ' in $city'}: '
+              '${picks.map((item) => item.name).join(', ')}. I prioritized '
+              'shorter visits, clear timings, safety notes, and well-known '
+              'locations. Keep water, sun protection, and transport booked for '
+              'the return journey.',
+          places: picks,
+        );
+      }
+    }
+
+    if (_containsAny(query, ['open now', 'today', 'currently open'])) {
+      final openPicks =
+          scoped.where((item) => item.isLikelyOpenNow).take(4).toList();
+      if (openPicks.isNotEmpty) {
+        return TravelAssistantReply(
+          text: 'Places that look practical for a visit today'
+              '${city == null ? '' : ' in $city'}: '
+              '${openPicks.map((item) => item.name).join(', ')}. Timings are '
+              'a planning signal, so confirm once before leaving.',
+          places: openPicks,
+        );
+      }
+    }
+
     if (category != null &&
         _containsAny(query, ['best', 'top', 'recommend', 'show', 'find'])) {
       final picks =
@@ -135,6 +186,46 @@ class TravelAssistantService {
                 'the official counter before visiting.',
         places: [place],
       );
+    }
+
+    if (_containsAny(
+      query,
+      [
+        'total cost',
+        'total estimate',
+        'cost estimate',
+        'travel cost',
+        'estimate',
+        'fare',
+        'expense',
+      ],
+    )) {
+      final count = (_extractDays(query) ?? 2).clamp(1, 5);
+      final planCity =
+          city ?? place?.city ?? (scoped.isNotEmpty ? scoped.first.city : null);
+      if (planCity != null) {
+        final style = _styleFromQuery(query);
+        final plan = const TripPlannerService().generate(
+          city: planCity,
+          days: count,
+          style: style,
+          places: allPlaces,
+        );
+        final picks = plan.itinerary
+            .expand((day) => day.stops)
+            .map((stop) => stop.place)
+            .toList();
+        return TravelAssistantReply(
+          text: 'Estimated ${style.label.toLowerCase()} cost for $count day'
+              '${count == 1 ? '' : 's'} in $planCity: '
+              '${_money(plan.totalEstimateInr)}. Entry fees are about '
+              '${_money(plan.totalEntryFeesInr)}, and local travel between '
+              'planned stops is about ${_money(plan.estimatedTransportFareInr)}. '
+              'Food, hotels, shopping, surge pricing, guide fees, and airport '
+              'transfers are not included.',
+          places: picks.take(4).toList(),
+        );
+      }
     }
 
     if (place != null &&
@@ -253,7 +344,10 @@ class TravelAssistantService {
           text: 'Here is a smart ${style.label.toLowerCase()} $count-day plan '
               'for $planCity using the full UniSafeX catalog:\n'
               '${lines.join('\n')}\n\n'
-              'Open cards for fees, timings, safety tips and map directions. '
+              'Estimated entry + local travel: ${_money(plan.totalEstimateInr)} '
+              '(${_money(plan.totalEntryFeesInr)} entry, '
+              '${_money(plan.estimatedTransportFareInr)} travel).\n\n'
+              'Open cards for images, fees, timings, safety tips and map directions. '
               'For a richer day-by-day view, open Smart Trip Planner.',
           places: picks,
         );
@@ -267,8 +361,8 @@ class TravelAssistantService {
       text: 'Top UniSafeX recommendations for $location are '
           '${recommendations.map((item) => item.name).join(', ')}. Ask me '
           'about safety, scams, taxi/metro advice, entry fees, timings, best '
-          'season, free places, hidden gems, hotels, food safety, categories, '
-          'or a 1–5 day itinerary. I can reason over ${allPlaces.length} '
+          'season, free places, hidden gems, photo spots, family travel, '
+          'hotels, food safety, categories, total trip estimates, or a 1–5 day itinerary. I can reason over ${allPlaces.length} '
           'places across $cityCount cities.',
       places: recommendations,
     );
@@ -356,6 +450,22 @@ class TravelAssistantService {
   bool _containsAny(String value, List<String> terms) =>
       terms.any(value.contains);
 
+  double _familyScore(TourismPlace place) {
+    final duration = place.visitDurationMinutes ?? 120;
+    final durationScore = duration <= 150 ? 2.0 : 0.6;
+    final detailScore = [
+      place.timings?.isNotEmpty == true,
+      place.safetyGuidelines.isNotEmpty,
+      place.touristTips.isNotEmpty,
+      place.address?.isNotEmpty == true,
+    ].where((value) => value).length;
+    return place.rating * 2 +
+        durationScore +
+        detailScore * 0.45 +
+        (place.featured ? 1 : 0) +
+        (place.isPopular ? 0.8 : 0);
+  }
+
   String _placeBrief(TourismPlace place) {
     final safetyScore = SafetyScoreService.calculate(place);
     return '${place.name} is a ${place.category.toLowerCase()} destination in '
@@ -379,4 +489,6 @@ class TravelAssistantService {
     final hours = minutes / 60;
     return '${hours.toStringAsFixed(minutes % 60 == 0 ? 0 : 1)} hours';
   }
+
+  String _money(num value) => '₹${value.round()}';
 }

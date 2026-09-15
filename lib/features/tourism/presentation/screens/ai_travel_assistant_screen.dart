@@ -24,17 +24,20 @@ class _AiTravelAssistantScreenState
     const _ChatMessage(
       text: 'Namaste! I’m your UniSafeX travel assistant. Ask me about safe '
           'places, entry fees, timings, seasons, scams, transport, hotels, '
-          'food safety, emergencies or a 1–5 day India itinerary.',
+          'food safety, photos, family travel, total cost estimates, '
+          'emergencies or a 1–5 day India itinerary.',
       isUser: false,
     ),
   ];
 
   static const _prompts = [
     'Plan 2 budget days in Delhi',
+    'Estimate total fare for 3 days in Jaipur',
     'Safest places for solo women in Jaipur',
+    'Best photo places in Agra',
+    'Family friendly places in Delhi',
+    'What is open today in Mumbai?',
     'Show hidden gems in Agra',
-    'Best historical places in Delhi',
-    'Summarize Taj Mahal details',
     'How do I avoid taxi scams?',
   ];
 
@@ -235,7 +238,7 @@ class _AssistantCapabilityStrip extends StatelessWidget {
             child: Text(
               isLoading
                   ? 'Loading the full UniSafeX destination catalog for smarter answers...'
-                  : 'Uses $count UniSafeX places across $cityCount cities for itinerary, safety, fees, timing, hidden gems and travel advice. No paid AI API connected yet.',
+                  : 'Uses $count UniSafeX places across $cityCount cities for itinerary, safety, fees, timing, photos, family-fit picks, fare estimates and travel advice.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
@@ -295,19 +298,58 @@ class _MessageBubble extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(vertical: 6),
                         child: Row(
                           children: [
-                            const Icon(
-                              Icons.place_outlined,
-                              color: AppColors.primary,
-                              size: 19,
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: SizedBox(
+                                width: 42,
+                                height: 42,
+                                child: place.primaryImage.trim().isEmpty
+                                    ? Container(
+                                        color: AppColors.primary
+                                            .withValues(alpha: 0.08),
+                                        child: const Icon(
+                                          Icons.place_outlined,
+                                          color: AppColors.primary,
+                                          size: 19,
+                                        ),
+                                      )
+                                    : Image.network(
+                                        place.primaryImage,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => Container(
+                                          color: AppColors.primary
+                                              .withValues(alpha: 0.08),
+                                          child: const Icon(
+                                            Icons.place_outlined,
+                                            color: AppColors.primary,
+                                            size: 19,
+                                          ),
+                                        ),
+                                      ),
+                              ),
                             ),
-                            const SizedBox(width: 7),
+                            const SizedBox(width: 9),
                             Expanded(
-                              child: Text(
-                                '${place.name} · ${place.rating.toStringAsFixed(1)}',
-                                style: const TextStyle(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    place.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${place.city} · ${place.formattedEntryFee} · ${place.rating.toStringAsFixed(1)}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style:
+                                        Theme.of(context).textTheme.labelSmall,
+                                  ),
+                                ],
                               ),
                             ),
                             const Icon(

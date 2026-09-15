@@ -16,10 +16,19 @@ class TripPlannerScreen extends ConsumerStatefulWidget {
 }
 
 class _TripPlannerScreenState extends ConsumerState<TripPlannerScreen> {
+  final _destinationSearchController = TextEditingController();
+
   String? _city;
+  String _destinationQuery = '';
   int _days = 2;
   TravelStyle _style = TravelStyle.balanced;
   TripPlan? _plan;
+
+  @override
+  void dispose() {
+    _destinationSearchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +47,11 @@ class _TripPlannerScreenState extends ConsumerState<TripPlannerScreen> {
             ..sort(
               (a, b) => cityCounts[b]!.length.compareTo(cityCounts[a]!.length),
             );
+          final filteredCities = _filteredCities(cities, items);
           if (_city == null && cities.isNotEmpty) _city = cities.first;
+          if (filteredCities.isNotEmpty && !filteredCities.contains(_city)) {
+            _city = filteredCities.first;
+          }
           final selectedCityCount =
               _city == null ? 0 : cityCounts[_city!]?.length ?? 0;
           return ListView(
@@ -50,25 +63,50 @@ class _TripPlannerScreenState extends ConsumerState<TripPlannerScreen> {
                 cityCount: cities.length,
               ),
               const SizedBox(height: 24),
+              TextField(
+                controller: _destinationSearchController,
+                onChanged: (value) => setState(() {
+                  _destinationQuery = value;
+                  final matches = _filteredCities(cities, items, value);
+                  if (value.trim().isEmpty) return;
+                  if (matches.length == 1) {
+                    _city = matches.first;
+                  }
+                }),
+                decoration: const InputDecoration(
+                  labelText: 'Search destination',
+                  hintText: 'Search by city, state or place name',
+                  prefixIcon: Icon(Icons.search_rounded),
+                ),
+              ),
+              const SizedBox(height: 14),
               DropdownButtonFormField<String>(
-                initialValue: _city,
+                initialValue: filteredCities.contains(_city)
+                    ? _city
+                    : filteredCities.isEmpty
+                        ? null
+                        : filteredCities.first,
                 decoration: const InputDecoration(
                   labelText: 'Destination city',
                   prefixIcon: Icon(Icons.location_city_outlined),
                 ),
-                items: cities
+                items: filteredCities
                     .map((city) => DropdownMenuItem(
                           value: city,
                           child: Text('$city (${cityCounts[city]!.length})'),
                         ))
                     .toList(),
-                onChanged: (value) => setState(() => _city = value),
+                onChanged: filteredCities.isEmpty
+                    ? null
+                    : (value) => setState(() => _city = value),
               ),
               const SizedBox(height: 8),
               Text(
-                selectedCityCount == 0
-                    ? 'Choose a city to build a route.'
-                    : '$selectedCityCount places available for $_city. The planner ranks them by rating, popularity, safety data, fees, timings and route distance.',
+                filteredCities.isEmpty
+                    ? 'No destination matched. Try another city, state, or place name.'
+                    : selectedCityCount == 0
+                        ? 'Choose a city to build a route.'
+                        : '$selectedCityCount places available for $_city. The planner ranks them by rating, popularity, safety data, fees, timings and route distance.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: 18),
@@ -105,7 +143,7 @@ class _TripPlannerScreenState extends ConsumerState<TripPlannerScreen> {
               ),
               const SizedBox(height: 20),
               FilledButton.icon(
-                onPressed: _city == null
+                onPressed: _city == null || filteredCities.isEmpty
                     ? null
                     : () => setState(() {
                           _plan = const TripPlannerService().generate(
@@ -147,6 +185,25 @@ class _TripPlannerScreenState extends ConsumerState<TripPlannerScreen> {
         TravelStyle.balanced => Icons.balance_outlined,
         TravelStyle.luxury => Icons.diamond_outlined,
       };
+
+  List<String> _filteredCities(
+    List<String> cities,
+    List<dynamic> places, [
+    String? overrideQuery,
+  ]) {
+    final query = (overrideQuery ?? _destinationQuery).trim().toLowerCase();
+    if (query.isEmpty) return cities;
+    return cities.where((city) {
+      final normalizedCity = city.toLowerCase();
+      if (normalizedCity.contains(query)) return true;
+      return places.any((place) {
+        if (place.city != city) return false;
+        return place.name.toLowerCase().contains(query) ||
+            place.state.toLowerCase().contains(query) ||
+            place.category.toLowerCase().contains(query);
+      });
+    }).toList();
+  }
 }
 
 class _HeroCard extends StatelessWidget {
@@ -195,7 +252,7 @@ class _HeroCard extends StatelessWidget {
             children: [
               _HeroPill(label: '$totalPlaces places loaded'),
               _HeroPill(label: '$cityCount cities'),
-              _HeroPill(label: 'Smart route order'),
+              const _HeroPill(label: 'Smart route order'),
             ],
           ),
         ],
@@ -257,6 +314,18 @@ class _PlanSummaryCard extends StatelessWidget {
           children: [
             _MiniInfoChip(icon: Icons.route_rounded, label: '$stops stops'),
             _MiniInfoChip(
+              icon: Icons.payments_outlined,
+              label: 'Entry ${_money(plan.totalEntryFeesInr)}',
+            ),
+            _MiniInfoChip(
+              icon: Icons.local_taxi_outlined,
+              label: 'Travel ${_money(plan.estimatedTransportFareInr)}',
+            ),
+            _MiniInfoChip(
+              icon: Icons.account_balance_wallet_outlined,
+              label: 'Total est. ${_money(plan.totalEstimateInr)}',
+            ),
+            _MiniInfoChip(
                 icon: Icons.savings_outlined, label: '$freeStops free'),
             _MiniInfoChip(
               icon: Icons.shield_outlined,
@@ -268,6 +337,8 @@ class _PlanSummaryCard extends StatelessWidget {
       ),
     );
   }
+
+  String _money(num value) => '₹${NumberFormat('#,##0').format(value)}';
 }
 
 class _DayCard extends StatelessWidget {
@@ -285,6 +356,25 @@ class _DayCard extends StatelessWidget {
         children: [
           Text('day_number'.tr(args: ['${day.day}']),
               style: Theme.of(context).textTheme.headlineSmall),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _MiniInfoChip(
+                icon: Icons.directions_car_filled_outlined,
+                label: '${day.routeDistanceKm.toStringAsFixed(1)} km route',
+              ),
+              _MiniInfoChip(
+                icon: Icons.local_taxi_outlined,
+                label: 'Fare est. ${_money(day.estimatedTransportFareInr)}',
+              ),
+              _MiniInfoChip(
+                icon: Icons.confirmation_number_outlined,
+                label: 'Entry ${_money(day.entryFeesInr)}',
+              ),
+            ],
+          ),
           const SizedBox(height: 10),
           if (day.stops.isEmpty)
             Card(
@@ -304,10 +394,33 @@ class _DayCard extends StatelessWidget {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      CircleAvatar(
-                        backgroundColor:
-                            AppColors.primary.withValues(alpha: 0.12),
-                        child: const Icon(Icons.place_outlined),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: SizedBox(
+                          width: 74,
+                          height: 74,
+                          child: stop.place.primaryImage.trim().isEmpty
+                              ? Container(
+                                  color:
+                                      AppColors.primary.withValues(alpha: 0.08),
+                                  child: const Icon(
+                                    Icons.image_outlined,
+                                    color: AppColors.primary,
+                                  ),
+                                )
+                              : Image.network(
+                                  stop.place.primaryImage,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Container(
+                                    color: AppColors.primary
+                                        .withValues(alpha: 0.08),
+                                    child: const Icon(
+                                      Icons.place_outlined,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ),
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -364,6 +477,8 @@ class _DayCard extends StatelessWidget {
     if (minutes < 60) return '$minutes min';
     return '${(minutes / 60).toStringAsFixed(minutes % 60 == 0 ? 0 : 1)} hr';
   }
+
+  String _money(num value) => '₹${NumberFormat('#,##0').format(value)}';
 }
 
 class _MiniInfoChip extends StatelessWidget {

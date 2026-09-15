@@ -51,6 +51,40 @@ class _CurrencyHelperScreenState extends State<CurrencyHelperScreen> {
     });
   }
 
+  Future<void> _refreshLiveRates() async {
+    setState(() => _loading = true);
+    try {
+      final rates = await _service.fetchLiveRates(_from);
+      if (!mounted) return;
+      setState(() {
+        _rates = rates;
+        _loading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Live ${rates.base} rates refreshed for '
+            '${DateFormat('d MMM yyyy').format(rates.updatedAt)}.',
+          ),
+        ),
+      );
+    } catch (_) {
+      final rates = await _service.getRates(_from);
+      if (!mounted) return;
+      setState(() {
+        _rates = rates;
+        _loading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Live rates are unavailable right now. Showing the latest saved reference rates.',
+          ),
+        ),
+      );
+    }
+  }
+
   Future<void> _changeBase(String value) async {
     if (value == _from) return;
     setState(() {
@@ -95,139 +129,143 @@ class _CurrencyHelperScreenState extends State<CurrencyHelperScreen> {
         actions: [
           IconButton(
             tooltip: 'refresh_rates'.tr(),
-            onPressed: _loading ? null : _load,
+            onPressed: _loading ? null : _refreshLiveRates,
             icon: const Icon(Icons.refresh_rounded),
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-        children: [
-          Container(
-            padding: const EdgeInsets.all(22),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [AppColors.primaryDark, AppColors.primary],
+      body: RefreshIndicator(
+        onRefresh: _refreshLiveRates,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+          children: [
+            Container(
+              padding: const EdgeInsets.all(22),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [AppColors.primaryDark, AppColors.primary],
+                ),
+                borderRadius: BorderRadius.circular(24),
               ),
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.currency_exchange_rounded,
-                    color: Colors.white, size: 34),
-                SizedBox(height: 20),
-                Text(
-                  'Convert travel money',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 23,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                SizedBox(height: 7),
-                Text(
-                  'Convert between available world currencies with cached '
-                  'rates for offline reference.',
-                  style: TextStyle(color: Colors.white70, height: 1.45),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 22),
-          TextField(
-            controller: _controller,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(
-              labelText: 'Amount',
-              prefixIcon: Icon(Icons.payments_outlined),
-            ),
-          ),
-          const SizedBox(height: 14),
-          _CurrencyField(
-            label: 'from'.tr(),
-            currency: _currency(_from),
-            onTap: _currencies.isEmpty
-                ? null
-                : () async {
-                    final value = await _pickCurrency(_from);
-                    if (value != null) await _changeBase(value.code);
-                  },
-          ),
-          Center(
-            child: IconButton.filledTonal(
-              tooltip: 'swap_currencies'.tr(),
-              onPressed: _loading ? null : _swap,
-              icon: const Icon(Icons.swap_vert_rounded),
-            ),
-          ),
-          _CurrencyField(
-            label: 'to'.tr(),
-            currency: _currency(_to),
-            onTap: _currencies.isEmpty
-                ? null
-                : () async {
-                    final value = await _pickCurrency(_to);
-                    if (value != null) setState(() => _to = value.code);
-                  },
-          ),
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: AppColors.primary.withValues(alpha: 0.18),
-              ),
-            ),
-            child: Column(
-              children: [
-                Text(
-                  '${formatter.format(amount)} $_from',
-                  style: Theme.of(context).textTheme.bodyLarge,
-                ),
-                const SizedBox(height: 8),
-                if (_loading)
-                  const Padding(
-                    padding: EdgeInsets.all(12),
-                    child: CircularProgressIndicator(),
-                  )
-                else
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      converted == null
-                          ? 'Rate unavailable'
-                          : '${formatter.format(converted)} $_to',
-                      textAlign: TextAlign.center,
-                      style:
-                          Theme.of(context).textTheme.displayMedium?.copyWith(
-                                color: AppColors.primary,
-                                fontSize: 34,
-                              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.currency_exchange_rounded,
+                      color: Colors.white, size: 34),
+                  SizedBox(height: 20),
+                  Text(
+                    'Convert travel money',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 23,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                const SizedBox(height: 8),
-                if (rate != null)
+                  SizedBox(height: 7),
                   Text(
-                    '1 $_from = ${rate.toStringAsFixed(4)} $_to',
-                    style: Theme.of(context).textTheme.bodySmall,
+                    'Convert between available world currencies with cached '
+                    'rates for offline reference.',
+                    style: TextStyle(color: Colors.white70, height: 1.45),
                   ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 14),
-          _RateStatus(rates: _rates),
-          const SizedBox(height: 12),
-          Text(
-            'Reference rates may differ from card networks, banks and cash '
-            'exchange counters. Always review the final charged amount.',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ],
+            const SizedBox(height: 22),
+            TextField(
+              controller: _controller,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                labelText: 'Amount',
+                prefixIcon: Icon(Icons.payments_outlined),
+              ),
+            ),
+            const SizedBox(height: 14),
+            _CurrencyField(
+              label: 'from'.tr(),
+              currency: _currency(_from),
+              onTap: _currencies.isEmpty
+                  ? null
+                  : () async {
+                      final value = await _pickCurrency(_from);
+                      if (value != null) await _changeBase(value.code);
+                    },
+            ),
+            Center(
+              child: IconButton.filledTonal(
+                tooltip: 'swap_currencies'.tr(),
+                onPressed: _loading ? null : _swap,
+                icon: const Icon(Icons.swap_vert_rounded),
+              ),
+            ),
+            _CurrencyField(
+              label: 'to'.tr(),
+              currency: _currency(_to),
+              onTap: _currencies.isEmpty
+                  ? null
+                  : () async {
+                      final value = await _pickCurrency(_to);
+                      if (value != null) setState(() => _to = value.code);
+                    },
+            ),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.18),
+                ),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    '${formatter.format(amount)} $_from',
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  if (_loading)
+                    const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: CircularProgressIndicator(),
+                    )
+                  else
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        converted == null
+                            ? 'Rate unavailable'
+                            : '${formatter.format(converted)} $_to',
+                        textAlign: TextAlign.center,
+                        style:
+                            Theme.of(context).textTheme.displayMedium?.copyWith(
+                                  color: AppColors.primary,
+                                  fontSize: 34,
+                                ),
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  if (rate != null)
+                    Text(
+                      '1 $_from = ${rate.toStringAsFixed(4)} $_to',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            _RateStatus(rates: _rates),
+            const SizedBox(height: 12),
+            Text(
+              'Reference rates may differ from card networks, banks and cash '
+              'exchange counters. Always review the final charged amount.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -302,11 +340,14 @@ class _RateStatus extends StatelessWidget {
           size: 18,
         ),
         const SizedBox(width: 7),
-        Text(
-          rates!.isLive
-              ? 'Reference rates updated $date'
-              : 'Offline reference rates · last available $date',
-          style: Theme.of(context).textTheme.bodySmall,
+        Flexible(
+          child: Text(
+            rates!.isLive
+                ? 'Live reference rates updated $date'
+                : 'Offline reference rates · last available $date',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
         ),
       ],
     );

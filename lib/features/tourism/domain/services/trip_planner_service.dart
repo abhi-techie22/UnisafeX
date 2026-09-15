@@ -21,12 +21,14 @@ class TripPlannerService {
     final cityPlaces = uniquePlaces.values.toList()
       ..sort((a, b) => _score(b, style).compareTo(_score(a, style)));
 
-    final selected = _balancedSelection(cityPlaces, days * 3);
+    final selected = _balancedSelection(cityPlaces, days * _stopsPerDay(style));
     final itinerary = <TripPlanDay>[];
 
     for (var day = 0; day < days; day++) {
       final stops = <TripPlanStop>[];
-      final remaining = selected.skip(day * 3).take(3).toList();
+      final offset = day * _stopsPerDay(style);
+      final remaining =
+          selected.skip(offset).take(_stopsPerDay(style)).toList();
       final dayPlaces = _routeOrder(remaining);
       for (final place in dayPlaces) {
         final previous = stops.isEmpty ? null : stops.last.place;
@@ -39,16 +41,54 @@ class TripPlannerService {
           ),
         );
       }
-      itinerary.add(TripPlanDay(day: day + 1, stops: stops));
+      final dayDistance = stops.fold<double>(
+        0,
+        (total, stop) => total + (stop.distanceFromPreviousKm ?? 0),
+      );
+      final dayEntryFees = stops.fold<double>(
+        0,
+        (total, stop) => total + stop.place.entryFeeForeigner,
+      );
+      itinerary.add(
+        TripPlanDay(
+          day: day + 1,
+          stops: stops,
+          entryFeesInr: dayEntryFees,
+          routeDistanceKm: dayDistance,
+          estimatedTransportFareInr: _transportFare(dayDistance, style),
+        ),
+      );
     }
 
+    final totalEntryFees = itinerary.fold<double>(
+      0,
+      (total, day) => total + day.entryFeesInr,
+    );
+    final totalDistance = itinerary.fold<double>(
+      0,
+      (total, day) => total + day.routeDistanceKm,
+    );
+    final totalTransportFare = itinerary.fold<int>(
+      0,
+      (total, day) => total + day.estimatedTransportFareInr,
+    );
     return TripPlan(
       city: city,
       days: days,
       style: style,
       itinerary: itinerary,
+      totalEntryFeesInr: totalEntryFees,
+      totalRouteDistanceKm: totalDistance,
+      estimatedTransportFareInr: totalTransportFare,
+      totalEstimateInr: (totalEntryFees + totalTransportFare).round(),
     );
   }
+
+  int _stopsPerDay(TravelStyle style) => switch (style) {
+        TravelStyle.budget => 3,
+        TravelStyle.balanced => 3,
+        TravelStyle.luxury => 2,
+      };
 
   List<TourismPlace> _balancedSelection(
     List<TourismPlace> places,
@@ -135,6 +175,21 @@ class TripPlannerService {
       return 'Good seasonal information makes this stop easier to schedule.';
     }
     return 'A well-rated stop that adds variety to your day.';
+  }
+
+  int _transportFare(double distanceKm, TravelStyle style) {
+    if (distanceKm <= 0) return 0;
+    final baseFare = switch (style) {
+      TravelStyle.budget => 60,
+      TravelStyle.balanced => 120,
+      TravelStyle.luxury => 300,
+    };
+    final perKm = switch (style) {
+      TravelStyle.budget => 16,
+      TravelStyle.balanced => 28,
+      TravelStyle.luxury => 55,
+    };
+    return (baseFare + distanceKm * perKm).round();
   }
 
   double _distance(TourismPlace a, TourismPlace b) {

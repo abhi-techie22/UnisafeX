@@ -72,16 +72,16 @@ class CurrencyService {
   }
 
   Future<CurrencyRates> getRates(String base) async {
+    try {
+      return await fetchLiveRates(base);
+    } catch (_) {
+      // Fall through to admin-managed, cached, or bundled reference rates.
+    }
+
     final adminRates = await _adminManagedRates(base);
     if (adminRates != null) {
       await _cacheRates(adminRates);
       return adminRates;
-    }
-
-    try {
-      return await fetchLiveRates(base);
-    } catch (_) {
-      // Fall through to the latest cached or bundled reference rates.
     }
 
     final cached = await _cachedRates(base);
