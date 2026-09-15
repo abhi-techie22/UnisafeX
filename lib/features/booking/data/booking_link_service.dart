@@ -35,6 +35,8 @@ class BookingLinkService {
     DateTime? returnDate,
     required int travellers,
     BookingPartner? partner,
+    double? originLatitude,
+    double? originLongitude,
   }) {
     final uri = buildTravelSearch(
       mode: TravelTransportMode.flight,
@@ -43,6 +45,8 @@ class BookingLinkService {
       departure: departure,
       travellers: travellers,
       partner: partner,
+      originLatitude: originLatitude,
+      originLongitude: originLongitude,
     );
     if (returnDate == null) return uri;
     return uri.replace(
@@ -60,10 +64,17 @@ class BookingLinkService {
     required DateTime departure,
     required int travellers,
     BookingPartner? partner,
+    double? originLatitude,
+    double? originLongitude,
   }) {
     final trimmedOrigin = origin.trim();
     final trimmedDestination = destination.trim();
     final baseUrl = _travelPartnerUrl(mode, partner);
+    final routeOrigin = _routeOrigin(
+      origin: trimmedOrigin,
+      latitude: originLatitude,
+      longitude: originLongitude,
+    );
 
     if (partner != null &&
         !isTravelPartnerAvailableForRoute(
@@ -73,7 +84,7 @@ class BookingLinkService {
           destination: trimmedDestination,
         )) {
       return _mapsDirectionsUri(
-        origin: trimmedOrigin,
+        origin: routeOrigin,
         destination: trimmedDestination,
         mode: mode,
       );
@@ -81,7 +92,7 @@ class BookingLinkService {
 
     if (_isMapsPartner(baseUrl)) {
       return _mapsDirectionsUri(
-        origin: trimmedOrigin,
+        origin: routeOrigin,
         destination: trimmedDestination,
         mode: mode,
       );
@@ -111,6 +122,10 @@ class BookingLinkService {
         queryParameters: {
           'action': 'setPickup',
           'pickup[formatted_address]': trimmedOrigin,
+          if (_hasCoordinates(originLatitude, originLongitude))
+            'pickup[latitude]': originLatitude!.toStringAsFixed(6),
+          if (_hasCoordinates(originLatitude, originLongitude))
+            'pickup[longitude]': originLongitude!.toStringAsFixed(6),
           'dropoff[formatted_address]': trimmedDestination,
         },
       );
@@ -124,6 +139,14 @@ class BookingLinkService {
         'to': trimmedDestination,
         'origin': trimmedOrigin,
         'destination': trimmedDestination,
+        if (_hasCoordinates(originLatitude, originLongitude))
+          'origin_latitude': originLatitude!.toStringAsFixed(6),
+        if (_hasCoordinates(originLatitude, originLongitude))
+          'origin_longitude': originLongitude!.toStringAsFixed(6),
+        if (_hasCoordinates(originLatitude, originLongitude))
+          'pickup_latitude': originLatitude!.toStringAsFixed(6),
+        if (_hasCoordinates(originLatitude, originLongitude))
+          'pickup_longitude': originLongitude!.toStringAsFixed(6),
         'date': _date(departure),
         'travellers': '$travellers',
         'mode': mode.name,
@@ -185,6 +208,19 @@ class BookingLinkService {
       '${date.year.toString().padLeft(4, '0')}-'
       '${date.month.toString().padLeft(2, '0')}-'
       '${date.day.toString().padLeft(2, '0')}';
+
+  static bool _hasCoordinates(double? latitude, double? longitude) {
+    return latitude != null && longitude != null;
+  }
+
+  static String _routeOrigin({
+    required String origin,
+    double? latitude,
+    double? longitude,
+  }) {
+    if (!_hasCoordinates(latitude, longitude)) return origin;
+    return '${latitude!.toStringAsFixed(6)},${longitude!.toStringAsFixed(6)}';
+  }
 
   static String _flightPartnerUrl(BookingPartner? partner) {
     if (BookingPartnerConfig.flightPartnerUrlConfigured) {

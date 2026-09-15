@@ -1,18 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:unisafex/core/theme/app_theme.dart';
 import 'package:unisafex/features/booking/data/booking_link_service.dart';
 import 'package:unisafex/features/booking/domain/booking_partner.dart';
 import 'package:unisafex/features/booking/domain/delhi_metro_network.dart';
+import 'package:unisafex/features/booking/domain/travel_hub.dart';
 import 'package:unisafex/features/booking/presentation/widgets/booking_form_widgets.dart';
+import 'package:unisafex/features/home/presentation/providers/location_provider.dart';
 
-class TravelBookingScreen extends StatefulWidget {
+class TravelBookingScreen extends ConsumerStatefulWidget {
   const TravelBookingScreen({super.key});
 
   @override
-  State<TravelBookingScreen> createState() => _TravelBookingScreenState();
+  ConsumerState<TravelBookingScreen> createState() =>
+      _TravelBookingScreenState();
 }
 
-class _TravelBookingScreenState extends State<TravelBookingScreen> {
+class _TravelBookingScreenState extends ConsumerState<TravelBookingScreen> {
   final _formKey = GlobalKey<FormState>();
   final _originController = TextEditingController(text: 'New Delhi');
   final _destinationController = TextEditingController(text: 'Agra');
@@ -22,6 +26,8 @@ class _TravelBookingScreenState extends State<TravelBookingScreen> {
   String _selectedDelhiLineId = 'yellow';
   late BookingPartner _selectedPartner;
   bool _updatingRouteText = false;
+  LocationData? _currentPickupLocation;
+  bool _locatingPickup = false;
 
   @override
   void initState() {
@@ -50,9 +56,28 @@ class _TravelBookingScreenState extends State<TravelBookingScreen> {
         destination: _destinationController.text,
       );
 
+  bool get _usesTravelHubPicker =>
+      _selectedMode == TravelTransportMode.train ||
+      _selectedMode == TravelTransportMode.flight;
+
+  bool get _usesRidePickup =>
+      _selectedMode == TravelTransportMode.cab ||
+      _selectedMode == TravelTransportMode.auto;
+
+  bool get _hasCurrentRidePickup =>
+      _usesRidePickup &&
+      _currentPickupLocation != null &&
+      _originController.text.startsWith('Current location');
+
   void _handleRouteChanged() {
     if (_updatingRouteText) return;
-    setState(_syncSelectedPartner);
+    setState(() {
+      if (_currentPickupLocation != null &&
+          !_originController.text.startsWith('Current location')) {
+        _currentPickupLocation = null;
+      }
+      _syncSelectedPartner();
+    });
   }
 
   void _syncSelectedPartner() {
@@ -121,6 +146,8 @@ class _TravelBookingScreenState extends State<TravelBookingScreen> {
     )
         ? _selectedPartner
         : partners.first;
+    final pickupLocation =
+        _hasCurrentRidePickup ? _currentPickupLocation : null;
     final uri = BookingLinkService.buildTravelSearch(
       mode: _selectedMode,
       origin: _originController.text,
@@ -128,6 +155,8 @@ class _TravelBookingScreenState extends State<TravelBookingScreen> {
       departure: _travelDate,
       travellers: _travellers,
       partner: partner,
+      originLatitude: pickupLocation?.latitude,
+      originLongitude: pickupLocation?.longitude,
     );
     final opened = await BookingLinkService.open(uri);
     if (!opened && mounted) {
@@ -231,9 +260,57 @@ class _TravelBookingScreenState extends State<TravelBookingScreen> {
     }
   }
 
+  Future<void> _useCurrentLocationAsPickup() async {
+    if (!_usesRidePickup) return;
+
+    setState(() => _locatingPickup = true);
+    try {
+      await ref.read(locationProvider.notifier).refresh();
+      final locationState = ref.read(locationProvider);
+      final location = locationState.asData?.value;
+      if (!mounted) return;
+
+      if (location == null) {
+        final message = locationState.whenOrNull(
+              error: (error, _) => error is LocationException
+                  ? error.message
+                  : 'Current location is unavailable. Please try again.',
+            ) ??
+            'Current location is unavailable. Please try again.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+        return;
+      }
+
+      setState(() {
+        _currentPickupLocation = location;
+        _setRouteText(
+          origin: _currentPickupLabel(location),
+          destination: _destinationController.text,
+        );
+      });
+    } finally {
+      if (mounted) setState(() => _locatingPickup = false);
+    }
+  }
+
+  void _clearCurrentPickup() {
+    setState(() {
+      _currentPickupLocation = null;
+      if (_originController.text.startsWith('Current location')) {
+        _originController.clear();
+      }
+      _syncSelectedPartner();
+    });
+  }
+
   void _selectMode(TravelTransportMode mode) {
     setState(() {
       _selectedMode = mode;
+      if (mode != TravelTransportMode.cab && mode != TravelTransportMode.auto) {
+        _currentPickupLocation = null;
+      }
       if (mode == TravelTransportMode.metro) {
         _applyDelhiMetroDefaultsIfNeeded();
         _selectedPartner = metroBookingPartners.firstWhere(
@@ -259,17 +336,32 @@ class _TravelBookingScreenState extends State<TravelBookingScreen> {
   void _applyModeDefaultsIfNeeded(TravelTransportMode mode) {
     switch (mode) {
       case TravelTransportMode.flight:
-        if (_currentRouteUsesDelhiMetroStations || _currentRouteHasSameText) {
-          _setRouteText(origin: 'Delhi', destination: 'Mumbai');
+        if (!_currentRouteUsesTravelHubs(airportTravelHubs) ||
+            _currentRouteHasSameText) {
+          _setRouteText(
+            origin: airportTravelHubs[0].routeValue,
+            destination: airportTravelHubs[1].routeValue,
+          );
         }
         return;
-      case TravelTransportMode.bus || TravelTransportMode.train:
-        if (_currentRouteUsesDelhiMetroStations) {
+      case TravelTransportMode.train:
+        if (!_currentRouteUsesTravelHubs(railwayStationTravelHubs) ||
+            _currentRouteUsesDelhiMetroStations ||
+            _currentRouteHasSameText) {
+          _setRouteText(
+            origin: railwayStationTravelHubs[0].routeValue,
+            destination: railwayStationTravelHubs[3].routeValue,
+          );
+        }
+        return;
+      case TravelTransportMode.bus:
+        if (_currentRouteUsesDelhiMetroStations || _currentRouteUsesAnyHub) {
           _setRouteText(origin: 'New Delhi', destination: 'Agra');
         }
         return;
       case TravelTransportMode.cab || TravelTransportMode.auto:
         if (_currentRouteUsesDelhiMetroStations ||
+            _currentRouteUsesAnyHub ||
             _currentRouteLooksIntercity) {
           _setRouteText(
             origin: 'Connaught Place, Delhi',
@@ -301,6 +393,45 @@ class _TravelBookingScreenState extends State<TravelBookingScreen> {
         route.contains('mumbai') ||
         route.contains('varanasi') ||
         route.contains('kerala');
+  }
+
+  bool get _currentRouteUsesAnyHub =>
+      travelHubForRouteValue(
+            railwayStationTravelHubs,
+            _originController.text,
+          ) !=
+          null ||
+      travelHubForRouteValue(
+            railwayStationTravelHubs,
+            _destinationController.text,
+          ) !=
+          null ||
+      travelHubForRouteValue(
+            airportTravelHubs,
+            _originController.text,
+          ) !=
+          null ||
+      travelHubForRouteValue(
+            airportTravelHubs,
+            _destinationController.text,
+          ) !=
+          null;
+
+  bool _currentRouteUsesTravelHubs(List<TravelHub> hubs) {
+    return travelHubForRouteValue(hubs, _originController.text) != null &&
+        travelHubForRouteValue(hubs, _destinationController.text) != null;
+  }
+
+  String _currentPickupLabel(LocationData location) {
+    final city = location.city?.trim();
+    final state = location.state?.trim();
+    final name = location.name.trim();
+    final parts = [
+      if (city?.isNotEmpty == true) city!,
+      if (state?.isNotEmpty == true && state != city) state!,
+    ];
+    final area = parts.isEmpty ? name : parts.join(', ');
+    return area.isEmpty ? 'Current location' : 'Current location - $area';
   }
 
   @override
@@ -379,6 +510,60 @@ class _TravelBookingScreenState extends State<TravelBookingScreen> {
                     ),
                   ),
                   onQrTicket: _openDelhiMetroQrTicket,
+                )
+              else if (_usesTravelHubPicker)
+                _TravelHubRoutePanel(
+                  mode: _selectedMode,
+                  originValue: _originController.text,
+                  destinationValue: _destinationController.text,
+                  travelDate: _travelDate,
+                  travellers: _travellers,
+                  onOriginChanged: (hub) => setState(
+                    () => _setRouteText(
+                      origin: hub.routeValue,
+                      destination: _destinationController.text,
+                    ),
+                  ),
+                  onDestinationChanged: (hub) => setState(
+                    () => _setRouteText(
+                      origin: _originController.text,
+                      destination: hub.routeValue,
+                    ),
+                  ),
+                  onSwap: () => setState(
+                    () => _setRouteText(
+                      origin: _destinationController.text,
+                      destination: _originController.text,
+                    ),
+                  ),
+                  onPickDate: _pickDate,
+                  onDecreaseTravellers: () => setState(
+                    () => _travellers = (_travellers - 1).clamp(1, 9),
+                  ),
+                  onIncreaseTravellers: () => setState(
+                    () => _travellers = (_travellers + 1).clamp(1, 9),
+                  ),
+                )
+              else if (_usesRidePickup)
+                _RideRoutePanel(
+                  mode: _selectedMode,
+                  originController: _originController,
+                  destinationController: _destinationController,
+                  travelDate: _travelDate,
+                  travellers: _travellers,
+                  pickupLocation:
+                      _hasCurrentRidePickup ? _currentPickupLocation : null,
+                  locatingPickup: _locatingPickup,
+                  onUseCurrentPickup: _useCurrentLocationAsPickup,
+                  onClearCurrentPickup: _clearCurrentPickup,
+                  onPickDate: _pickDate,
+                  onDecreaseTravellers: () => setState(
+                    () => _travellers = (_travellers - 1).clamp(1, 9),
+                  ),
+                  onIncreaseTravellers: () => setState(
+                    () => _travellers = (_travellers + 1).clamp(1, 9),
+                  ),
+                  validator: _requiredLocation,
                 )
               else ...[
                 TextFormField(
@@ -543,6 +728,537 @@ class _NoPartnerCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _TravelHubRoutePanel extends StatelessWidget {
+  const _TravelHubRoutePanel({
+    required this.mode,
+    required this.originValue,
+    required this.destinationValue,
+    required this.travelDate,
+    required this.travellers,
+    required this.onOriginChanged,
+    required this.onDestinationChanged,
+    required this.onSwap,
+    required this.onPickDate,
+    required this.onDecreaseTravellers,
+    required this.onIncreaseTravellers,
+  });
+
+  final TravelTransportMode mode;
+  final String originValue;
+  final String destinationValue;
+  final DateTime travelDate;
+  final int travellers;
+  final ValueChanged<TravelHub> onOriginChanged;
+  final ValueChanged<TravelHub> onDestinationChanged;
+  final VoidCallback onSwap;
+  final VoidCallback onPickDate;
+  final VoidCallback onDecreaseTravellers;
+  final VoidCallback onIncreaseTravellers;
+
+  @override
+  Widget build(BuildContext context) {
+    final hubs = travelHubsForMode(mode);
+    final originHub = travelHubForRouteValue(hubs, originValue);
+    final destinationHub = travelHubForRouteValue(hubs, destinationValue);
+    final hubLabel = _hubKindLabel(mode);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                '${mode.label} route',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+              ),
+            ),
+            TextButton.icon(
+              onPressed: onSwap,
+              icon: const Icon(Icons.swap_vert_rounded),
+              label: const Text('Swap'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        _TravelHubField(
+          mode: mode,
+          label: 'From $hubLabel',
+          value: originHub,
+          onChanged: onOriginChanged,
+        ),
+        const SizedBox(height: 12),
+        _TravelHubField(
+          mode: mode,
+          label: 'To $hubLabel',
+          value: destinationHub,
+          onChanged: onDestinationChanged,
+        ),
+        const SizedBox(height: 14),
+        BookingDateField(
+          label: mode == TravelTransportMode.flight
+              ? 'Departure date'
+              : 'Travel date',
+          value: travelDate,
+          onTap: onPickDate,
+        ),
+        const SizedBox(height: 14),
+        BookingCounter(
+          label:
+              mode == TravelTransportMode.flight ? 'Passengers' : 'Travelers',
+          value: travellers,
+          icon: Icons.people_outline_rounded,
+          onDecrease: onDecreaseTravellers,
+          onIncrease: onIncreaseTravellers,
+        ),
+        const SizedBox(height: 14),
+        _SelectedHubSummary(
+          mode: mode,
+          originHub: originHub,
+          destinationHub: destinationHub,
+        ),
+      ],
+    );
+  }
+}
+
+class _TravelHubField extends StatelessWidget {
+  const _TravelHubField({
+    required this.mode,
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final TravelTransportMode mode;
+  final String label;
+  final TravelHub? value;
+  final ValueChanged<TravelHub> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return FormField<TravelHub>(
+      key: ValueKey('$label-${value?.routeValue ?? 'empty'}'),
+      initialValue: value,
+      validator: (value) => value == null
+          ? 'Choose a ${_hubKindLabel(mode).toLowerCase()}'
+          : null,
+      builder: (field) {
+        final selected = field.value;
+        return InkWell(
+          onTap: () async {
+            final hub = await showModalBottomSheet<TravelHub>(
+              context: context,
+              isScrollControlled: true,
+              useSafeArea: true,
+              showDragHandle: true,
+              routeSettings: RouteSettings(name: '$label picker'),
+              builder: (context) => _TravelHubPickerSheet(
+                mode: mode,
+                title: label,
+                selectedHub: selected,
+              ),
+            );
+            if (hub == null) return;
+            field.didChange(hub);
+            onChanged(hub);
+          },
+          borderRadius: BorderRadius.circular(14),
+          child: InputDecorator(
+            isEmpty: selected == null,
+            decoration: InputDecoration(
+              labelText: label,
+              prefixIcon: Icon(_modeIcon(mode)),
+              suffixIcon: const Icon(Icons.keyboard_arrow_down_rounded),
+              errorText: field.errorText,
+            ),
+            child: selected == null
+                ? Text(
+                    'Choose ${_hubKindLabel(mode).toLowerCase()}',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).hintColor,
+                        ),
+                  )
+                : _HubText(hub: selected),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _TravelHubPickerSheet extends StatefulWidget {
+  const _TravelHubPickerSheet({
+    required this.mode,
+    required this.title,
+    required this.selectedHub,
+  });
+
+  final TravelTransportMode mode;
+  final String title;
+  final TravelHub? selectedHub;
+
+  @override
+  State<_TravelHubPickerSheet> createState() => _TravelHubPickerSheetState();
+}
+
+class _TravelHubPickerSheetState extends State<_TravelHubPickerSheet> {
+  final _searchController = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<TravelHub> get _hubs {
+    final hubs = travelHubsForMode(widget.mode);
+    final query = _query.trim().toLowerCase();
+    if (query.isEmpty) return hubs;
+    return hubs.where((hub) => hub.searchText.contains(query)).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final height = MediaQuery.sizeOf(context).height * 0.78;
+    final hubs = _hubs;
+    final kind = _hubKindLabel(widget.mode).toLowerCase();
+
+    return SizedBox(
+      height: height,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          0,
+          20,
+          16 + MediaQuery.paddingOf(context).bottom,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.title,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _searchController,
+              autofocus: true,
+              onChanged: (value) => setState(() => _query = value),
+              decoration: InputDecoration(
+                labelText: 'Search $kind',
+                prefixIcon: const Icon(Icons.search_rounded),
+                suffixIcon: _query.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: 'Clear',
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _query = '');
+                        },
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: hubs.isEmpty
+                  ? Center(child: Text('No $kind found.'))
+                  : ListView.separated(
+                      itemCount: hubs.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final hub = hubs[index];
+                        final selected =
+                            hub.routeValue == widget.selectedHub?.routeValue;
+                        return ListTile(
+                          selected: selected,
+                          contentPadding: EdgeInsets.zero,
+                          leading: _HubCodeBadge(hub: hub),
+                          title: Text(hub.name),
+                          subtitle: Text('${hub.city}, ${hub.state}'),
+                          trailing: selected
+                              ? const Icon(
+                                  Icons.check_circle_rounded,
+                                  color: AppColors.primary,
+                                )
+                              : null,
+                          onTap: () => Navigator.pop(context, hub),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SelectedHubSummary extends StatelessWidget {
+  const _SelectedHubSummary({
+    required this.mode,
+    required this.originHub,
+    required this.destinationHub,
+  });
+
+  final TravelTransportMode mode;
+  final TravelHub? originHub;
+  final TravelHub? destinationHub;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = mode == TravelTransportMode.flight
+        ? const Color(0xFF1463FF)
+        : AppColors.primary;
+    final title = originHub == null || destinationHub == null
+        ? 'Select both ${_hubKindLabel(mode).toLowerCase()}s'
+        : '${originHub!.code} to ${destinationHub!.code}';
+    final subtitle = originHub == null || destinationHub == null
+        ? 'Route details will update after selection.'
+        : '${originHub!.city} to ${destinationHub!.city}';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.16)),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: color,
+            foregroundColor: Colors.white,
+            child: Icon(
+              mode == TravelTransportMode.flight
+                  ? Icons.flight_takeoff_rounded
+                  : Icons.train_rounded,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RideRoutePanel extends StatelessWidget {
+  const _RideRoutePanel({
+    required this.mode,
+    required this.originController,
+    required this.destinationController,
+    required this.travelDate,
+    required this.travellers,
+    required this.pickupLocation,
+    required this.locatingPickup,
+    required this.onUseCurrentPickup,
+    required this.onClearCurrentPickup,
+    required this.onPickDate,
+    required this.onDecreaseTravellers,
+    required this.onIncreaseTravellers,
+    required this.validator,
+  });
+
+  final TravelTransportMode mode;
+  final TextEditingController originController;
+  final TextEditingController destinationController;
+  final DateTime travelDate;
+  final int travellers;
+  final LocationData? pickupLocation;
+  final bool locatingPickup;
+  final VoidCallback onUseCurrentPickup;
+  final VoidCallback onClearCurrentPickup;
+  final VoidCallback onPickDate;
+  final VoidCallback onDecreaseTravellers;
+  final VoidCallback onIncreaseTravellers;
+  final FormFieldValidator<String> validator;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        TextFormField(
+          controller: originController,
+          decoration: InputDecoration(
+            labelText: 'Pickup',
+            hintText: 'Current location, hotel, station or address',
+            prefixIcon: const Icon(Icons.my_location_rounded),
+            suffixIcon: pickupLocation == null
+                ? null
+                : IconButton(
+                    tooltip: 'Clear current pickup',
+                    onPressed: onClearCurrentPickup,
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+          ),
+          validator: validator,
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.tonalIcon(
+            onPressed: locatingPickup ? null : onUseCurrentPickup,
+            icon: locatingPickup
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.near_me_rounded),
+            label: Text(
+              locatingPickup ? 'Finding pickup' : 'Use current location',
+            ),
+          ),
+        ),
+        if (pickupLocation != null) ...[
+          const SizedBox(height: 10),
+          _CurrentPickupBadge(location: pickupLocation!),
+        ],
+        const SizedBox(height: 14),
+        TextFormField(
+          controller: destinationController,
+          decoration: InputDecoration(
+            labelText: 'Drop',
+            hintText: mode == TravelTransportMode.auto
+                ? 'Nearby market, metro stop or place'
+                : 'Hotel, airport, station or place',
+            prefixIcon: const Icon(Icons.place_outlined),
+          ),
+          validator: validator,
+        ),
+        const SizedBox(height: 14),
+        BookingDateField(
+          label: 'Ride date',
+          value: travelDate,
+          onTap: onPickDate,
+        ),
+        const SizedBox(height: 14),
+        BookingCounter(
+          label: 'Passengers',
+          value: travellers,
+          icon: Icons.people_outline_rounded,
+          onDecrease: onDecreaseTravellers,
+          onIncrease: onIncreaseTravellers,
+        ),
+      ],
+    );
+  }
+}
+
+class _CurrentPickupBadge extends StatelessWidget {
+  const _CurrentPickupBadge({required this.location});
+
+  final LocationData location;
+
+  @override
+  Widget build(BuildContext context) {
+    final area = [
+      if (location.city?.trim().isNotEmpty == true) location.city!.trim(),
+      if (location.state?.trim().isNotEmpty == true) location.state!.trim(),
+    ].join(', ');
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.16)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.gps_fixed_rounded, color: AppColors.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              area.isEmpty
+                  ? 'Pickup set from GPS'
+                  : 'Pickup set from GPS - $area',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HubCodeBadge extends StatelessWidget {
+  const _HubCodeBadge({required this.hub});
+
+  final TravelHub hub;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = hub.type == TravelHubType.airport
+        ? const Color(0xFF1463FF)
+        : AppColors.primary;
+    return CircleAvatar(
+      backgroundColor: color.withValues(alpha: 0.12),
+      foregroundColor: color,
+      child: Text(
+        hub.code.length <= 3 ? hub.code : hub.code.substring(0, 3),
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+      ),
+    );
+  }
+}
+
+class _HubText extends StatelessWidget {
+  const _HubText({required this.hub});
+
+  final TravelHub hub;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          '${hub.name} (${hub.code})',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        const SizedBox(height: 2),
+        Text(
+          '${hub.city}, ${hub.state}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ],
     );
   }
 }
@@ -1231,6 +1947,14 @@ IconData _modeIcon(TravelTransportMode mode) {
     TravelTransportMode.cab => Icons.local_taxi_rounded,
     TravelTransportMode.auto => Icons.electric_rickshaw_rounded,
     TravelTransportMode.flight => Icons.flight_takeoff_rounded,
+  };
+}
+
+String _hubKindLabel(TravelTransportMode mode) {
+  return switch (mode) {
+    TravelTransportMode.flight => 'Airport',
+    TravelTransportMode.train => 'Station',
+    _ => 'Stop',
   };
 }
 

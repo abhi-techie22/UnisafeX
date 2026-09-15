@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:unisafex/features/booking/data/booking_link_service.dart';
 import 'package:unisafex/features/booking/domain/booking_partner.dart';
 import 'package:unisafex/features/booking/domain/delhi_metro_network.dart';
+import 'package:unisafex/features/booking/domain/travel_hub.dart';
 
 void main() {
   group('availableTravelPartnersForRoute', () {
@@ -115,6 +117,68 @@ void main() {
       expect(route!.isDirect, isFalse);
       expect(route.interchanges, isNotEmpty);
       expect(route.legs.length, greaterThan(1));
+    });
+  });
+
+  group('travel hubs', () {
+    test('recognises railway station route values', () {
+      final hub = travelHubForRouteValue(
+        railwayStationTravelHubs,
+        'New Delhi Railway Station (NDLS), New Delhi',
+      );
+
+      expect(hub?.code, 'NDLS');
+      expect(hub?.type, TravelHubType.railwayStation);
+    });
+
+    test('recognises airport route values', () {
+      final hub = travelHubForRouteValue(
+        airportTravelHubs,
+        'Indira Gandhi International Airport (DEL), Delhi',
+      );
+
+      expect(hub?.code, 'DEL');
+      expect(hub?.type, TravelHubType.airport);
+    });
+  });
+
+  group('BookingLinkService current pickup', () {
+    test('uses coordinates for Google Maps ride directions', () {
+      final uri = BookingLinkService.buildTravelSearch(
+        mode: TravelTransportMode.cab,
+        origin: 'Current location - Delhi',
+        destination: 'India Gate, Delhi',
+        departure: DateTime(2026, 9, 22),
+        travellers: 1,
+        partner: cabBookingPartners.firstWhere(
+          (partner) => partner.name == 'Google Maps Driving',
+        ),
+        originLatitude: 28.6139,
+        originLongitude: 77.2090,
+      );
+
+      expect(uri.queryParameters['origin'], '28.613900,77.209000');
+      expect(uri.queryParameters['destination'], 'India Gate, Delhi');
+    });
+
+    test('passes pickup coordinates to Uber links', () {
+      final uri = BookingLinkService.buildTravelSearch(
+        mode: TravelTransportMode.cab,
+        origin: 'Current location - Delhi',
+        destination: 'India Gate, Delhi',
+        departure: DateTime(2026, 9, 22),
+        travellers: 1,
+        partner: cabBookingPartners.firstWhere(
+          (partner) => partner.name == 'Uber',
+        ),
+        originLatitude: 28.6139,
+        originLongitude: 77.2090,
+      );
+
+      expect(uri.queryParameters['pickup[latitude]'], '28.613900');
+      expect(uri.queryParameters['pickup[longitude]'], '77.209000');
+      expect(uri.queryParameters['dropoff[formatted_address]'],
+          'India Gate, Delhi');
     });
   });
 }
