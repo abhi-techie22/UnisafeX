@@ -14,7 +14,7 @@ class BookingHubScreen extends ConsumerWidget {
     final flags = ref.watch(publicFeatureFlagsProvider).valueOrNull ??
         const FeatureFlags({});
     final showHotels = flags.hotels;
-    final showFlights = flags.flights;
+    final showTravel = flags.flights;
 
     return Scaffold(
       appBar: AppBar(
@@ -78,27 +78,28 @@ class BookingHubScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
           ],
-          if (showFlights) ...[
+          if (showTravel) ...[
             Text(
-              'flights'.tr(),
+              'Travel & transport',
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 5),
             Text(
-              'flights_compare_subtitle'.tr(),
+              'Compare bus, metro, train, cab, auto and flight partners.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 12),
             _BookingTypeCard(
-              title: 'search_flights'.tr(),
-              subtitle: 'search_flights_subtitle'.tr(),
-              icon: Icons.flight_takeoff_rounded,
-              badge: 'coming_next'.tr().toUpperCase(),
-              colors: const [Color(0xFF193A62), Color(0xFF2E6AA5)],
-              onTap: () => context.push(AppRoutes.flightBooking),
+              title: 'Book travel tickets',
+              subtitle:
+                  'Buses, metro, rail, cab, auto and flights in one place',
+              icon: Icons.directions_bus_filled_rounded,
+              badge: 'MULTI MODE',
+              colors: const [Color(0xFF173F35), AppColors.primary],
+              onTap: () => context.push(AppRoutes.travelBooking),
             ),
           ],
-          if (!showHotels && !showFlights) const _BookingDisabledCard(),
+          if (!showHotels && !showTravel) const _BookingDisabledCard(),
           const SizedBox(height: 20),
           Container(
             padding: const EdgeInsets.all(16),

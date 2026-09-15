@@ -36,17 +36,94 @@ class BookingLinkService {
     required int travellers,
     BookingPartner? partner,
   }) {
-    final baseUri = Uri.parse(_flightPartnerUrl(partner));
+    final uri = buildTravelSearch(
+      mode: TravelTransportMode.flight,
+      origin: origin,
+      destination: destination,
+      departure: departure,
+      travellers: travellers,
+      partner: partner,
+    );
+    if (returnDate == null) return uri;
+    return uri.replace(
+      queryParameters: {
+        ...uri.queryParameters,
+        'return': _date(returnDate),
+      },
+    );
+  }
+
+  static Uri buildTravelSearch({
+    required TravelTransportMode mode,
+    required String origin,
+    required String destination,
+    required DateTime departure,
+    required int travellers,
+    BookingPartner? partner,
+  }) {
+    final trimmedOrigin = origin.trim();
+    final trimmedDestination = destination.trim();
+    final baseUrl = _travelPartnerUrl(mode, partner);
+
+    if (_isMapsPartner(baseUrl)) {
+      return _mapsDirectionsUri(
+        origin: trimmedOrigin,
+        destination: trimmedDestination,
+        mode: mode,
+      );
+    }
+
+    if (partner?.name == 'Uber') {
+      return Uri.parse(baseUrl).replace(
+        queryParameters: {
+          'action': 'setPickup',
+          'pickup[formatted_address]': trimmedOrigin,
+          'dropoff[formatted_address]': trimmedDestination,
+        },
+      );
+    }
+
+    final baseUri = Uri.parse(baseUrl);
     return baseUri.replace(
       queryParameters: {
         ...baseUri.queryParameters,
-        'origin': origin.trim(),
-        'destination': destination.trim(),
-        'departure': _date(departure),
-        if (returnDate != null) 'return': _date(returnDate),
-        'adults': '$travellers',
-        if (BookingPartnerConfig.hasFlightAffiliate)
+        'from': trimmedOrigin,
+        'to': trimmedDestination,
+        'origin': trimmedOrigin,
+        'destination': trimmedDestination,
+        'date': _date(departure),
+        'travellers': '$travellers',
+        'mode': mode.name,
+        if (mode == TravelTransportMode.flight) 'departure': _date(departure),
+        if (mode == TravelTransportMode.flight) 'adults': '$travellers',
+        if (BookingPartnerConfig.hasTravelAffiliate)
+          'ref': BookingPartnerConfig.travelAffiliateId,
+        if (mode == TravelTransportMode.flight &&
+            BookingPartnerConfig.hasFlightAffiliate)
           'marker': BookingPartnerConfig.flightPartnerId,
+      },
+    );
+  }
+
+  static Uri buildPlaceTicketSearch({
+    required String placeName,
+    String? city,
+    String? state,
+  }) {
+    final locationParts = [
+      placeName.trim(),
+      if (city?.trim().isNotEmpty == true) city!.trim(),
+      if (state?.trim().isNotEmpty == true) state!.trim(),
+      'official online ticket',
+    ];
+    final query = locationParts.join(' ');
+    final baseUri = Uri.parse(BookingPartnerConfig.placeTicketPartnerUrl);
+    return baseUri.replace(
+      queryParameters: {
+        ...baseUri.queryParameters,
+        'q': query,
+        if (BookingPartnerConfig.hasPlaceTicketAffiliate)
+          'partner_id': BookingPartnerConfig.placeTicketAffiliateId,
       },
     );
   }
@@ -70,5 +147,58 @@ class BookingLinkService {
       'Trip.com' => 'https://www.trip.com/flights/',
       _ => 'https://www.skyscanner.co.in/transport/flights/',
     };
+  }
+
+  static String _travelPartnerUrl(
+    TravelTransportMode mode,
+    BookingPartner? partner,
+  ) {
+    if (BookingPartnerConfig.travelPartnerUrlConfigured) {
+      return BookingPartnerConfig.travelPartnerUrl;
+    }
+    if (mode == TravelTransportMode.flight) return _flightPartnerUrl(partner);
+
+    return switch (partner?.name) {
+      'AbhiBus' => 'https://www.abhibus.com/bus-ticket-booking',
+      'MakeMyTrip Bus' => 'https://www.makemytrip.com/bus-tickets/',
+      'redBus' => 'https://www.redbus.in/bus-tickets/',
+      'Delhi Metro' => 'https://www.delhimetrorail.com/',
+      'Metro Rail Info' => 'https://metrorailapp.com/',
+      'IRCTC' => 'https://www.irctc.co.in/nget/train-search',
+      'ConfirmTkt' => 'https://www.confirmtkt.com/',
+      'MakeMyTrip Train' => 'https://www.makemytrip.com/railways/',
+      'Uber' => 'https://m.uber.com/ul/',
+      'Ola' => 'https://book.olacabs.com/',
+      'Rapido' => 'https://www.rapido.bike/',
+      'Namma Yatri' => 'https://nammayatri.in/',
+      _ => 'https://www.google.com/maps/dir/',
+    };
+  }
+
+  static bool _isMapsPartner(String url) {
+    final host = Uri.parse(url).host;
+    return host.contains('google.com') && url.contains('/maps/dir');
+  }
+
+  static Uri _mapsDirectionsUri({
+    required String origin,
+    required String destination,
+    required TravelTransportMode mode,
+  }) {
+    return Uri.https('www.google.com', '/maps/dir/', {
+      'api': '1',
+      'origin': origin,
+      'destination': destination,
+      'travelmode': switch (mode) {
+        TravelTransportMode.bus ||
+        TravelTransportMode.metro ||
+        TravelTransportMode.train =>
+          'transit',
+        TravelTransportMode.flight ||
+        TravelTransportMode.cab ||
+        TravelTransportMode.auto =>
+          'driving',
+      },
+    });
   }
 }

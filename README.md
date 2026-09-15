@@ -85,6 +85,22 @@ flutter run -d android
 flutter run --flavor development
 ```
 
+### Optional Booking Partner Links
+
+Booking, travel, and place-ticket buttons open public partner websites. You can
+override the defaults at build time:
+
+```bash
+flutter run \
+  --dart-define=HOTEL_PARTNER_URL=https://www.booking.com/searchresults.html \
+  --dart-define=TRAVEL_PARTNER_URL= \
+  --dart-define=PLACE_TICKET_PARTNER_URL=https://www.getyourguide.com/s/
+```
+
+Do not put private partner API secrets in Flutter `--dart-define` values. Mobile
+app builds can be inspected, so only use public affiliate IDs or route partner
+checkout through a backend when secret credentials are required.
+
 ---
 
 ## 📁 Project Structure

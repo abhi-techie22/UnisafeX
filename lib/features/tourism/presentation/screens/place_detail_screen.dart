@@ -11,6 +11,7 @@ import 'package:unisafex/core/theme/app_theme.dart';
 import 'package:unisafex/core/utils/distance_calculator.dart';
 import 'package:unisafex/core/widgets/app_button.dart';
 import 'package:unisafex/features/auth/presentation/providers/auth_provider.dart';
+import 'package:unisafex/features/booking/data/booking_link_service.dart';
 import 'package:unisafex/features/favorites/presentation/providers/favorites_provider.dart';
 import 'package:unisafex/features/home/presentation/providers/location_provider.dart';
 import 'package:unisafex/features/tourism/domain/entities/tourism_place.dart';
@@ -274,6 +275,12 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                         label: 'Foreigner entry fee',
                         value: _formatFee(place.entryFeeForeigner),
                       ),
+                      const SizedBox(height: 10),
+                      _TicketBookingCard(
+                        freeEntry: place.entryFeeIndian == 0 &&
+                            place.entryFeeForeigner == 0,
+                        onTap: _openTicketBooking,
+                      ),
                       if (place.bestSeason?.isNotEmpty == true)
                         _InfoRow(
                           icon: Icons.wb_sunny_outlined,
@@ -380,8 +387,14 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                   ],
                 ),
               ),
+              FilledButton.icon(
+                onPressed: _openTicketBooking,
+                icon: const Icon(Icons.confirmation_number_rounded, size: 18),
+                label: const Text('Tickets'),
+              ),
+              const SizedBox(width: 8),
               AppButton(
-                label: 'view_on_map'.tr(),
+                label: 'Map',
                 onPressed: _openInAppMap,
                 icon: Icons.map_outlined,
               ),
@@ -390,6 +403,23 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _openTicketBooking() async {
+    final place = widget.place;
+    final uri = BookingLinkService.buildPlaceTicketSearch(
+      placeName: place.name,
+      city: place.city,
+      state: place.state,
+    );
+    final opened = await BookingLinkService.open(uri);
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not open online ticket booking right now.'),
+        ),
+      );
+    }
   }
 
   void _openInAppMap() {
@@ -2568,6 +2598,65 @@ class _InfoCard extends StatelessWidget {
         ),
       ),
       child: Column(children: children),
+    );
+  }
+}
+
+class _TicketBookingCard extends StatelessWidget {
+  const _TicketBookingCard({
+    required this.freeEntry,
+    required this.onTap,
+  });
+
+  final bool freeEntry;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.accent.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: AppColors.accent.withValues(alpha: 0.16),
+            foregroundColor: AppColors.accent,
+            child: const Icon(Icons.confirmation_number_rounded),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  freeEntry ? 'Check entry details' : 'Book online ticket',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  freeEntry
+                      ? 'Open official or partner visitor information.'
+                      : 'Open official or partner ticket booking for this place.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          FilledButton.tonalIcon(
+            onPressed: onTap,
+            icon: const Icon(Icons.open_in_new_rounded),
+            label: const Text('Open'),
+          ),
+        ],
+      ),
     );
   }
 }

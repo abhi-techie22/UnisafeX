@@ -321,7 +321,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             SliverToBoxAdapter(
               child: BookingHomeSection(
                 showHotels: featureFlags.hotels,
-                showFlights: featureFlags.flights,
+                showTravel: featureFlags.flights,
               ),
             ),
 
@@ -1375,7 +1375,7 @@ IconData _homeBannerIcon(String type) {
   return switch (type) {
     'festival' => Icons.celebration_rounded,
     'hotel_promo' => Icons.hotel_rounded,
-    'flight_promo' => Icons.flight_takeoff_rounded,
+    'flight_promo' => Icons.directions_bus_filled_rounded,
     'emergency' => Icons.warning_amber_rounded,
     _ => Icons.location_city_rounded,
   };
@@ -1385,7 +1385,7 @@ Color _homeBannerAccent(String type) {
   return switch (type) {
     'festival' => AppColors.accent,
     'hotel_promo' => AppColors.success,
-    'flight_promo' => AppColors.info,
+    'flight_promo' => AppColors.primary,
     'emergency' => AppColors.error,
     _ => AppColors.primary,
   };

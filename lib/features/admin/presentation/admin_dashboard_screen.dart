@@ -1658,7 +1658,7 @@ class _HomeBannersAdminTab extends ConsumerWidget {
                 DropdownMenuItem(
                     value: 'hotel_promo', child: Text('Hotel promo')),
                 DropdownMenuItem(
-                    value: 'flight_promo', child: Text('Flight promo')),
+                    value: 'flight_promo', child: Text('Travel promo')),
                 DropdownMenuItem(
                     value: 'featured_city', child: Text('Featured city')),
                 DropdownMenuItem(value: 'emergency', child: Text('Emergency')),
@@ -1730,7 +1730,7 @@ class _HomeBannersAdminTab extends ConsumerWidget {
     return switch (type) {
       'festival' => Icons.celebration_rounded,
       'hotel_promo' => Icons.hotel_rounded,
-      'flight_promo' => Icons.flight_takeoff_rounded,
+      'flight_promo' => Icons.directions_bus_filled_rounded,
       'emergency' => Icons.warning_amber_rounded,
       _ => Icons.location_city_rounded,
     };
@@ -1837,7 +1837,7 @@ class _BookingFeatureFlagsCard extends StatelessWidget {
     );
     final flights = _flag(
       key: 'feature_flights_enabled',
-      description: 'Show flight booking features',
+      description: 'Show travel and transport booking features',
     );
 
     return Container(
@@ -1885,10 +1885,10 @@ class _BookingFeatureFlagsCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           _BookingFeatureSwitch(
-            title: 'Flight booking',
+            title: 'Travel & transport booking',
             subtitle:
                 flights.enabled ? 'Visible to users' : 'Hidden from users',
-            icon: Icons.flight_takeoff_rounded,
+            icon: Icons.directions_bus_filled_rounded,
             value: flights.enabled,
             onChanged: (enabled) => onToggle(flights, enabled),
           ),

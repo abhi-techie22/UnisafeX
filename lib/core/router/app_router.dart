@@ -14,7 +14,7 @@ import 'package:unisafex/features/auth/presentation/screens/login_screen.dart';
 import 'package:unisafex/features/auth/presentation/screens/register_screen.dart';
 import 'package:unisafex/features/admin/presentation/admin_dashboard_screen.dart';
 import 'package:unisafex/features/booking/presentation/screens/booking_hub_screen.dart';
-import 'package:unisafex/features/booking/presentation/screens/flight_booking_screen.dart';
+import 'package:unisafex/features/booking/presentation/screens/travel_booking_screen.dart';
 
 import 'package:unisafex/features/favorites/presentation/screens/favorites_screen.dart';
 import 'package:unisafex/features/guide/presentation/screens/guide_request_screen.dart';
@@ -195,11 +195,15 @@ GoRouter appRouter(
             ),
           ),
           GoRoute(
-            path: AppRoutes.flightBooking,
+            path: AppRoutes.travelBooking,
             builder: (context, state) => _FeatureFlagRouteGuard(
               enabled: (flags) => flags.flights,
-              child: const FlightBookingScreen(),
+              child: const TravelBookingScreen(),
             ),
+          ),
+          GoRoute(
+            path: AppRoutes.legacyFlightBooking,
+            redirect: (context, state) => AppRoutes.travelBooking,
           ),
 
           /// MAP (UPDATED)
@@ -505,7 +509,9 @@ class AppRoutes {
   static const String heritageDetail = '/heritage-detail';
   static const String admin = '/admin';
   static const String hotelBooking = '/booking/hotels';
-  static const String flightBooking = '/booking/flights';
+  static const String travelBooking = '/booking/travel';
+  static const String flightBooking = travelBooking;
+  static const String legacyFlightBooking = '/booking/flights';
 
   static String destinationMapLocation({
     required String placeName,

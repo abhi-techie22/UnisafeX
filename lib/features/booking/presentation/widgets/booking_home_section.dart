@@ -7,11 +7,11 @@ class BookingHomeSection extends StatelessWidget {
   const BookingHomeSection({
     super.key,
     this.showHotels = true,
-    this.showFlights = true,
+    this.showTravel = true,
   });
 
   final bool showHotels;
-  final bool showFlights;
+  final bool showTravel;
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +48,7 @@ class BookingHomeSection extends StatelessWidget {
           ),
           const SizedBox(height: 3),
           Text(
-            'Hotels and flights, ready when you need them.',
+            'Hotels, place tickets and transport, ready when you need them.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 12),
@@ -65,16 +65,16 @@ class BookingHomeSection extends StatelessWidget {
                     onTap: () => context.push(AppRoutes.hotelBooking),
                   ),
                 ),
-              if (showHotels && showFlights) const SizedBox(width: 12),
-              if (showFlights)
+              if (showHotels && showTravel) const SizedBox(width: 12),
+              if (showTravel)
                 Expanded(
                   child: _BookingQuickButton(
-                    label: 'Flights',
-                    subtitle: 'Tickets',
-                    icon: Icons.flight_takeoff_rounded,
-                    accentIcon: Icons.public_rounded,
+                    label: 'Travel',
+                    subtitle: 'Bus, metro, cab',
+                    icon: Icons.directions_bus_filled_rounded,
+                    accentIcon: Icons.confirmation_number_rounded,
                     colors: const [Color(0xFF193A62), Color(0xFF2E6AA5)],
-                    onTap: () => context.push(AppRoutes.flightBooking),
+                    onTap: () => context.push(AppRoutes.travelBooking),
                   ),
                 ),
             ],
