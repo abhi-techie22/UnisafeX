@@ -26,14 +26,40 @@ class _TravelBookingScreenState extends State<TravelBookingScreen> {
     _travelDate = DateUtils.dateOnly(DateTime.now()).add(
       const Duration(days: 7),
     );
-    _selectedPartner = travelPartnersForMode(_selectedMode).first;
+    _selectedPartner = _availablePartners.first;
+    _originController.addListener(_handleRouteChanged);
+    _destinationController.addListener(_handleRouteChanged);
   }
 
   @override
   void dispose() {
+    _originController.removeListener(_handleRouteChanged);
+    _destinationController.removeListener(_handleRouteChanged);
     _originController.dispose();
     _destinationController.dispose();
     super.dispose();
+  }
+
+  List<BookingPartner> get _availablePartners =>
+      availableTravelPartnersForRoute(
+        mode: _selectedMode,
+        origin: _originController.text,
+        destination: _destinationController.text,
+      );
+
+  void _handleRouteChanged() {
+    setState(_syncSelectedPartner);
+  }
+
+  void _syncSelectedPartner() {
+    final partners = _availablePartners;
+    if (partners.isEmpty) return;
+    final selectedStillAvailable = partners.any(
+      (partner) => partner.name == _selectedPartner.name,
+    );
+    if (!selectedStillAvailable) {
+      _selectedPartner = partners.first;
+    }
   }
 
   Future<void> _pickDate() async {
@@ -48,20 +74,32 @@ class _TravelBookingScreenState extends State<TravelBookingScreen> {
 
   Future<void> _search() async {
     if (!_formKey.currentState!.validate()) return;
+    final partners = _availablePartners;
+    if (partners.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_noPartnerMessage(_selectedMode))),
+      );
+      return;
+    }
+    final partner = partners.any(
+      (available) => available.name == _selectedPartner.name,
+    )
+        ? _selectedPartner
+        : partners.first;
     final uri = BookingLinkService.buildTravelSearch(
       mode: _selectedMode,
       origin: _originController.text,
       destination: _destinationController.text,
       departure: _travelDate,
       travellers: _travellers,
-      partner: _selectedPartner,
+      partner: partner,
     );
     final opened = await BookingLinkService.open(uri);
     if (!opened && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Could not open ${_selectedPartner.name}. Please try again.',
+            'Could not open ${partner.name}. Please try again.',
           ),
         ),
       );
@@ -71,13 +109,21 @@ class _TravelBookingScreenState extends State<TravelBookingScreen> {
   void _selectMode(TravelTransportMode mode) {
     setState(() {
       _selectedMode = mode;
-      _selectedPartner = travelPartnersForMode(mode).first;
+      final partners = _availablePartners;
+      _selectedPartner =
+          partners.isEmpty ? travelPartnersForMode(mode).first : partners.first;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final partners = travelPartnersForMode(_selectedMode);
+    final partners = _availablePartners;
+    final hiddenCount = hiddenTravelPartnerCountForRoute(
+      mode: _selectedMode,
+      origin: _originController.text,
+      destination: _destinationController.text,
+    );
+    final canOpenPartner = partners.isNotEmpty;
     return Scaffold(
       appBar: AppBar(title: const Text('Travel booking')),
       body: SafeArea(
@@ -145,20 +191,34 @@ class _TravelBookingScreenState extends State<TravelBookingScreen> {
               ),
               const SizedBox(height: 18),
               _ModeInfoCard(mode: _selectedMode),
+              if (hiddenCount > 0) ...[
+                const SizedBox(height: 12),
+                _RouteAvailabilityNotice(
+                  mode: _selectedMode,
+                  hiddenCount: hiddenCount,
+                ),
+              ],
               const SizedBox(height: 18),
-              BookingPartnerSelector(
-                partners: partners,
-                selected: _selectedPartner,
-                onSelected: (partner) =>
-                    setState(() => _selectedPartner = partner),
-              ),
+              if (canOpenPartner)
+                BookingPartnerSelector(
+                  partners: partners,
+                  selected: _selectedPartner,
+                  onSelected: (partner) =>
+                      setState(() => _selectedPartner = partner),
+                )
+              else
+                _NoPartnerCard(message: _noPartnerMessage(_selectedMode)),
               const SizedBox(height: 18),
               FilledButton.icon(
-                onPressed: _search,
+                onPressed: canOpenPartner ? _search : null,
                 icon: Icon(_modeIcon(_selectedMode)),
                 label: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  child: Text('Open ${_selectedPartner.name}'),
+                  child: Text(
+                    canOpenPartner
+                        ? 'Open ${_selectedPartner.name}'
+                        : 'No partner for this route',
+                  ),
                 ),
               ),
             ],
@@ -172,6 +232,88 @@ class _TravelBookingScreenState extends State<TravelBookingScreen> {
     return value == null || value.trim().isEmpty
         ? 'Enter a valid city, station or place'
         : null;
+  }
+}
+
+class _RouteAvailabilityNotice extends StatelessWidget {
+  const _RouteAvailabilityNotice({
+    required this.mode,
+    required this.hiddenCount,
+  });
+
+  final TravelTransportMode mode;
+  final int hiddenCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final message = switch (mode) {
+      TravelTransportMode.metro =>
+        'City-specific metro partners are shown only when both locations are inside the same metro area. Delhi Metro appears only for Delhi NCR routes.',
+      TravelTransportMode.cab ||
+      TravelTransportMode.auto =>
+        'Local ride partners are hidden for clear intercity routes. Use bus, train, flight, or Google Maps for longer travel.',
+      TravelTransportMode.bus =>
+        'Intercity bus partners are hidden when the route looks like a local city route.',
+      TravelTransportMode.flight =>
+        'Flight partners are hidden when both points look like the same city.',
+      TravelTransportMode.train =>
+        'Some rail partners may be hidden when the selected route is not suitable.',
+    };
+
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.info_outline_rounded, color: AppColors.warning),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              '$hiddenCount unavailable partner${hiddenCount == 1 ? '' : 's'} hidden. $message',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NoPartnerCard extends StatelessWidget {
+  const _NoPartnerCard({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.route_outlined,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              message,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -268,5 +410,22 @@ IconData _modeIcon(TravelTransportMode mode) {
     TravelTransportMode.cab => Icons.local_taxi_rounded,
     TravelTransportMode.auto => Icons.electric_rickshaw_rounded,
     TravelTransportMode.flight => Icons.flight_takeoff_rounded,
+  };
+}
+
+String _noPartnerMessage(TravelTransportMode mode) {
+  return switch (mode) {
+    TravelTransportMode.metro =>
+      'No metro partner matches both locations. Try a route inside the same metro city or use Google Maps Transit.',
+    TravelTransportMode.bus =>
+      'No bus partner matches this route. Try a different city or use local transit.',
+    TravelTransportMode.train =>
+      'No train partner matches this route. Try a city, station, or nearby rail hub.',
+    TravelTransportMode.cab =>
+      'No cab partner matches this route. Try a local route or use Google Maps Driving.',
+    TravelTransportMode.auto =>
+      'No auto partner matches this route. Try a local city route.',
+    TravelTransportMode.flight =>
+      'No flight partner matches this route. Choose different cities or airports.',
   };
 }

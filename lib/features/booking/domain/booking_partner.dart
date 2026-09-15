@@ -108,6 +108,13 @@ const flightBookingPartners = [
 
 const busBookingPartners = [
   BookingPartner(
+    name: 'Google Maps Transit',
+    shortName: 'G',
+    description: 'Local bus and public transit directions',
+    color: Color(0xFF1A73E8),
+    category: BookingCategory.travel,
+  ),
+  BookingPartner(
     name: 'redBus',
     shortName: 'R',
     description: 'Intercity bus routes across India',
@@ -235,4 +242,286 @@ List<BookingPartner> travelPartnersForMode(TravelTransportMode mode) {
     TravelTransportMode.auto => autoBookingPartners,
     TravelTransportMode.flight => flightBookingPartners,
   };
+}
+
+List<BookingPartner> availableTravelPartnersForRoute({
+  required TravelTransportMode mode,
+  required String origin,
+  required String destination,
+}) {
+  return travelPartnersForMode(mode)
+      .where(
+        (partner) => isTravelPartnerAvailableForRoute(
+          partner: partner,
+          mode: mode,
+          origin: origin,
+          destination: destination,
+        ),
+      )
+      .toList(growable: false);
+}
+
+bool isTravelPartnerAvailableForRoute({
+  required BookingPartner partner,
+  required TravelTransportMode mode,
+  required String origin,
+  required String destination,
+}) {
+  if (partner.name.startsWith('Google Maps')) return true;
+
+  return switch (partner.name) {
+    'Delhi Metro' => _sameKnownArea(
+        origin,
+        destination,
+        _delhiNcrArea,
+      ),
+    'Metro Rail Info' => _sameKnownMetroArea(origin, destination),
+    'redBus' ||
+    'AbhiBus' ||
+    'MakeMyTrip Bus' =>
+      !_sameKnownLocalArea(origin, destination),
+    'Uber' || 'Ola' => _looksLikeLocalRoute(origin, destination),
+    'Rapido' => _looksLikeLocalRoute(origin, destination) &&
+        _routeHasAnyArea(origin, destination, _rideHailingAreas),
+    'Namma Yatri' => _looksLikeLocalRoute(origin, destination) &&
+        _routeHasAnyArea(origin, destination, _nammaYatriAreas),
+    'Skyscanner' ||
+    'KAYAK' ||
+    'Expedia' ||
+    'Trip.com' =>
+      !_sameKnownLocalArea(origin, destination),
+    _ => true,
+  };
+}
+
+int hiddenTravelPartnerCountForRoute({
+  required TravelTransportMode mode,
+  required String origin,
+  required String destination,
+}) {
+  final all = travelPartnersForMode(mode);
+  final available = availableTravelPartnersForRoute(
+    mode: mode,
+    origin: origin,
+    destination: destination,
+  );
+  return all.length - available.length;
+}
+
+const _delhiNcrArea = 'delhi_ncr';
+
+const _metroAreaTerms = <String, List<String>>{
+  _delhiNcrArea: [
+    'delhi',
+    'new delhi',
+    'ncr',
+    'noida',
+    'greater noida',
+    'gurgaon',
+    'gurugram',
+    'ghaziabad',
+    'faridabad',
+    'bahadurgarh',
+    'ballabhgarh',
+    'dwarka',
+    'rohini',
+    'saket',
+    'hauz khas',
+    'janakpuri',
+    'vaishali',
+    'kaushambi',
+    'cyber city',
+    'india gate',
+    'red fort',
+    'qutub minar',
+    'lotus temple',
+    'akshardham',
+    'connaught place',
+    'chandni chowk',
+    'jama masjid',
+    'humayun',
+    'kashmere gate',
+    'rajiv chowk',
+  ],
+  'mumbai': [
+    'mumbai',
+    'bombay',
+    'andheri',
+    'bandra',
+    'thane',
+    'navi mumbai',
+    'powai',
+    'colaba',
+    'dadar',
+    'gateway of india',
+    'marine drive',
+    'cst',
+    'chhatrapati shivaji terminus',
+    'juhu',
+    'elephanta',
+  ],
+  'bengaluru': [
+    'bengaluru',
+    'bangalore',
+    'mg road',
+    'majestic',
+    'indiranagar',
+    'whitefield',
+    'yesvantpur',
+    'cubbon park',
+    'lalbagh',
+    'vidhana soudha',
+  ],
+  'kolkata': [
+    'kolkata',
+    'calcutta',
+    'howrah',
+    'salt lake',
+    'dum dum',
+    'new town',
+    'victoria memorial',
+    'park street',
+    'kalighat',
+  ],
+  'chennai': [
+    'chennai',
+    'egmore',
+    'tambaram',
+    'guindy',
+    'marina beach',
+    'kapaleeshwarar',
+  ],
+  'hyderabad': [
+    'hyderabad',
+    'secunderabad',
+    'hitec city',
+    'miyapur',
+    'charminar',
+    'golconda',
+    'hussain sagar',
+  ],
+  'kochi': ['kochi', 'ernakulam', 'aluva', 'fort kochi', 'mattancherry'],
+  'pune': [
+    'pune',
+    'shivajinagar',
+    'pimpri',
+    'chinchwad',
+    'shaniwar wada',
+  ],
+  'ahmedabad': ['ahmedabad', 'gandhinagar', 'sabarmati', 'adalaj'],
+  'jaipur': ['jaipur', 'hawa mahal', 'amber fort', 'amer fort'],
+  'lucknow': ['lucknow', 'bara imambara'],
+  'nagpur': ['nagpur'],
+  'kanpur': ['kanpur'],
+  'bhopal': ['bhopal'],
+  'indore': ['indore'],
+};
+
+const _tourismCityTerms = <String, List<String>>{
+  ..._metroAreaTerms,
+  'agra': ['agra', 'taj mahal', 'fatehpur sikri'],
+  'varanasi': ['varanasi', 'banaras', 'kashi', 'sarnath'],
+  'udaipur': ['udaipur'],
+  'jodhpur': ['jodhpur'],
+  'amritsar': ['amritsar', 'golden temple'],
+  'goa': ['goa', 'panaji', 'panjim', 'calangute', 'baga'],
+  'mysuru': ['mysuru', 'mysore'],
+  'rishikesh': ['rishikesh'],
+  'haridwar': ['haridwar'],
+  'shimla': ['shimla'],
+  'manali': ['manali'],
+  'leh': ['leh', 'ladakh'],
+  'srinagar': ['srinagar'],
+  'darjeeling': ['darjeeling'],
+  'gangtok': ['gangtok'],
+  'bhubaneswar': ['bhubaneswar'],
+  'puri': ['puri'],
+  'madurai': ['madurai'],
+  'hampi': ['hampi'],
+  'aurangabad': ['aurangabad', 'ajanta', 'ellora'],
+  'khajuraho': ['khajuraho'],
+  'vadodara': ['vadodara', 'baroda'],
+  'surat': ['surat'],
+};
+
+const _rideHailingAreas = {
+  _delhiNcrArea,
+  'mumbai',
+  'bengaluru',
+  'kolkata',
+  'chennai',
+  'hyderabad',
+  'pune',
+  'ahmedabad',
+  'jaipur',
+  'lucknow',
+  'kochi',
+  'mysuru',
+  'bhopal',
+  'indore',
+};
+
+const _nammaYatriAreas = {
+  'bengaluru',
+  'chennai',
+  'kolkata',
+  'kochi',
+  'hyderabad',
+  'mysuru',
+};
+
+bool _sameKnownArea(
+  String origin,
+  String destination,
+  String requiredArea,
+) {
+  return _matchedArea(origin, _tourismCityTerms) == requiredArea &&
+      _matchedArea(destination, _tourismCityTerms) == requiredArea;
+}
+
+bool _sameKnownMetroArea(String origin, String destination) {
+  final originArea = _matchedArea(origin, _metroAreaTerms);
+  final destinationArea = _matchedArea(destination, _metroAreaTerms);
+  return originArea != null && originArea == destinationArea;
+}
+
+bool _sameKnownLocalArea(String origin, String destination) {
+  final originArea = _matchedArea(origin, _tourismCityTerms);
+  final destinationArea = _matchedArea(destination, _tourismCityTerms);
+  return originArea != null && originArea == destinationArea;
+}
+
+bool _looksLikeLocalRoute(String origin, String destination) {
+  final originArea = _matchedArea(origin, _tourismCityTerms);
+  final destinationArea = _matchedArea(destination, _tourismCityTerms);
+  if (originArea == null || destinationArea == null) return true;
+  return originArea == destinationArea;
+}
+
+bool _routeHasAnyArea(
+  String origin,
+  String destination,
+  Set<String> allowedAreas,
+) {
+  final originArea = _matchedArea(origin, _tourismCityTerms);
+  final destinationArea = _matchedArea(destination, _tourismCityTerms);
+  return allowedAreas.contains(originArea) ||
+      allowedAreas.contains(destinationArea);
+}
+
+String? _matchedArea(String value, Map<String, List<String>> areaTerms) {
+  final normalized = _normalizeRouteText(value);
+  if (normalized.trim().isEmpty) return null;
+  for (final entry in areaTerms.entries) {
+    for (final term in entry.value) {
+      if (normalized.contains(' ${_normalizeRouteText(term).trim()} ')) {
+        return entry.key;
+      }
+    }
+  }
+  return null;
+}
+
+String _normalizeRouteText(String value) {
+  return ' ${value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), ' ').replaceAll(RegExp(r'\s+'), ' ').trim()} ';
 }

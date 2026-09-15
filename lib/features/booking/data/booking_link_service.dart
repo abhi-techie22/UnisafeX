@@ -65,6 +65,20 @@ class BookingLinkService {
     final trimmedDestination = destination.trim();
     final baseUrl = _travelPartnerUrl(mode, partner);
 
+    if (partner != null &&
+        !isTravelPartnerAvailableForRoute(
+          partner: partner,
+          mode: mode,
+          origin: trimmedOrigin,
+          destination: trimmedDestination,
+        )) {
+      return _mapsDirectionsUri(
+        origin: trimmedOrigin,
+        destination: trimmedDestination,
+        mode: mode,
+      );
+    }
+
     if (_isMapsPartner(baseUrl)) {
       return _mapsDirectionsUri(
         origin: trimmedOrigin,
