@@ -239,7 +239,10 @@ GoRouter appRouter(
               context,
               state,
             ) {
-              return const GuideRequestScreen();
+              final selectedPlace = state.extra is TourismPlace
+                  ? state.extra as TourismPlace
+                  : null;
+              return GuideRequestScreen(selectedPlace: selectedPlace);
             },
           ),
 

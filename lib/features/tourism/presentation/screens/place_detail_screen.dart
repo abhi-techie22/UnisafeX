@@ -11,7 +11,6 @@ import 'package:unisafex/core/theme/app_theme.dart';
 import 'package:unisafex/core/utils/distance_calculator.dart';
 import 'package:unisafex/core/widgets/app_button.dart';
 import 'package:unisafex/features/auth/presentation/providers/auth_provider.dart';
-import 'package:unisafex/features/booking/data/booking_link_service.dart';
 import 'package:unisafex/features/favorites/presentation/providers/favorites_provider.dart';
 import 'package:unisafex/features/home/presentation/providers/location_provider.dart';
 import 'package:unisafex/features/tourism/domain/entities/tourism_place.dart';
@@ -96,6 +95,7 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
     final isCompleted = completedPlaces.contains(place.id) ||
         remoteFavorite?.isCompleted == true;
     final imageUrls = _imageUrls(place);
+    final guideAvailable = _hasDelhiGuideService(place);
     final reviewsAsync = ref.watch(placeReviewsProvider(place.id));
     final reviewRepliesAsync = ref.watch(placeReviewRepliesProvider(place.id));
     final myReview = ref.watch(myPlaceReviewProvider(place.id)).valueOrNull;
@@ -215,6 +215,10 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                       : null,
                   onPlan: isFavorite ? () => _showBucketPlanSheet() : null,
                 ),
+                if (guideAvailable) ...[
+                  const SizedBox(height: 12),
+                  _GuideBookingCard(onTap: _openGuideBooking),
+                ],
                 if (distance != null) ...[
                   const SizedBox(height: 8),
                   Text(
@@ -274,12 +278,6 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                         icon: Icons.public,
                         label: 'Foreigner entry fee',
                         value: _formatFee(place.entryFeeForeigner),
-                      ),
-                      const SizedBox(height: 10),
-                      _TicketBookingCard(
-                        freeEntry: place.entryFeeIndian == 0 &&
-                            place.entryFeeForeigner == 0,
-                        onTap: _openTicketBooking,
                       ),
                       if (place.bestSeason?.isNotEmpty == true)
                         _InfoRow(
@@ -387,12 +385,14 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
                   ],
                 ),
               ),
-              FilledButton.icon(
-                onPressed: _openTicketBooking,
-                icon: const Icon(Icons.confirmation_number_rounded, size: 18),
-                label: const Text('Tickets'),
-              ),
-              const SizedBox(width: 8),
+              if (guideAvailable) ...[
+                FilledButton.icon(
+                  onPressed: _openGuideBooking,
+                  icon: const Icon(Icons.support_agent_rounded, size: 18),
+                  label: const Text('Guide'),
+                ),
+                const SizedBox(width: 8),
+              ],
               AppButton(
                 label: 'Map',
                 onPressed: _openInAppMap,
@@ -405,21 +405,8 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
     );
   }
 
-  Future<void> _openTicketBooking() async {
-    final place = widget.place;
-    final uri = BookingLinkService.buildPlaceTicketSearch(
-      placeName: place.name,
-      city: place.city,
-      state: place.state,
-    );
-    final opened = await BookingLinkService.open(uri);
-    if (!opened && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not open online ticket booking right now.'),
-        ),
-      );
-    }
+  void _openGuideBooking() {
+    context.push(AppRoutes.guideRequest, extra: widget.place);
   }
 
   void _openInAppMap() {
@@ -602,6 +589,16 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
       if (place.state.isNotEmpty) place.state,
     ];
     return parts.toSet().join(', ');
+  }
+
+  bool _hasDelhiGuideService(TourismPlace place) {
+    final location = [
+      place.city,
+      place.district,
+      place.state,
+      place.address,
+    ].whereType<String>().join(' ').toLowerCase();
+    return location.contains('delhi') || location.contains('ncr');
   }
 
   String _formatFee(double fee) {
@@ -1251,6 +1248,58 @@ class _BucketListCard extends StatelessWidget {
       return 'Planned for ${date.day}/${date.month}/${date.year}.';
     }
     return 'Track this place, add notes, and mark it completed later.';
+  }
+}
+
+class _GuideBookingCard extends StatelessWidget {
+  const _GuideBookingCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.success.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.success.withValues(alpha: 0.20)),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: AppColors.success.withValues(alpha: 0.14),
+            foregroundColor: AppColors.success,
+            child: const Icon(Icons.support_agent_rounded),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Book a Delhi guide',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Request a verified local guide for this destination.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          FilledButton.tonalIcon(
+            onPressed: onTap,
+            icon: const Icon(Icons.badge_outlined),
+            label: const Text('Book'),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -2598,65 +2647,6 @@ class _InfoCard extends StatelessWidget {
         ),
       ),
       child: Column(children: children),
-    );
-  }
-}
-
-class _TicketBookingCard extends StatelessWidget {
-  const _TicketBookingCard({
-    required this.freeEntry,
-    required this.onTap,
-  });
-
-  final bool freeEntry;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.accent.withValues(alpha: 0.09),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.accent.withValues(alpha: 0.18)),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            backgroundColor: AppColors.accent.withValues(alpha: 0.16),
-            foregroundColor: AppColors.accent,
-            child: const Icon(Icons.confirmation_number_rounded),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  freeEntry ? 'Check entry details' : 'Book online ticket',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  freeEntry
-                      ? 'Open official or partner visitor information.'
-                      : 'Open official or partner ticket booking for this place.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          FilledButton.tonalIcon(
-            onPressed: onTap,
-            icon: const Icon(Icons.open_in_new_rounded),
-            label: const Text('Open'),
-          ),
-        ],
-      ),
     );
   }
 }

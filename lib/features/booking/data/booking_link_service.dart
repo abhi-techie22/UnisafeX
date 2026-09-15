@@ -96,6 +96,16 @@ class BookingLinkService {
       );
     }
 
+    if (partner?.name == 'Amazon Pay Metro') {
+      return Uri.parse(baseUrl).replace(
+        queryParameters: {
+          'service': 'delhi-metro-qr',
+          'from': trimmedOrigin,
+          'to': trimmedDestination,
+        },
+      );
+    }
+
     if (partner?.name == 'Uber') {
       return Uri.parse(baseUrl).replace(
         queryParameters: {
@@ -151,6 +161,22 @@ class BookingLinkService {
     );
   }
 
+  static Uri buildDelhiMetroQrTicketInfo({
+    required String origin,
+    required String destination,
+  }) {
+    final trimmedOrigin = origin.trim();
+    final trimmedDestination = destination.trim();
+    return Uri.https(
+      'www.delhimetrorail.com',
+      '/app-based-qr-ticketing',
+      {
+        if (trimmedOrigin.isNotEmpty) 'from': trimmedOrigin,
+        if (trimmedDestination.isNotEmpty) 'to': trimmedDestination,
+      },
+    );
+  }
+
   static Future<bool> open(Uri uri) {
     return launchUrl(uri, mode: LaunchMode.externalApplication);
   }
@@ -186,6 +212,7 @@ class BookingLinkService {
       'MakeMyTrip Bus' => 'https://www.makemytrip.com/bus-tickets/',
       'redBus' => 'https://www.redbus.in/bus-tickets/',
       'Delhi Metro' => 'https://www.delhimetrorail.com/',
+      'Amazon Pay Metro' => 'https://www.amazon.in/amazonpay/home',
       'Metro Rail Info' => 'https://metrorailapp.com/',
       'IRCTC' => 'https://www.irctc.co.in/nget/train-search',
       'ConfirmTkt' => 'https://www.confirmtkt.com/',

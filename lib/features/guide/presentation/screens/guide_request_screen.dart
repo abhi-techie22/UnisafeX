@@ -12,7 +12,9 @@ import 'package:unisafex/features/tourism/domain/entities/tourism_place.dart';
 import 'package:unisafex/features/tourism/presentation/providers/tourism_provider.dart';
 
 class GuideRequestScreen extends ConsumerStatefulWidget {
-  const GuideRequestScreen({super.key});
+  const GuideRequestScreen({super.key, this.selectedPlace});
+
+  final TourismPlace? selectedPlace;
 
   @override
   ConsumerState<GuideRequestScreen> createState() => _GuideRequestScreenState();
@@ -29,10 +31,19 @@ class _GuideRequestScreenState extends ConsumerState<GuideRequestScreen> {
   @override
   void initState() {
     super.initState();
+    _selectedPlace = widget.selectedPlace;
     _guideRequestSubscription = ref.listenManual<List<GuideRequest>>(
       guideRequestsProvider,
       (previous, next) => _showGuideStatusPopup(previous, next),
     );
+  }
+
+  @override
+  void didUpdateWidget(covariant GuideRequestScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selectedPlace?.id != oldWidget.selectedPlace?.id) {
+      _selectedPlace = widget.selectedPlace;
+    }
   }
 
   @override
@@ -77,7 +88,7 @@ class _GuideRequestScreenState extends ConsumerState<GuideRequestScreen> {
           ],
           delhiPlaces.when(
             data: (places) => _RequestForm(
-              places: _prioritizedDelhiPlaces(places),
+              places: _placesForForm(places),
               selectedPlace: _selectedPlace,
               travelers: _travelers,
               noteController: _noteController,
@@ -117,6 +128,15 @@ class _GuideRequestScreenState extends ConsumerState<GuideRequestScreen> {
         ],
       ),
     );
+  }
+
+  List<TourismPlace> _placesForForm(List<TourismPlace> places) {
+    final visible = _prioritizedDelhiPlaces(places);
+    final selected = _selectedPlace;
+    if (selected == null) return visible;
+    final alreadyIncluded = visible.any((place) => place.id == selected.id);
+    if (alreadyIncluded) return visible;
+    return [selected, ...visible];
   }
 
   List<TourismPlace> _prioritizedDelhiPlaces(List<TourismPlace> places) {

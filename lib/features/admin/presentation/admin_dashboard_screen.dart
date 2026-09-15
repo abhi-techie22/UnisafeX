@@ -18,6 +18,9 @@ import 'package:unisafex/features/tourism/data/services/currency_service.dart';
 import 'package:unisafex/features/tourism/domain/entities/tourism_place.dart';
 import 'package:unisafex/features/tourism/presentation/providers/tourism_provider.dart';
 
+const bool _showSupportTicketsAdminTab = false;
+const int _adminTabCount = _showSupportTicketsAdminTab ? 14 : 13;
+
 class AdminDashboardScreen extends ConsumerStatefulWidget {
   const AdminDashboardScreen({super.key});
 
@@ -47,7 +50,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   Widget build(BuildContext context) {
     final access = ref.watch(isAdminProvider);
     return DefaultTabController(
-      length: 14,
+      length: _adminTabCount,
       child: Scaffold(
         appBar: AppBar(
           title: Text('admin_console'.tr()),
@@ -68,7 +71,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               Tab(icon: Icon(Icons.warning_amber_rounded), text: 'Alerts'),
               Tab(icon: Icon(Icons.people_alt_rounded), text: 'Users'),
               Tab(icon: Icon(Icons.group_add_rounded), text: 'Team'),
-              Tab(icon: Icon(Icons.support_rounded), text: 'Support'),
+              if (_showSupportTicketsAdminTab)
+                Tab(icon: Icon(Icons.support_rounded), text: 'Support'),
               Tab(icon: Icon(Icons.rate_review_rounded), text: 'Reviews'),
               Tab(icon: Icon(Icons.timeline_rounded), text: 'Activity'),
               Tab(icon: Icon(Icons.support_agent_rounded), text: 'Guides'),
@@ -108,7 +112,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 const _TravelAlertsAdminTab(),
                 const _UsersAdminTab(),
                 const _TeamAdminTab(),
-                const _SupportTicketsAdminTab(),
+                if (_showSupportTicketsAdminTab)
+                  const _SupportTicketsAdminTab(),
                 const _ReviewsAdminTab(),
                 const _ActivityAdminTab(),
                 const _GuideRequestsAdminTab(),

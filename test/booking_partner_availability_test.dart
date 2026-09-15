@@ -17,6 +17,10 @@ void main() {
       );
       expect(
         partners.map((partner) => partner.name),
+        isNot(contains('Amazon Pay Metro')),
+      );
+      expect(
+        partners.map((partner) => partner.name),
         contains('Google Maps Transit'),
       );
     });
@@ -31,6 +35,10 @@ void main() {
       expect(
         partners.map((partner) => partner.name),
         contains('Delhi Metro'),
+      );
+      expect(
+        partners.map((partner) => partner.name),
+        contains('Amazon Pay Metro'),
       );
     });
 
@@ -58,6 +66,30 @@ void main() {
         autoPartners.map((partner) => partner.name),
         isNot(contains('Namma Yatri')),
       );
+    });
+
+    test('keeps flight booking partners available for local-looking routes',
+        () {
+      final partners = availableTravelPartnersForRoute(
+        mode: TravelTransportMode.flight,
+        origin: 'Delhi',
+        destination: 'India Gate, Delhi',
+      );
+
+      expect(partners.map((partner) => partner.name), contains('Skyscanner'));
+      expect(partners.map((partner) => partner.name), contains('KAYAK'));
+    });
+
+    test('never leaves a supported travel mode without partners', () {
+      for (final mode in TravelTransportMode.values) {
+        final partners = availableTravelPartnersForRoute(
+          mode: mode,
+          origin: 'Delhi',
+          destination: 'Agra',
+        );
+
+        expect(partners, isNotEmpty, reason: '${mode.name} should be usable');
+      }
     });
   });
 

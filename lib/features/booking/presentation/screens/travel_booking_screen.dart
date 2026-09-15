@@ -21,6 +21,7 @@ class _TravelBookingScreenState extends State<TravelBookingScreen> {
   TravelTransportMode _selectedMode = TravelTransportMode.bus;
   String _selectedDelhiLineId = 'yellow';
   late BookingPartner _selectedPartner;
+  bool _updatingRouteText = false;
 
   @override
   void initState() {
@@ -50,6 +51,7 @@ class _TravelBookingScreenState extends State<TravelBookingScreen> {
       );
 
   void _handleRouteChanged() {
+    if (_updatingRouteText) return;
     setState(_syncSelectedPartner);
   }
 
@@ -72,8 +74,16 @@ class _TravelBookingScreenState extends State<TravelBookingScreen> {
     required String origin,
     required String destination,
   }) {
-    _originController.text = origin;
-    _destinationController.text = destination;
+    _updatingRouteText = true;
+    try {
+      if (_originController.text != origin) _originController.text = origin;
+      if (_destinationController.text != destination) {
+        _destinationController.text = destination;
+      }
+    } finally {
+      _updatingRouteText = false;
+    }
+    _syncSelectedPartner();
   }
 
   void _applyDelhiMetroDefaultsIfNeeded({bool force = false}) {
@@ -133,6 +143,96 @@ class _TravelBookingScreenState extends State<TravelBookingScreen> {
     }
   }
 
+  Future<void> _openDelhiMetroQrTicket() async {
+    final route = buildDelhiMetroRoutePlan(
+      origin: _originController.text,
+      destination: _destinationController.text,
+    );
+    if (route == null || route.totalStations == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Choose two different Delhi Metro stations first.'),
+        ),
+      );
+      return;
+    }
+
+    final proceed = await showModalBottomSheet<bool>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          22,
+          8,
+          22,
+          22 + MediaQuery.paddingOf(context).bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const CircleAvatar(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              child: Icon(Icons.qr_code_2_rounded),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Delhi Metro QR ticket',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${route.fromStation} to ${route.toStation}\n'
+              '${route.totalStations} station${route.totalStations == 1 ? '' : 's'}'
+              '${route.isDirect ? '' : ' · change at ${route.interchanges.join(', ')}'}',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Valid QR tickets are issued only by official DMRC or approved ticketing partners. UniSafeX will open the official DMRC ticketing information page so you can complete the purchase safely.',
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: () => Navigator.pop(context, true),
+                    icon: const Icon(Icons.open_in_new_rounded),
+                    label: const Text('Open DMRC'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+    if (proceed != true) return;
+
+    final uri = BookingLinkService.buildDelhiMetroQrTicketInfo(
+      origin: route.fromStation,
+      destination: route.toStation,
+    );
+    final opened = await BookingLinkService.open(uri);
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not open the DMRC ticketing page right now.'),
+        ),
+      );
+    }
+  }
+
   void _selectMode(TravelTransportMode mode) {
     setState(() {
       _selectedMode = mode;
@@ -143,9 +243,9 @@ class _TravelBookingScreenState extends State<TravelBookingScreen> {
         );
         return;
       }
+      _applyModeDefaultsIfNeeded(mode);
       final partners = _availablePartners;
-      _selectedPartner =
-          partners.isEmpty ? travelPartnersForMode(mode).first : partners.first;
+      _selectedPartner = partners.first;
     });
   }
 
@@ -156,6 +256,53 @@ class _TravelBookingScreenState extends State<TravelBookingScreen> {
         _applyDelhiMetroDefaultsIfNeeded();
       }
     });
+  }
+
+  void _applyModeDefaultsIfNeeded(TravelTransportMode mode) {
+    switch (mode) {
+      case TravelTransportMode.flight:
+        if (_currentRouteUsesDelhiMetroStations || _currentRouteHasSameText) {
+          _setRouteText(origin: 'Delhi', destination: 'Mumbai');
+        }
+        return;
+      case TravelTransportMode.bus || TravelTransportMode.train:
+        if (_currentRouteUsesDelhiMetroStations) {
+          _setRouteText(origin: 'New Delhi', destination: 'Agra');
+        }
+        return;
+      case TravelTransportMode.cab || TravelTransportMode.auto:
+        if (_currentRouteUsesDelhiMetroStations ||
+            _currentRouteLooksIntercity) {
+          _setRouteText(
+            origin: 'Connaught Place, Delhi',
+            destination: 'India Gate, Delhi',
+          );
+        }
+        return;
+      case TravelTransportMode.metro:
+        return;
+    }
+  }
+
+  bool get _currentRouteUsesDelhiMetroStations {
+    return delhiMetroStationNames.contains(_originController.text.trim()) ||
+        delhiMetroStationNames.contains(_destinationController.text.trim());
+  }
+
+  bool get _currentRouteHasSameText {
+    final origin = _originController.text.trim().toLowerCase();
+    final destination = _destinationController.text.trim().toLowerCase();
+    return origin.isNotEmpty && origin == destination;
+  }
+
+  bool get _currentRouteLooksIntercity {
+    final route = '${_originController.text} ${_destinationController.text}'
+        .toLowerCase();
+    return route.contains('agra') ||
+        route.contains('jaipur') ||
+        route.contains('mumbai') ||
+        route.contains('varanasi') ||
+        route.contains('kerala');
   }
 
   @override
@@ -221,6 +368,7 @@ class _TravelBookingScreenState extends State<TravelBookingScreen> {
                       destination: _originController.text,
                     ),
                   ),
+                  onQrTicket: _openDelhiMetroQrTicket,
                 )
               else ...[
                 TextFormField(
@@ -321,7 +469,7 @@ class _RouteAvailabilityNotice extends StatelessWidget {
   Widget build(BuildContext context) {
     final message = switch (mode) {
       TravelTransportMode.metro =>
-        'City-specific metro partners are shown only when both locations are inside the same metro area. Delhi Metro appears only for Delhi NCR routes.',
+        'City-specific metro partners are shown only when both locations are inside the same metro area. Delhi Metro and Amazon Pay Metro appear only for Delhi NCR routes.',
       TravelTransportMode.cab ||
       TravelTransportMode.auto =>
         'Local ride partners are hidden for clear intercity routes. Use bus, train, flight, or Google Maps for longer travel.',
@@ -399,6 +547,7 @@ class _DelhiMetroPlannerPanel extends StatelessWidget {
     required this.onOriginChanged,
     required this.onDestinationChanged,
     required this.onSwap,
+    required this.onQrTicket,
   });
 
   final String selectedLineId;
@@ -408,6 +557,7 @@ class _DelhiMetroPlannerPanel extends StatelessWidget {
   final ValueChanged<String> onOriginChanged;
   final ValueChanged<String> onDestinationChanged;
   final VoidCallback onSwap;
+  final VoidCallback onQrTicket;
 
   @override
   Widget build(BuildContext context) {
@@ -465,6 +615,10 @@ class _DelhiMetroPlannerPanel extends StatelessWidget {
         _DelhiMetroStopsStrip(line: selectedLine),
         const SizedBox(height: 14),
         _DelhiMetroRouteSummary(route: route),
+        if (route != null && route.totalStations > 0) ...[
+          const SizedBox(height: 12),
+          _DelhiMetroTicketAction(onQrTicket: onQrTicket),
+        ],
       ],
     );
   }
@@ -511,6 +665,59 @@ class _DelhiMetroStationField extends StatelessWidget {
       validator: (value) => value == null || value.trim().isEmpty
           ? 'Choose a metro station'
           : null,
+    );
+  }
+}
+
+class _DelhiMetroTicketAction extends StatelessWidget {
+  const _DelhiMetroTicketAction({required this.onQrTicket});
+
+  final VoidCallback onQrTicket;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: AppColors.accent.withValues(alpha: 0.14),
+            foregroundColor: AppColors.accent,
+            child: const Icon(Icons.qr_code_2_rounded),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Metro QR ticket',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Open the official DMRC ticketing flow for this route.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          FilledButton.tonalIcon(
+            onPressed: onQrTicket,
+            icon: const Icon(Icons.open_in_new_rounded),
+            label: const Text('Get QR'),
+          ),
+        ],
+      ),
     );
   }
 }

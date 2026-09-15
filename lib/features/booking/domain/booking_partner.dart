@@ -153,6 +153,13 @@ const metroBookingPartners = [
     category: BookingCategory.travel,
   ),
   BookingPartner(
+    name: 'Amazon Pay Metro',
+    shortName: 'A',
+    description: 'Delhi Metro QR ticket partner',
+    color: Color(0xFFFF9900),
+    category: BookingCategory.travel,
+  ),
+  BookingPartner(
     name: 'Metro Rail Info',
     shortName: 'M',
     description: 'Indian city metro route planning',
@@ -249,6 +256,20 @@ List<BookingPartner> availableTravelPartnersForRoute({
   required String origin,
   required String destination,
 }) {
+  final partners = travelPartnersForMode(mode);
+  final available = _filteredTravelPartnersForRoute(
+    mode: mode,
+    origin: origin,
+    destination: destination,
+  );
+  return available.isEmpty ? partners : available;
+}
+
+List<BookingPartner> _filteredTravelPartnersForRoute({
+  required TravelTransportMode mode,
+  required String origin,
+  required String destination,
+}) {
   return travelPartnersForMode(mode)
       .where(
         (partner) => isTravelPartnerAvailableForRoute(
@@ -270,7 +291,7 @@ bool isTravelPartnerAvailableForRoute({
   if (partner.name.startsWith('Google Maps')) return true;
 
   return switch (partner.name) {
-    'Delhi Metro' => _sameKnownArea(
+    'Delhi Metro' || 'Amazon Pay Metro' => _sameKnownArea(
         origin,
         destination,
         _delhiNcrArea,
@@ -285,11 +306,7 @@ bool isTravelPartnerAvailableForRoute({
         _routeHasAnyArea(origin, destination, _rideHailingAreas),
     'Namma Yatri' => _looksLikeLocalRoute(origin, destination) &&
         _routeHasAnyArea(origin, destination, _nammaYatriAreas),
-    'Skyscanner' ||
-    'KAYAK' ||
-    'Expedia' ||
-    'Trip.com' =>
-      !_sameKnownLocalArea(origin, destination),
+    'Skyscanner' || 'KAYAK' || 'Expedia' || 'Trip.com' => true,
     _ => true,
   };
 }
@@ -300,7 +317,7 @@ int hiddenTravelPartnerCountForRoute({
   required String destination,
 }) {
   final all = travelPartnersForMode(mode);
-  final available = availableTravelPartnersForRoute(
+  final available = _filteredTravelPartnersForRoute(
     mode: mode,
     origin: origin,
     destination: destination,
