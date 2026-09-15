@@ -402,7 +402,7 @@ class _PlaceDetailScreenState extends ConsumerState<PlaceDetailScreen> {
   }
 
   void _openGuideBooking() {
-    context.push(AppRoutes.guideRequest, extra: widget.place);
+    context.go(AppRoutes.guideRequest, extra: widget.place);
   }
 
   void _openInAppMap() {

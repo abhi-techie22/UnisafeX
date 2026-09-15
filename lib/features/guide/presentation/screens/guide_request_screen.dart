@@ -26,16 +26,11 @@ class _GuideRequestScreenState extends ConsumerState<GuideRequestScreen> {
   bool _submitting = false;
   _GuideHistoryFilter _historyFilter = _GuideHistoryFilter.all;
   final _noteController = TextEditingController();
-  ProviderSubscription<List<GuideRequest>>? _guideRequestSubscription;
 
   @override
   void initState() {
     super.initState();
     _selectedPlace = widget.selectedPlace;
-    _guideRequestSubscription = ref.listenManual<List<GuideRequest>>(
-      guideRequestsProvider,
-      (previous, next) => _showGuideStatusPopup(previous, next),
-    );
   }
 
   @override
@@ -48,20 +43,25 @@ class _GuideRequestScreenState extends ConsumerState<GuideRequestScreen> {
 
   @override
   void dispose() {
-    _guideRequestSubscription?.close();
     _noteController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final requests = ref.watch(guideRequestsProvider);
     final user = ref.watch(currentUserProvider);
+    final requests = user == null
+        ? const <GuideRequest>[]
+        : ref.watch(guideRequestsProvider);
     final delhiPlaces = ref.watch(
       explorerPlacesProvider(
         const TourismFilters(city: 'Delhi', popularOnly: false),
       ),
     );
+    final formPlaces = _placesForForm(
+      delhiPlaces.valueOrNull ?? const <TourismPlace>[],
+    );
+    final placesLoading = delhiPlaces.isLoading && formPlaces.isEmpty;
 
     return Scaffold(
       appBar: AppBar(
@@ -92,9 +92,11 @@ class _GuideRequestScreenState extends ConsumerState<GuideRequestScreen> {
             ),
             const SizedBox(height: 18),
           ],
-          delhiPlaces.when(
-            data: (places) => _RequestForm(
-              places: _placesForForm(places),
+          if (placesLoading)
+            const _LoadingCard()
+          else ...[
+            _RequestForm(
+              places: formPlaces,
               selectedPlace: _selectedPlace,
               travelers: _travelers,
               noteController: _noteController,
@@ -104,11 +106,13 @@ class _GuideRequestScreenState extends ConsumerState<GuideRequestScreen> {
               onTravelersChanged: (value) => setState(() => _travelers = value),
               onSubmit: _submitRequest,
             ),
-            loading: () => const _LoadingCard(),
-            error: (_, __) => _UnavailableCard(onRetry: () {
-              ref.invalidate(explorerPlacesProvider);
-            }),
-          ),
+            if (delhiPlaces.hasError) ...[
+              const SizedBox(height: 12),
+              _UnavailableCard(onRetry: () {
+                ref.invalidate(explorerPlacesProvider);
+              }),
+            ],
+          ],
           const SizedBox(height: 18),
           const _AvailabilityCard(
             available: false,
@@ -116,21 +120,23 @@ class _GuideRequestScreenState extends ConsumerState<GuideRequestScreen> {
             message:
                 'We are currently unavailable outside Delhi. Jaipur, Agra, Mumbai, Kerala and other city guide requests will open soon.',
           ),
-          const SizedBox(height: 24),
-          _HistorySection(
-            requests: requests,
-            filter: _historyFilter,
-            onFilterChanged: (filter) {
-              setState(() => _historyFilter = filter);
-            },
-            onRebook: _rebook,
-            onBook: _bookGuide,
-            onDelete: (request) async {
-              await ref
-                  .read(guideRequestsProvider.notifier)
-                  .removeLocal(request.id);
-            },
-          ),
+          if (user != null) ...[
+            const SizedBox(height: 24),
+            _HistorySection(
+              requests: requests,
+              filter: _historyFilter,
+              onFilterChanged: (filter) {
+                setState(() => _historyFilter = filter);
+              },
+              onRebook: _rebook,
+              onBook: _bookGuide,
+              onDelete: (request) async {
+                await ref
+                    .read(guideRequestsProvider.notifier)
+                    .removeLocal(request.id);
+              },
+            ),
+          ],
         ],
       ),
     );
@@ -325,47 +331,6 @@ class _GuideRequestScreenState extends ConsumerState<GuideRequestScreen> {
       ),
     );
   }
-
-  void _showGuideStatusPopup(
-    List<GuideRequest>? previous,
-    List<GuideRequest> next,
-  ) {
-    if (previous == null || previous.isEmpty || next.isEmpty) return;
-    final oldById = {for (final request in previous) request.id: request};
-    for (final request in next) {
-      final old = oldById[request.id];
-      if (old == null || old.status == request.status) continue;
-      if (!_shouldPopupForStatus(request.status)) continue;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        showDialog<void>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Text(_guidePopupTitle(request.status)),
-            content: Text(
-              '${request.placeName} guide request is now '
-              '${_guideStatusMessage(request.status).toLowerCase()}.\n\n'
-              'You can see the full progress in Guide Request history.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
-              ),
-              FilledButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  context.go(AppRoutes.guideRequest);
-                },
-                child: const Text('View request'),
-              ),
-            ],
-          ),
-        );
-      });
-      return;
-    }
-  }
 }
 
 class _HeroCard extends StatelessWidget {
@@ -557,11 +522,16 @@ class _RequestForm extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             _GuidePlaceSearchField(
+              key: ValueKey(selectedPlace?.id ?? 'guide-place-search-empty'),
               places: places,
               selectedPlace: selectedPlace,
               enabled: !submitting && enabled,
               onSelected: onPlaceChanged,
             ),
+            if (selectedPlace != null) ...[
+              const SizedBox(height: 12),
+              _SelectedGuidePlaceCard(place: selectedPlace!),
+            ],
             const SizedBox(height: 14),
             Row(
               children: [
@@ -632,6 +602,7 @@ class _RequestForm extends StatelessWidget {
 
 class _GuidePlaceSearchField extends StatelessWidget {
   const _GuidePlaceSearchField({
+    super.key,
     required this.places,
     required this.selectedPlace,
     required this.enabled,
@@ -749,6 +720,117 @@ class _GuidePlaceSearchField extends StatelessWidget {
 
   static String _placeLabel(TourismPlace place) {
     return '${place.name} · ${place.city.isEmpty ? 'Delhi' : place.city}';
+  }
+}
+
+class _SelectedGuidePlaceCard extends StatelessWidget {
+  const _SelectedGuidePlaceCard({required this.place});
+
+  final TourismPlace place;
+
+  @override
+  Widget build(BuildContext context) {
+    final image = place.primaryImage.trim();
+    final location = [
+      if (place.city.trim().isNotEmpty) place.city.trim(),
+      if (place.district?.trim().isNotEmpty == true) place.district!.trim(),
+      if (place.state.trim().isNotEmpty) place.state.trim(),
+    ].join(', ');
+    final address = place.address?.trim();
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.16)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: image.isEmpty
+                ? const _GuidePlaceImageFallback()
+                : Image.network(
+                    image,
+                    width: 64,
+                    height: 64,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) =>
+                        const _GuidePlaceImageFallback(),
+                  ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.verified_rounded,
+                      size: 16,
+                      color: AppColors.success,
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      'Auto-filled from place',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            color: AppColors.success,
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  place.name,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  [
+                    place.category,
+                    if (location.isNotEmpty) location,
+                  ].join(' · '),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                if (address?.isNotEmpty == true) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    address!,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GuidePlaceImageFallback extends StatelessWidget {
+  const _GuidePlaceImageFallback();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 64,
+      height: 64,
+      color: AppColors.primary.withValues(alpha: 0.12),
+      child: const Icon(
+        Icons.account_balance_rounded,
+        color: AppColors.primary,
+      ),
+    );
   }
 }
 
@@ -1410,22 +1492,6 @@ class _EmptyHistory extends StatelessWidget {
       ),
     );
   }
-}
-
-bool _shouldPopupForStatus(GuideRequestStatus status) {
-  return status == GuideRequestStatus.confirmed ||
-      status == GuideRequestStatus.rejected ||
-      status == GuideRequestStatus.completed;
-}
-
-String _guidePopupTitle(GuideRequestStatus status) {
-  return switch (status) {
-    GuideRequestStatus.confirmed => 'Guide confirmed',
-    GuideRequestStatus.rejected => 'Guide request rejected',
-    GuideRequestStatus.completed => 'Guide request completed',
-    GuideRequestStatus.pending => 'Guide request pending',
-    GuideRequestStatus.processing => 'Guide request processing',
-  };
 }
 
 String _guideStatusMessage(GuideRequestStatus status) {

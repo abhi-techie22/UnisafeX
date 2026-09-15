@@ -351,16 +351,22 @@ class _TravelBookingScreenState extends State<TravelBookingScreen> {
                   onLineChanged: (lineId) =>
                       setState(() => _selectedDelhiLineId = lineId),
                   onOriginChanged: (station) => setState(
-                    () => _setRouteText(
-                      origin: station,
-                      destination: _destinationController.text,
-                    ),
+                    () {
+                      _setRouteText(
+                        origin: station,
+                        destination: _destinationController.text,
+                      );
+                      _syncSelectedDelhiLine(station);
+                    },
                   ),
                   onDestinationChanged: (station) => setState(
-                    () => _setRouteText(
-                      origin: _originController.text,
-                      destination: station,
-                    ),
+                    () {
+                      _setRouteText(
+                        origin: _originController.text,
+                        destination: station,
+                      );
+                      _syncSelectedDelhiLine(station);
+                    },
                   ),
                   onSwap: () => setState(
                     () => _setRouteText(
@@ -453,6 +459,11 @@ class _TravelBookingScreenState extends State<TravelBookingScreen> {
     return value == null || value.trim().isEmpty
         ? 'Enter a valid city, station or place'
         : null;
+  }
+
+  void _syncSelectedDelhiLine(String station) {
+    final lines = delhiMetroLinesForStation(station);
+    if (lines.isNotEmpty) _selectedDelhiLineId = lines.first.id;
   }
 }
 
@@ -641,30 +652,230 @@ class _DelhiMetroStationField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DropdownButtonFormField<String>(
-      key: ValueKey('$label-$value'),
+    return FormField<String>(
+      key: ValueKey('$label-${value ?? 'empty'}'),
       initialValue: value,
-      isExpanded: true,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: const Icon(Icons.subway_outlined),
-      ),
-      items: [
-        for (final station in delhiMetroStationNames)
-          DropdownMenuItem(
-            value: station,
-            child: Text(
-              station,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-      ],
-      onChanged: (station) {
-        if (station != null) onChanged(station);
-      },
       validator: (value) => value == null || value.trim().isEmpty
           ? 'Choose a metro station'
           : null,
+      builder: (field) {
+        final selected = field.value;
+        return InkWell(
+          onTap: () async {
+            final station = await showModalBottomSheet<String>(
+              context: context,
+              isScrollControlled: true,
+              useSafeArea: true,
+              showDragHandle: true,
+              routeSettings: RouteSettings(name: '$label picker'),
+              builder: (context) => _DelhiMetroStationPickerSheet(
+                title: label,
+                selectedStation: selected,
+              ),
+            );
+            if (station == null) return;
+            field.didChange(station);
+            onChanged(station);
+          },
+          borderRadius: BorderRadius.circular(14),
+          child: InputDecorator(
+            isEmpty: selected == null || selected.isEmpty,
+            decoration: InputDecoration(
+              labelText: label,
+              prefixIcon: const Icon(Icons.subway_outlined),
+              suffixIcon: const Icon(Icons.keyboard_arrow_down_rounded),
+              errorText: field.errorText,
+            ),
+            child: Text(
+              selected ?? 'Choose Delhi Metro station',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: selected == null
+                  ? Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).hintColor,
+                      )
+                  : Theme.of(context).textTheme.bodyMedium,
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _DelhiMetroStationPickerSheet extends StatefulWidget {
+  const _DelhiMetroStationPickerSheet({
+    required this.title,
+    required this.selectedStation,
+  });
+
+  final String title;
+  final String? selectedStation;
+
+  @override
+  State<_DelhiMetroStationPickerSheet> createState() =>
+      _DelhiMetroStationPickerSheetState();
+}
+
+class _DelhiMetroStationPickerSheetState
+    extends State<_DelhiMetroStationPickerSheet> {
+  final _searchController = TextEditingController();
+  String? _lineId;
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<String> get _stations {
+    final baseStations = _lineId == null
+        ? delhiMetroStationNames
+        : delhiMetroLineById(_lineId!).stations;
+    final query = _query.trim().toLowerCase();
+    if (query.isEmpty) return baseStations;
+    return baseStations
+        .where((station) => station.toLowerCase().contains(query))
+        .toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final height = MediaQuery.sizeOf(context).height * 0.78;
+    final stations = _stations;
+    return SizedBox(
+      height: height,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          0,
+          20,
+          16 + MediaQuery.paddingOf(context).bottom,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.title,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _searchController,
+              autofocus: true,
+              onChanged: (value) => setState(() => _query = value),
+              decoration: InputDecoration(
+                labelText: 'Search inside station list',
+                prefixIcon: const Icon(Icons.search_rounded),
+                suffixIcon: _query.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: 'Clear',
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _query = '');
+                        },
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 42,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: delhiMetroLines.length + 1,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  if (index == 0) {
+                    return ChoiceChip(
+                      selected: _lineId == null,
+                      label: const Text('All lines'),
+                      onSelected: (_) => setState(() => _lineId = null),
+                    );
+                  }
+                  final line = delhiMetroLines[index - 1];
+                  final selected = _lineId == line.id;
+                  return ChoiceChip(
+                    selected: selected,
+                    avatar: CircleAvatar(backgroundColor: line.color),
+                    label: Text(line.name.replaceAll(' Line', '')),
+                    selectedColor: line.color.withValues(alpha: 0.18),
+                    side: BorderSide(
+                      color: selected
+                          ? line.color
+                          : Theme.of(context).dividerColor,
+                    ),
+                    onSelected: (_) => setState(() => _lineId = line.id),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: stations.isEmpty
+                  ? const Center(child: Text('No station found.'))
+                  : ListView.separated(
+                      itemCount: stations.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final station = stations[index];
+                        final lines = delhiMetroLinesForStation(station);
+                        final selected = station == widget.selectedStation;
+                        return ListTile(
+                          selected: selected,
+                          contentPadding: EdgeInsets.zero,
+                          leading: _MetroStationLineDots(lines: lines),
+                          title: Text(station),
+                          subtitle: Text(
+                            lines.map((line) => line.name).join(' · '),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          trailing: selected
+                              ? const Icon(
+                                  Icons.check_circle_rounded,
+                                  color: AppColors.primary,
+                                )
+                              : null,
+                          onTap: () => Navigator.pop(context, station),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MetroStationLineDots extends StatelessWidget {
+  const _MetroStationLineDots({required this.lines});
+
+  final List<DelhiMetroLine> lines;
+
+  @override
+  Widget build(BuildContext context) {
+    final visibleLines = lines.take(3).toList();
+    return SizedBox(
+      width: 34,
+      child: Stack(
+        children: [
+          for (var index = 0; index < visibleLines.length; index += 1)
+            Positioned(
+              left: index * 9,
+              top: 10,
+              child: CircleAvatar(
+                radius: 8,
+                backgroundColor: visibleLines[index].color,
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

@@ -4257,6 +4257,7 @@ class _GuideRequestsAdminTabState
       if (query.isEmpty) return true;
       final haystack = [
         request.placeName,
+        request.placeId,
         request.city,
         request.userEmail,
         request.guideName,
@@ -5228,6 +5229,10 @@ class _AdminGuideRequestCard extends StatelessWidget {
               const SizedBox(height: 10),
               Text('User note: ${request.contactNote}'),
             ],
+            if (request.placeId.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              _AdminGuidePlaceContext(request: request),
+            ],
             if (request.adminNote?.isNotEmpty == true) ...[
               const SizedBox(height: 8),
               Text('Admin note: ${request.adminNote}'),
@@ -5334,9 +5339,12 @@ class _AdminGuideRequestCard extends StatelessWidget {
   }
 
   Future<void> _openWhatsapp(GuideRequest request) async {
+    final placeIdLine =
+        request.placeId.isEmpty ? '' : 'Place ID: ${request.placeId}\n';
     final message = Uri.encodeComponent(
       'UniSafeX guide request\n'
       'Place: ${request.placeName}, ${request.city}\n'
+      '$placeIdLine'
       'Travelers: ${request.travelers}\n'
       'User: ${request.userEmail ?? 'Not available'}\n'
       'Expected by: ${_formatAdminDate(request.expectedBy)}',
@@ -5352,8 +5360,11 @@ class _AdminGuideRequestCard extends StatelessWidget {
 
   Future<void> _openEmail(GuideRequest request) async {
     final subject = Uri.encodeComponent('UniSafeX guide request');
+    final placeIdLine =
+        request.placeId.isEmpty ? '' : 'Place ID: ${request.placeId}\n';
     final body = Uri.encodeComponent(
       'Place: ${request.placeName}, ${request.city}\n'
+      '$placeIdLine'
       'Travelers: ${request.travelers}\n'
       'User: ${request.userEmail ?? 'Not available'}\n'
       'Requested: ${_formatAdminDate(request.requestedAt)}\n'
@@ -5463,6 +5474,69 @@ class _AdminGuideProfileSummary extends StatelessWidget {
   }
 }
 
+class _AdminGuidePlaceContext extends StatelessWidget {
+  const _AdminGuidePlaceContext({required this.request});
+
+  final GuideRequest request;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.14)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+            foregroundColor: AppColors.primary,
+            child: const Icon(Icons.account_balance_rounded),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Place auto-filled from app',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '${request.placeName}, ${request.city}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _InfoChip(
+                      icon: Icons.tag_rounded,
+                      label: 'Place ID ${_shortAdminId(request.placeId)}',
+                    ),
+                    _InfoChip(
+                      icon: Icons.people_outline_rounded,
+                      label: '${request.travelers} traveler(s)',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _InfoChip extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -5511,4 +5585,9 @@ Color _statusColor(GuideRequestStatus status) {
 
 String _formatAdminDate(DateTime date) {
   return DateFormat('dd MMM yyyy').format(date);
+}
+
+String _shortAdminId(String value) {
+  if (value.length <= 8) return value;
+  return value.substring(0, 8);
 }

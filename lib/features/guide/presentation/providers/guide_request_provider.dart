@@ -223,7 +223,13 @@ class GuideRequestNotifier extends StateNotifier<List<GuideRequest>> {
       state = requests;
       await _persist(requests);
     } catch (_) {
-      if (!silent) state = await _loadLocal();
+      if (!silent) {
+        try {
+          state = await _loadLocal();
+        } catch (_) {
+          state = const [];
+        }
+      }
     }
   }
 
@@ -267,12 +273,22 @@ class GuideRequestNotifier extends StateNotifier<List<GuideRequest>> {
   Future<List<GuideRequest>> _loadLocal() async {
     final preferences = await SharedPreferences.getInstance();
     final encoded = preferences.getStringList(_guideRequestsKey) ?? const [];
-    return encoded
-        .map((value) => GuideRequest.fromJson(
-              jsonDecode(value) as Map<String, dynamic>,
-            ))
-        .toList()
-      ..sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
+    final requests = <GuideRequest>[];
+    for (final value in encoded) {
+      try {
+        final decoded = jsonDecode(value);
+        if (decoded is Map<String, dynamic>) {
+          requests.add(GuideRequest.fromJson(decoded));
+        } else if (decoded is Map) {
+          requests
+              .add(GuideRequest.fromJson(Map<String, dynamic>.from(decoded)));
+        }
+      } catch (_) {
+        continue;
+      }
+    }
+    requests.sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
+    return requests;
   }
 
   Future<void> _persist(List<GuideRequest> requests) async {

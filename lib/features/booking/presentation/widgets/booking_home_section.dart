@@ -15,6 +15,28 @@ class BookingHomeSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final buttons = [
+      if (showHotels)
+        _BookingQuickButton(
+          label: 'Stay',
+          subtitle: 'Hotels',
+          icon: Icons.bed_rounded,
+          accentIcon: Icons.location_city_rounded,
+          colors: const [Color(0xFF173F35), AppColors.primary],
+          onTap: () => context.push(AppRoutes.hotelBooking),
+        ),
+      if (showTravel)
+        _BookingQuickButton(
+          label: 'Travel',
+          subtitle: 'Bus, metro, cab',
+          icon: Icons.directions_bus_filled_rounded,
+          accentIcon: Icons.confirmation_number_rounded,
+          colors: const [Color(0xFF193A62), Color(0xFF2E6AA5)],
+          onTap: () => context.push(AppRoutes.travelBooking),
+        ),
+    ];
+    if (buttons.isEmpty) return const SizedBox.shrink();
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
       child: Column(
@@ -52,32 +74,26 @@ class BookingHomeSection extends StatelessWidget {
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              if (showHotels)
-                Expanded(
-                  child: _BookingQuickButton(
-                    label: 'Stay',
-                    subtitle: 'Hotels',
-                    icon: Icons.bed_rounded,
-                    accentIcon: Icons.location_city_rounded,
-                    colors: const [Color(0xFF173F35), AppColors.primary],
-                    onTap: () => context.push(AppRoutes.hotelBooking),
-                  ),
-                ),
-              if (showHotels && showTravel) const SizedBox(width: 12),
-              if (showTravel)
-                Expanded(
-                  child: _BookingQuickButton(
-                    label: 'Travel',
-                    subtitle: 'Bus, metro, cab',
-                    icon: Icons.directions_bus_filled_rounded,
-                    accentIcon: Icons.confirmation_number_rounded,
-                    colors: const [Color(0xFF193A62), Color(0xFF2E6AA5)],
-                    onTap: () => context.push(AppRoutes.travelBooking),
-                  ),
-                ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (buttons.length <= 1) return buttons.first;
+              if (constraints.maxWidth < 360) {
+                return Column(
+                  children: [
+                    buttons.first,
+                    const SizedBox(height: 10),
+                    buttons.last,
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: buttons.first),
+                  const SizedBox(width: 12),
+                  Expanded(child: buttons.last),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -107,60 +123,68 @@ class _BookingQuickButton extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(22),
-      child: Ink(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: colors,
-          ),
-          borderRadius: BorderRadius.circular(22),
-          boxShadow: [
-            BoxShadow(
-              color: colors.last.withValues(alpha: 0.18),
-              blurRadius: 18,
-              offset: const Offset(0, 8),
+      child: SizedBox(
+        height: 86,
+        child: Ink(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: colors,
             ),
-          ],
-        ),
-        child: Row(
-          children: [
-            _BookingIconMark(
-              icon: icon,
-              accentIcon: accentIcon,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 1),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+            borderRadius: BorderRadius.circular(22),
+            boxShadow: [
+              BoxShadow(
+                color: colors.last.withValues(alpha: 0.18),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
               ),
-            ),
-            const Icon(
-              Icons.arrow_outward_rounded,
-              color: Colors.white,
-              size: 19,
-            ),
-          ],
+            ],
+          ),
+          child: Row(
+            children: [
+              _BookingIconMark(
+                icon: icon,
+                accentIcon: accentIcon,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.arrow_outward_rounded,
+                color: Colors.white,
+                size: 19,
+              ),
+            ],
+          ),
         ),
       ),
     );
