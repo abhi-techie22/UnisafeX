@@ -500,6 +500,98 @@
         line-height: 1.6;
       }
 
+      .partner-board {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .partner-card {
+        display: flex;
+        flex-direction: column;
+        min-height: 228px;
+        padding: 24px;
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        background:
+          linear-gradient(180deg, rgba(238, 247, 242, 0.72), rgba(255, 255, 255, 0.94)),
+          #fff;
+        box-shadow: 0 12px 42px rgba(17, 24, 20, 0.05);
+      }
+
+      .partner-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 18px;
+      }
+
+      .partner-icon {
+        display: grid;
+        place-items: center;
+        flex: 0 0 auto;
+        width: 48px;
+        height: 48px;
+        border-radius: 16px;
+        background: var(--primary);
+        color: #fff;
+      }
+
+      .partner-icon svg {
+        width: 24px;
+        height: 24px;
+      }
+
+      .partner-tag {
+        padding: 7px 10px;
+        border: 1px solid rgba(26, 107, 74, 0.14);
+        border-radius: 999px;
+        background: #fff;
+        color: var(--primary-dark);
+        font-size: 0.78rem;
+        font-weight: 850;
+      }
+
+      .partner-card h3 {
+        margin: 0 0 8px;
+        font-size: 1.22rem;
+      }
+
+      .partner-card p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.58;
+      }
+
+      .partner-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: auto;
+        padding-top: 18px;
+      }
+
+      .partner-list span {
+        padding: 8px 11px;
+        border: 1px solid rgba(26, 107, 74, 0.14);
+        border-radius: 999px;
+        background: #fff;
+        color: var(--primary-dark);
+        font-size: 0.9rem;
+        font-weight: 750;
+      }
+
+      .partner-note {
+        margin: 18px 0 0;
+        padding: 18px 20px;
+        border: 1px solid rgba(245, 166, 35, 0.34);
+        border-radius: 22px;
+        background: #fff8eb;
+        color: #634a15;
+        line-height: 1.6;
+      }
+
       .platform {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -591,6 +683,7 @@
         .quick-strip,
         .feature-grid,
         .showcase,
+        .partner-board,
         .platform,
         .section-head {
           grid-template-columns: 1fr;
@@ -628,6 +721,7 @@
         .quick-strip div,
         .feature-card,
         .workflow-item,
+        .partner-card,
         .platform-card {
           padding: 18px;
         }
@@ -653,9 +747,10 @@
         <nav class="nav-links" aria-label="Page sections">
           <a href="#features">Features</a>
           <a href="#experience">Experience</a>
+          <a href="#partners">Partners</a>
           <a href="#platforms">Platforms</a>
         </nav>
-        <a class="nav-cta" href="#platforms">Get Ready</a>
+        <a class="nav-cta" href="#partners">Partners</a>
       </header>
 
       <section class="hero" id="top" aria-label="UniSafeX introduction">
@@ -856,6 +951,129 @@
               </article>
             </div>
           </div>
+        </section>
+
+        <section id="partners">
+          <div class="section-head">
+            <div>
+              <p class="kicker">Partner Ecosystem</p>
+              <h2>Travel links prepared across stays, routes, rides, and tickets.</h2>
+            </div>
+            <p class="lead">
+              UniSafeX keeps booking and route actions close to the place a
+              tourist is viewing, with city-aware partner options instead of
+              one generic list for every location.
+            </p>
+          </div>
+
+          <div class="partner-board">
+            <article class="partner-card">
+              <div class="partner-top">
+                <div class="partner-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M5 11V6.5A2.5 2.5 0 0 1 7.5 4h9A2.5 2.5 0 0 1 19 6.5V11" stroke="currentColor" stroke-width="2"/>
+                    <path d="M4 11h16v8M4 15h16M7 11V9h4v2M13 11V9h4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </div>
+                <span class="partner-tag">Hotels</span>
+              </div>
+              <h3>Stay booking</h3>
+              <p>Hotel discovery and price comparison links for travelers planning a safe stay near their destination.</p>
+              <div class="partner-list" aria-label="Hotel booking partners">
+                <span>Booking.com</span><span>Agoda</span><span>Expedia</span><span>Trip.com</span>
+              </div>
+            </article>
+
+            <article class="partner-card">
+              <div class="partner-top">
+                <div class="partner-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M3 13l18-8-8 18-2.8-7.2L3 13z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                  </svg>
+                </div>
+                <span class="partner-tag">Air</span>
+              </div>
+              <h3>Flight search</h3>
+              <p>Partner website redirects for route and fare search, keeping flight booking outside the app checkout.</p>
+              <div class="partner-list" aria-label="Flight search partners">
+                <span>Skyscanner</span><span>KAYAK</span><span>Expedia</span><span>Trip.com</span>
+              </div>
+            </article>
+
+            <article class="partner-card">
+              <div class="partner-top">
+                <div class="partner-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 4h12a2 2 0 0 1 2 2v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V6a2 2 0 0 1 2-2z" stroke="currentColor" stroke-width="2"/>
+                    <path d="M7 9h10M8 18l-2 2M16 18l2 2M8 14h.01M16 14h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </div>
+                <span class="partner-tag">Bus + Rail</span>
+              </div>
+              <h3>Intercity transport</h3>
+              <p>Bus and train partner paths use station-style pickers and official travel contexts before redirecting.</p>
+              <div class="partner-list" aria-label="Bus and train partners">
+                <span>redBus</span><span>AbhiBus</span><span>MakeMyTrip Bus</span><span>IRCTC</span><span>ConfirmTkt</span><span>MakeMyTrip Train</span>
+              </div>
+            </article>
+
+            <article class="partner-card">
+              <div class="partner-top">
+                <div class="partner-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M7 4h10a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3z" stroke="currentColor" stroke-width="2"/>
+                    <path d="M8 8h8M8 12h8M8 18l-2 2M16 18l2 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </div>
+                <span class="partner-tag">Metro</span>
+              </div>
+              <h3>City metro support</h3>
+              <p>Delhi metro flows focus on Delhi NCR, showing line context, stops, interchange guidance, and QR-ticket readiness.</p>
+              <div class="partner-list" aria-label="Metro partners">
+                <span>Google Maps Transit</span><span>Delhi Metro</span><span>Amazon Pay Metro</span><span>Metro Rail Info</span>
+              </div>
+            </article>
+
+            <article class="partner-card">
+              <div class="partner-top">
+                <div class="partner-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M5 15l1.5-5A3 3 0 0 1 9.4 8h5.2a3 3 0 0 1 2.9 2l1.5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M4 15h16v4H4zM7 19v1M17 19v1M7 15h.01M17 15h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </div>
+                <span class="partner-tag">Local rides</span>
+              </div>
+              <h3>Cab and auto pickup</h3>
+              <p>Local ride options can start from the traveler's current location and point directly to the selected place.</p>
+              <div class="partner-list" aria-label="Cab and auto partners">
+                <span>Uber</span><span>Ola</span><span>Rapido</span><span>Namma Yatri</span><span>Google Maps Local</span>
+              </div>
+            </article>
+
+            <article class="partner-card">
+              <div class="partner-top">
+                <div class="partner-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M5 6h14v12H5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                    <path d="M8 10h8M8 14h5M17 6v12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </div>
+                <span class="partner-tag">Places</span>
+              </div>
+              <h3>Tickets and platform services</h3>
+              <p>Destination tickets, map routes, reviews, storage, authentication, and admin controls stay connected to the same place data.</p>
+              <div class="partner-list" aria-label="Place ticket and platform partners">
+                <span>Official Ticket Search</span><span>GetYourGuide</span><span>Google Maps Platform</span><span>Supabase</span><span>Flutter</span>
+              </div>
+            </article>
+          </div>
+
+          <p class="partner-note">
+            Partner labels describe supported booking, routing, and platform
+            destinations in UniSafeX. Commercial status can be updated as
+            official agreements go live.
+          </p>
         </section>
 
         <section id="platforms">
