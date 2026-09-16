@@ -592,6 +592,132 @@
         line-height: 1.6;
       }
 
+      .partner-form-card {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: minmax(260px, 0.58fr) minmax(320px, 1fr);
+        gap: 24px;
+        padding: 28px;
+        border: 1px solid rgba(26, 107, 74, 0.16);
+        border-radius: 28px;
+        background:
+          radial-gradient(circle at top right, rgba(245, 166, 35, 0.24), transparent 32%),
+          linear-gradient(135deg, #fff, #eef7f2);
+        box-shadow: var(--shadow);
+      }
+
+      .partner-form-copy h3 {
+        margin: 0 0 10px;
+        font-size: 1.55rem;
+      }
+
+      .partner-form-copy p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.65;
+      }
+
+      .partner-form {
+        display: grid;
+        gap: 14px;
+      }
+
+      .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .field {
+        display: grid;
+        gap: 7px;
+        color: var(--primary-dark);
+        font-size: 0.9rem;
+        font-weight: 800;
+      }
+
+      .field.full {
+        grid-column: 1 / -1;
+      }
+
+      .field input,
+      .field select,
+      .field textarea {
+        width: 100%;
+        min-height: 48px;
+        padding: 12px 14px;
+        border: 1px solid var(--line);
+        border-radius: 15px;
+        background: #fff;
+        color: var(--ink);
+        font: inherit;
+        font-weight: 600;
+        outline: none;
+      }
+
+      .field textarea {
+        min-height: 118px;
+        resize: vertical;
+      }
+
+      .field input:focus,
+      .field select:focus,
+      .field textarea:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 4px rgba(26, 107, 74, 0.12);
+      }
+
+      .check-row {
+        display: grid;
+        grid-template-columns: 20px 1fr;
+        gap: 10px;
+        align-items: start;
+        color: var(--muted);
+        line-height: 1.55;
+        font-size: 0.94rem;
+      }
+
+      .check-row input {
+        width: 18px;
+        height: 18px;
+        margin-top: 2px;
+        accent-color: var(--primary);
+      }
+
+      .partner-submit {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        justify-self: start;
+        min-height: 50px;
+        padding: 0 22px;
+        border: 0;
+        border-radius: 999px;
+        background: var(--primary);
+        color: #fff;
+        font: inherit;
+        font-weight: 900;
+        cursor: pointer;
+      }
+
+      .partner-submit:hover {
+        background: var(--primary-dark);
+      }
+
+      .form-status {
+        margin: 0;
+        padding: 12px 14px;
+        border-radius: 15px;
+        background: #fff8eb;
+        color: #634a15;
+        line-height: 1.5;
+        font-weight: 700;
+      }
+
+      .form-status[hidden] {
+        display: none;
+      }
+
       .platform {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -689,6 +815,11 @@
           grid-template-columns: 1fr;
         }
 
+        .partner-form-card,
+        .form-grid {
+          grid-template-columns: 1fr;
+        }
+
         .quick-strip {
           margin-top: -22px;
         }
@@ -750,7 +881,7 @@
           <a href="#partners">Partners</a>
           <a href="#platforms">Platforms</a>
         </nav>
-        <a class="nav-cta" href="#partners">Partners</a>
+        <a class="nav-cta" href="#partners">Partner With Us</a>
       </header>
 
       <section class="hero" id="top" aria-label="UniSafeX introduction">
@@ -956,13 +1087,13 @@
         <section id="partners">
           <div class="section-head">
             <div>
-              <p class="kicker">Partner Ecosystem</p>
-              <h2>Travel links prepared across stays, routes, rides, and tickets.</h2>
+              <p class="kicker">Partnerships</p>
+              <h2>Want to partner with UniSafeX?</h2>
             </div>
             <p class="lead">
-              UniSafeX keeps booking and route actions close to the place a
-              tourist is viewing, with city-aware partner options instead of
-              one generic list for every location.
+              We are inviting interest from trusted hotels, guides, transport
+              teams, ticketing providers, and local services that can make
+              travel in India safer and easier.
             </p>
           </div>
 
@@ -977,10 +1108,10 @@
                 </div>
                 <span class="partner-tag">Hotels</span>
               </div>
-              <h3>Stay booking</h3>
-              <p>Hotel discovery and price comparison links for travelers planning a safe stay near their destination.</p>
-              <div class="partner-list" aria-label="Hotel booking partners">
-                <span>Booking.com</span><span>Agoda</span><span>Expedia</span><span>Trip.com</span>
+              <h3>Hotels and safe stays</h3>
+              <p>For properties that can support verified stays, tourist-friendly information, and safer local arrival guidance.</p>
+              <div class="partner-list" aria-label="Hotel partnership areas">
+                <span>Hotels</span><span>Hostels</span><span>Homestays</span><span>Travel desks</span>
               </div>
             </article>
 
@@ -991,12 +1122,12 @@
                     <path d="M3 13l18-8-8 18-2.8-7.2L3 13z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
                   </svg>
                 </div>
-                <span class="partner-tag">Air</span>
+                <span class="partner-tag">Guides</span>
               </div>
-              <h3>Flight search</h3>
-              <p>Partner website redirects for route and fare search, keeping flight booking outside the app checkout.</p>
-              <div class="partner-list" aria-label="Flight search partners">
-                <span>Skyscanner</span><span>KAYAK</span><span>Expedia</span><span>Trip.com</span>
+              <h3>Guides and local experts</h3>
+              <p>For verified guides, local experts, and tourism helpers who can support visitors with reliable on-ground help.</p>
+              <div class="partner-list" aria-label="Guide partnership areas">
+                <span>City guides</span><span>Monument guides</span><span>Language help</span><span>Safety support</span>
               </div>
             </article>
 
@@ -1008,12 +1139,12 @@
                     <path d="M7 9h10M8 18l-2 2M16 18l2 2M8 14h.01M16 14h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                   </svg>
                 </div>
-                <span class="partner-tag">Bus + Rail</span>
+                <span class="partner-tag">Mobility</span>
               </div>
-              <h3>Intercity transport</h3>
-              <p>Bus and train partner paths use station-style pickers and official travel contexts before redirecting.</p>
-              <div class="partner-list" aria-label="Bus and train partners">
-                <span>redBus</span><span>AbhiBus</span><span>MakeMyTrip Bus</span><span>IRCTC</span><span>ConfirmTkt</span><span>MakeMyTrip Train</span>
+              <h3>Transport operators</h3>
+              <p>For bus, rail, metro, cab, and local mobility providers who want cleaner route and booking handoffs.</p>
+              <div class="partner-list" aria-label="Transport partnership areas">
+                <span>Bus</span><span>Metro</span><span>Train</span><span>Cab</span><span>Auto</span><span>Airport transfer</span>
               </div>
             </article>
 
@@ -1025,54 +1156,77 @@
                     <path d="M8 8h8M8 12h8M8 18l-2 2M16 18l2 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                   </svg>
                 </div>
-                <span class="partner-tag">Metro</span>
+                <span class="partner-tag">Experiences</span>
               </div>
-              <h3>City metro support</h3>
-              <p>Delhi metro flows focus on Delhi NCR, showing line context, stops, interchange guidance, and QR-ticket readiness.</p>
-              <div class="partner-list" aria-label="Metro partners">
-                <span>Google Maps Transit</span><span>Delhi Metro</span><span>Amazon Pay Metro</span><span>Metro Rail Info</span>
-              </div>
-            </article>
-
-            <article class="partner-card">
-              <div class="partner-top">
-                <div class="partner-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none">
-                    <path d="M5 15l1.5-5A3 3 0 0 1 9.4 8h5.2a3 3 0 0 1 2.9 2l1.5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M4 15h16v4H4zM7 19v1M17 19v1M7 15h.01M17 15h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </div>
-                <span class="partner-tag">Local rides</span>
-              </div>
-              <h3>Cab and auto pickup</h3>
-              <p>Local ride options can start from the traveler's current location and point directly to the selected place.</p>
-              <div class="partner-list" aria-label="Cab and auto partners">
-                <span>Uber</span><span>Ola</span><span>Rapido</span><span>Namma Yatri</span><span>Google Maps Local</span>
+              <h3>Tickets and city services</h3>
+              <p>For official ticketing teams, experience providers, and destination services that want safer visitor flows.</p>
+              <div class="partner-list" aria-label="Ticket and city service partnership areas">
+                <span>Attraction tickets</span><span>Events</span><span>Museums</span><span>Local services</span>
               </div>
             </article>
 
-            <article class="partner-card">
-              <div class="partner-top">
-                <div class="partner-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none">
-                    <path d="M5 6h14v12H5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                    <path d="M8 10h8M8 14h5M17 6v12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
+            <article class="partner-form-card" aria-label="Partnership interest form">
+              <div class="partner-form-copy">
+                <h3>Partnership interest form</h3>
+                <p>
+                  Share your organization details and the type of collaboration
+                  you want to explore. Official partner names and logos will be
+                  added only after UniSafeX approval.
+                </p>
+              </div>
+              <form class="partner-form" data-partner-form>
+                <div class="form-grid">
+                  <label class="field">
+                    Organization name
+                    <input name="organization" autocomplete="organization" required />
+                  </label>
+                  <label class="field">
+                    Contact person
+                    <input name="contact" autocomplete="name" required />
+                  </label>
+                  <label class="field">
+                    Email or phone
+                    <input name="contactDetail" autocomplete="email" required />
+                  </label>
+                  <label class="field">
+                    Partnership type
+                    <select name="category" required>
+                      <option value="">Select one</option>
+                      <option>Hotel or stay</option>
+                      <option>Guide or local expert</option>
+                      <option>Transport provider</option>
+                      <option>Ticketing or experience</option>
+                      <option>Safety or support service</option>
+                      <option>Technology or API collaboration</option>
+                    </select>
+                  </label>
+                  <label class="field">
+                    City or region
+                    <input name="region" autocomplete="address-level2" required />
+                  </label>
+                  <label class="field">
+                    Website or profile
+                    <input name="website" autocomplete="url" />
+                  </label>
+                  <label class="field full">
+                    How can you help UniSafeX travelers?
+                    <textarea name="message" required></textarea>
+                  </label>
                 </div>
-                <span class="partner-tag">Places</span>
-              </div>
-              <h3>Tickets and platform services</h3>
-              <p>Destination tickets, map routes, reviews, storage, authentication, and admin controls stay connected to the same place data.</p>
-              <div class="partner-list" aria-label="Place ticket and platform partners">
-                <span>Official Ticket Search</span><span>GetYourGuide</span><span>Google Maps Platform</span><span>Supabase</span><span>Flutter</span>
-              </div>
+                <label class="check-row">
+                  <input type="checkbox" required />
+                  <span>I understand this is a partnership interest request and official listing requires UniSafeX review and approval.</span>
+                </label>
+                <button class="partner-submit" type="submit">Submit Interest</button>
+                <p class="form-status" data-form-status hidden></p>
+              </form>
             </article>
           </div>
 
           <p class="partner-note">
-            Partner labels describe supported booking, routing, and platform
-            destinations in UniSafeX. Commercial status can be updated as
-            official agreements go live.
+            UniSafeX is not claiming any official partners here yet. This
+            section is for organizations that want to apply and be reviewed by
+            the UniSafeX team.
           </p>
         </section>
 
@@ -1122,5 +1276,20 @@
         <span>Tourism safety, maps, reviews, guides, and booking flows.</span>
       </footer>
     </div>
+    <script>
+      const partnerForm = document.querySelector("[data-partner-form]");
+      const partnerStatus = document.querySelector("[data-form-status]");
+
+      if (partnerForm && partnerStatus) {
+        partnerForm.addEventListener("submit", (event) => {
+          event.preventDefault();
+          const formData = new FormData(partnerForm);
+          const organization = String(formData.get("organization") || "your organization").trim();
+          partnerStatus.textContent = `Thank you, ${organization}. Your partnership interest is ready for UniSafeX review.`;
+          partnerStatus.hidden = false;
+          partnerForm.reset();
+        });
+      }
+    </script>
   </body>
 </html>
