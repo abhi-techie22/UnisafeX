@@ -22,7 +22,7 @@ val keystoreProperties = Properties().apply {
 }
 
 android {
-    namespace = "com.example.unisafex"
+    namespace = "com.unisafex.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -36,7 +36,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.unisafex"
+        applicationId = "com.unisafex.app"
         minSdk = 24
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

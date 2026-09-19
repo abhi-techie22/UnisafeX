@@ -1,4 +1,4 @@
-package com.example.unisafex
+package com.unisafex.app
 
 import io.flutter.embedding.android.FlutterActivity
 
